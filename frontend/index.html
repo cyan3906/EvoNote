@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Evonote</title>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232f6f65'/%3E%3Cpath d='M20 17h25v8H29v8h14v8H29v8h17v8H20z' fill='white'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="/static/styles/main.css" />
+  </head>
+  <body>
+    <main class="login-page">
+      <section class="login-panel" aria-labelledby="login-title">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">E</span>
+          <div>
+            <p class="eyebrow">Evonote</p>
+            <h1 id="login-title">进入笔记空间</h1>
+          </div>
+        </div>
+
+        <form id="login-form" class="login-form">
+          <label for="password">访问密码</label>
+          <div class="password-row">
+            <input
+              id="password"
+              name="password"
+              type="password"
+              autocomplete="current-password"
+              placeholder="请输入密码"
+              required
+            />
+            <button id="toggle-password" class="icon-button" type="button" aria-label="显示密码">
+              <svg aria-hidden="true" viewBox="0 0 24 24">
+                <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </button>
+          </div>
+
+          <p id="login-message" class="message" role="status" aria-live="polite"></p>
+
+          <button id="login-button" class="primary-button" type="submit">登录</button>
+        </form>
+      </section>
+
+      <section id="note-shell" class="note-shell" hidden>
+        <header class="app-header">
+          <div class="brand compact">
+            <span class="brand-mark" aria-hidden="true">E</span>
+            <div>
+              <p class="eyebrow">Evonote</p>
+              <h2>笔记</h2>
+            </div>
+          </div>
+
+          <div class="header-actions">
+            <p id="save-status" class="save-status" role="status" aria-live="polite">已保存</p>
+            <a class="ghost-link" href="/info/markdown" target="_blank" rel="noreferrer">Markdown 帮助</a>
+            <button id="logout-button" class="ghost-button" type="button">退出</button>
+          </div>
+        </header>
+
+        <div class="workspace">
+          <aside class="note-list-pane" aria-label="笔记列表">
+            <div class="list-tools">
+              <label class="search-box" for="note-search">
+                <svg aria-hidden="true" viewBox="0 0 24 24">
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="m20 20-3.5-3.5" />
+                </svg>
+                <input id="note-search" type="search" placeholder="搜索笔记" />
+              </label>
+              <button id="new-note-button" class="square-button" type="button" aria-label="新建笔记">
+                <svg aria-hidden="true" viewBox="0 0 24 24">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+              </button>
+            </div>
+
+            <div id="note-list" class="note-list"></div>
+          </aside>
+
+          <article class="editor-pane" aria-label="写笔记">
+            <div class="editor-topbar">
+              <input id="note-title" class="title-input" type="text" placeholder="无标题笔记" />
+              <button id="delete-note-button" class="danger-button" type="button">删除</button>
+            </div>
+
+            <input id="note-tags" class="tag-input" type="text" placeholder="标签，用逗号分隔" />
+
+            <div class="markdown-toolbar" aria-label="Markdown 工具">
+              <div class="format-group">
+                <button class="format-button" type="button" data-format="heading" title="标题">H</button>
+                <button class="format-button" type="button" data-format="bullet" title="无序列表">-</button>
+                <button class="format-button" type="button" data-format="numbered" title="有序列表">1.</button>
+                <button class="format-button" type="button" data-format="nested" title="嵌套列表">↳</button>
+                <button class="format-button" type="button" data-format="check" title="待办">☐</button>
+                <button class="format-button" type="button" data-format="quote" title="引用">“</button>
+                <button class="format-button" type="button" data-format="inline-code" title="行内代码">`</button>
+                <button class="format-button" type="button" data-format="code-block" title="代码块">&lt;/&gt;</button>
+              </div>
+
+              <div class="mode-controls" aria-label="视图模式">
+                <button class="mode-button" type="button" data-mode="write">编辑</button>
+                <button class="mode-button is-active" type="button" data-mode="split">分屏</button>
+                <button class="mode-button" type="button" data-mode="preview">预览</button>
+              </div>
+            </div>
+
+            <div id="editor-workbench" class="editor-workbench" data-view-mode="split">
+              <textarea
+                id="note-body"
+                class="body-input"
+                placeholder="- 写列表&#10;  - 用两个空格缩进成子列表&#10;&#10;```js&#10;console.log('Evonote')&#10;```"
+                spellcheck="false"
+              ></textarea>
+              <section id="markdown-preview" class="markdown-preview" aria-label="Markdown 预览"></section>
+            </div>
+
+            <footer class="editor-footer">
+              <span id="note-updated">刚刚更新</span>
+              <button id="manual-save-button" class="secondary-button" type="button">保存</button>
+            </footer>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="/static/src/app.mjs"></script>
+  </body>
+</html>

@@ -1,10 +1,19 @@
 from __future__ import annotations
+import sys
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+# print(PROJECT_ROOT)
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.append(str(PROJECT_ROOT))
+
+print(PROJECT_ROOT)
 
 import json
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 from uuid import uuid4
-
+from openai import OpenAI
 from app.core.config import settings
 
 RelationType = Literal["包括", "关联", "冲突"]
@@ -148,7 +157,20 @@ RELATION_PROMPT_TEMPLATE = """
 
 class KnowledgeAssociationAgent:
     def __init__(self, prompt_template: str = RELATION_PROMPT_TEMPLATE) -> None:
+        
+        
+        print(settings.agent_api_key)
+        print(settings.agent_model)
+        print(settings.agent_timeout_seconds)
+        
+        self.client = OpenAI(
+            api_key=settings.agent_api_key,
+            base_url=settings.agent_api_base_url.strip(),
+            timeout=settings.agent_timeout_seconds,
+        )
+        
         self.prompt_template = prompt_template
+
 
     def associate(
         self,
@@ -188,18 +210,7 @@ class KnowledgeAssociationAgent:
         if not settings.agent_api_key or settings.agent_api_key == "change-me":
             return None
 
-        try:
-            from openai import OpenAI
-        except ImportError:
-            return None
-
-        client = OpenAI(
-            api_key=settings.agent_api_key,
-            base_url=settings.agent_api_base_url.strip(),
-            timeout=settings.agent_timeout_seconds,
-        )
-
-        response = client.chat.completions.create(
+        response = self.client.chat.completions.create(
             model=settings.agent_model,
             temperature=0,
             messages=[
@@ -414,3 +425,16 @@ def build_knowledge_item(
         keywords=keywords or (),
         tags=tags or (),
     )
+
+
+
+if __name__ == "__main__":
+    agent = KnowledgeAssociationAgent()
+    result = agent.associate(
+        source=build_knowledge_item("内存利用率", "内存利用率是指计算机内存中未被使用的比例。"),
+        candidates=(
+            build_knowledge_item("内存利用率", "内存利用率是指计算机内存中未被使用的比例。"),
+            build_knowledge_item("缺页中断", "缺页中断是指计算机在执行程序时，由于内存中没有足够的空间来存储当前程序的指令或数据，而需要从磁盘读取数据到内存中的情况。"),
+        ),
+    )
+    print(result)

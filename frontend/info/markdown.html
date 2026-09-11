@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Markdown 用法 - Evonote</title>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232f6f65'/%3E%3Cpath d='M20 17h25v8H29v8h14v8H29v8h17v8H20z' fill='white'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="/static/styles/main.css" />
+  </head>
+  <body class="info-body">
+    <main class="markdown-guide">
+      <header class="guide-header">
+        <a class="guide-back" href="/">返回笔记</a>
+        <p class="eyebrow">Evonote Markdown</p>
+        <h1>Markdown 写法说明</h1>
+        <p class="guide-lede">用少量符号整理笔记结构：标题、列表、嵌套列表、待办和代码块都可以直接写。</p>
+      </header>
+
+      <section class="guide-grid" aria-label="Markdown 用法示例">
+        <article class="guide-card">
+          <h2>标题</h2>
+          <pre><code># 一级标题
+## 二级标题
+### 三级标题</code></pre>
+        </article>
+
+        <article class="guide-card">
+          <h2>无序列表</h2>
+          <pre><code>- 第一件事
+- 第二件事
+- 第三件事</code></pre>
+        </article>
+
+        <article class="guide-card">
+          <h2>列表套列表</h2>
+          <pre><code>- 学习计划
+  - 看文档
+  - 写示例
+    - 记录问题
+- 明天复盘</code></pre>
+          <p>子列表前面输入两个空格。编辑器里按 Tab 也会插入两个空格。</p>
+        </article>
+
+        <article class="guide-card">
+          <h2>有序列表</h2>
+          <pre><code>1. 打开笔记
+2. 写下想法
+3. 保存整理</code></pre>
+        </article>
+
+        <article class="guide-card">
+          <h2>待办</h2>
+          <pre><code>- [ ] 还没完成
+- [x] 已经完成</code></pre>
+        </article>
+
+        <article class="guide-card">
+          <h2>引用</h2>
+          <pre><code>> 这是一段引用
+> 可以连续写多行</code></pre>
+        </article>
+
+        <article class="guide-card">
+          <h2>行内代码</h2>
+          <pre><code>使用 `console.log()` 做调试。</code></pre>
+        </article>
+
+        <article class="guide-card">
+          <h2>代码块</h2>
+          <pre><code>```js
+function hello() {
+  console.log("Evonote");
+}
+```</code></pre>
+        </article>
+
+        <article class="guide-card">
+          <h2>加粗和斜体</h2>
+          <pre><code>**重点内容**
+*补充说明*</code></pre>
+        </article>
+
+        <article class="guide-card">
+          <h2>链接</h2>
+          <pre><code>[OpenAI](https://openai.com)</code></pre>
+        </article>
+
+        <article class="guide-card">
+          <h2>分隔线</h2>
+          <pre><code>---</code></pre>
+        </article>
+
+        <article class="guide-card">
+          <h2>组合示例</h2>
+          <pre><code># 今天的学习
+
+- Markdown 列表
+  - 嵌套列表
+- 代码记录
+
+```python
+print("hello")
+```</code></pre>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

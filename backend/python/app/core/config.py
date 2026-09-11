@@ -9,9 +9,12 @@ class Settings(BaseSettings):
     port: int = 8000
 
     agent_api_base_url: str = "https://api.uiuihao.com/v1" 
-    agent_api_key: str = "change-me"
-    agent_model: str = "default-agent"
+    agent_api_key: str = "sk-EvGLrMBijuYrWTRfHSYEr5qGATNAfPBJ1q1l9WtwXHyzQ3ee"
+    agent_model: str = "gpt-4o-mini"
     agent_timeout_seconds: int = 30
+
+    auth_password: str = "evonote2026"
+    auth_token: str = "evonote-dev-token"
 
     redis_host: str = "127.0.0.1"
     redis_port: int = 6379

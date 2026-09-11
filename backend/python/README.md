@@ -12,7 +12,19 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
+Open http://127.0.0.1:8000/ for the Evonote login screen.
 Open http://127.0.0.1:8000/docs for the interactive API docs.
+
+## Auth API
+
+- `POST /api/auth/login`: submit a password and receive a bearer token for the current development login flow.
+
+The default development password is `evonote2026`. Override it in `.env` before sharing or deploying the app:
+
+```text
+AUTH_PASSWORD=your-password
+AUTH_TOKEN=replace-with-a-long-random-token
+```
 
 ## Knowledge association API
 
