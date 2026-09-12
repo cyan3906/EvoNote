@@ -4,7 +4,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
 from app.core import database
-from app.core.evolution import apply_suggestion, get_note_evolution_state, reject_suggestion, scan_note
+from app.core.evolution import (
+    EvolutionModelError,
+    apply_suggestion,
+    get_note_evolution_state,
+    reject_suggestion,
+    scan_note,
+)
 from app.core.security import require_auth
 
 router = APIRouter(prefix="/evolution", tags=["evolution"], dependencies=[Depends(require_auth)])
@@ -72,7 +78,10 @@ class EvolutionStateResponse(BaseModel):
 
 
 def _state_or_404(note_id: str) -> dict[str, object]:
-    state = get_note_evolution_state(note_id)
+    try:
+        state = get_note_evolution_state(note_id)
+    except EvolutionModelError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
 
     if not state:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="笔记不存在")
@@ -87,7 +96,10 @@ def read_note_evolution(note_id: str) -> dict[str, object]:
 
 @router.post("/notes/{note_id}/scan", response_model=EvolutionStateResponse)
 def scan_note_evolution(note_id: str) -> dict[str, object]:
-    state = scan_note(note_id)
+    try:
+        state = scan_note(note_id)
+    except EvolutionModelError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
 
     if not state:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="笔记不存在")

@@ -57,12 +57,12 @@ PDF and Word export are generated with Python's standard library.
 Evonote maintains extra knowledge layers for every note:
 
 - `L1`: the original Markdown note body.
-- `L2`: a short summary for reading and model context.
-- `L3`: keywords and a lightweight local vector for retrieval.
-- `Claims`: small comparable knowledge points extracted from L1.
+- `L2`: a model-generated short summary for reading and model context.
+- `L3`: model-generated retrieval text and keywords.
+- `Claims`: model-extracted comparable knowledge points from L1.
 - `Patches`: merge suggestions that can append, mark duplicates, or record conflicts.
 
-Related notes are found with L3 keywords/vectors and then compared at claim level. Suggestions are stored first, so risky changes can be reviewed before they alter a note.
+Related notes are found with L3 keywords and the current lightweight local vector index, then compared at claim level. Suggestions are stored first, so risky changes can be reviewed before they alter a note.
 
 - `GET /api/evolution/notes/{note_id}`: read L2/L3, blocks, claims, and pending suggestions.
 - `POST /api/evolution/notes/{note_id}/scan`: rebuild analysis and generate merge suggestions.

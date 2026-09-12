@@ -1,9 +1,14 @@
 import hashlib
+import json
 import math
 import re
+from typing import Any
 from uuid import uuid4
 
+from openai import OpenAI
+
 from app.core import database
+from app.core.config import settings
 
 VECTOR_SIZE = 64
 MAX_CANDIDATE_CLAIMS = 80
@@ -27,26 +32,6 @@ STOP_WORDS = {
     "this",
 }
 
-PREDICATES = (
-    "不是",
-    "不能",
-    "不会",
-    "没有",
-    "支持",
-    "属于",
-    "包括",
-    "包含",
-    "适合",
-    "用于",
-    "导致",
-    "依赖",
-    "需要",
-    "可以",
-    "能够",
-    "会",
-    "是",
-)
-
 CONFLICT_PAIRS = (
     ("单线程", "多线程"),
     ("同步", "异步"),
@@ -57,6 +42,52 @@ CONFLICT_PAIRS = (
     ("可靠", "不可靠"),
     ("快", "慢"),
 )
+
+ANALYSIS_SYSTEM_PROMPT = """
+你是 Evonote 的知识结构化智能体。你的任务是从用户的 Markdown 笔记中生成 L2 摘要、L3 检索表达、关键词和 Claims。
+
+要求：
+- 只根据输入原文生成，不要补充原文没有的事实。
+- L2 summary 用中文，概括核心内容，不能超过 120 字。
+- L3 text 是用于语义检索的精练表达，包含主题、实体、概念、技术名词和问题场景。
+- keywords 输出 4-12 个关键词，优先保留专有名词、英文缩写、版本号、技术概念。
+- claims 是可比较的知识点，不要抽取寒暄、标题本身、纯格式说明。
+- 每个 claim 必须能在 source_text 中找到证据。
+- 不确定的 claim 不要输出。
+- 严格输出 JSON，不要 Markdown，不要解释。
+
+JSON 格式：
+{
+  "note": {
+    "l2_summary": "整篇笔记摘要",
+    "l3_text": "整篇笔记检索表达",
+    "keywords": ["关键词"]
+  },
+  "blocks": [
+    {
+      "block_index": 0,
+      "l2_summary": "该 block 摘要",
+      "l3_text": "该 block 检索表达",
+      "keywords": ["关键词"],
+      "claims": [
+        {
+          "claim_text": "完整知识点",
+          "subject": "主体",
+          "predicate": "关系/动作",
+          "object_text": "客体/结论",
+          "source_text": "原文证据",
+          "keywords": ["关键词"],
+          "confidence": 0.0
+        }
+      ]
+    }
+  ]
+}
+""".strip()
+
+
+class EvolutionModelError(RuntimeError):
+    pass
 
 
 def scan_note(note_id: str) -> dict[str, object] | None:
@@ -114,40 +145,46 @@ def get_note_evolution_state(note_id: str) -> dict[str, object] | None:
 
 def analyze_note(note: dict[str, str]) -> dict[str, object]:
     raw_blocks = split_note_blocks(note)
+    model_analysis = analyze_note_with_model(note, raw_blocks)
     blocks: list[dict[str, object]] = []
     claims: list[dict[str, object]] = []
+    model_blocks = normalize_model_blocks(model_analysis.get("blocks", []), expected_count=len(raw_blocks))
 
     for block_index, raw_block in enumerate(raw_blocks):
         block_id = str(uuid4())
         l1_text = raw_block["text"].strip()
-        keywords = extract_keywords(f"{raw_block['heading']} {l1_text}", limit=10)
+        model_block = model_blocks[block_index]
+        keywords = clean_keywords(model_block.get("keywords", []), limit=12)
+        l3_text = clean_text(model_block.get("l3_text", "")) or " ".join(keywords)
         block = {
             "id": block_id,
             "note_id": note["id"],
             "block_index": block_index,
             "heading": raw_block["heading"],
             "l1_text": l1_text,
-            "l2_summary": summarize_text(l1_text),
-            "l3_text": " ".join(keywords),
+            "l2_summary": clean_text(model_block.get("l2_summary", "")),
+            "l3_text": l3_text,
             "keywords": keywords,
         }
         blocks.append(block)
 
-        for claim_index, claim in enumerate(extract_claims(l1_text, keywords)):
+        for claim_index, claim in enumerate(normalize_model_claims(model_block.get("claims", []), l1_text)):
             claim["id"] = str(uuid4())
             claim["note_id"] = note["id"]
             claim["block_id"] = block_id
             claim["claim_index"] = claim_index
+            claim["vector"] = text_vector(" ".join(claim["keywords"] + [claim["claim_text"]]))
             claims.append(claim)
 
-    full_text = "\n".join(block["l1_text"] for block in blocks)
-    note_keywords = extract_keywords(f"{note['title']} {note['tags']} {full_text}", limit=14)
+    model_note = model_analysis.get("note", {})
+    note_keywords = clean_keywords(model_note.get("keywords", []), limit=14)
+    note_l3_text = clean_text(model_note.get("l3_text", "")) or " ".join(note_keywords)
     representation = {
         "note_id": note["id"],
-        "l2_summary": summarize_text(full_text, limit=180),
-        "l3_text": " ".join(note_keywords),
+        "l2_summary": clean_text(model_note.get("l2_summary", "")),
+        "l3_text": note_l3_text,
         "keywords": note_keywords,
-        "vector": text_vector(" ".join(note_keywords)),
+        "vector": text_vector(f"{note_l3_text} {' '.join(note_keywords)}"),
     }
 
     return {
@@ -155,6 +192,189 @@ def analyze_note(note: dict[str, str]) -> dict[str, object]:
         "blocks": blocks,
         "claims": claims,
     }
+
+
+def analyze_note_with_model(note: dict[str, str], raw_blocks: list[dict[str, str]]) -> dict[str, Any]:
+    api_key = settings.evolution_api_key.strip() or settings.agent_api_key.strip()
+    api_base_url = settings.evolution_api_base_url.strip() or settings.agent_api_base_url.strip()
+    model = settings.evolution_model.strip() or settings.agent_model.strip()
+    timeout = settings.evolution_timeout_seconds or settings.agent_timeout_seconds
+
+    if not api_key or api_key == "change-me" or api_key == "your-agent-api-key":
+        raise EvolutionModelError("未配置 Evolution 大模型 API Key，无法生成 L2/L3/Claims")
+
+    if not model:
+        raise EvolutionModelError("未配置 Evolution 大模型模型名")
+
+    payload = {
+        "note": {
+            "id": note["id"],
+            "title": note["title"],
+            "tags": note["tags"],
+        },
+        "blocks": [
+            {
+                "block_index": index,
+                "heading": block["heading"],
+                "l1_text": block["text"],
+            }
+            for index, block in enumerate(raw_blocks)
+        ],
+    }
+
+    client = OpenAI(
+        api_key=api_key,
+        base_url=api_base_url or None,
+        timeout=timeout,
+    )
+
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            temperature=settings.evolution_temperature,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": ANALYSIS_SYSTEM_PROMPT},
+                {
+                    "role": "user",
+                    "content": json.dumps(payload, ensure_ascii=False, indent=2),
+                },
+            ],
+        )
+    except Exception as exc:
+        raise EvolutionModelError(f"调用 Evolution 大模型失败：{exc}") from exc
+
+    content = response.choices[0].message.content or "{}"
+
+    try:
+        data = json.loads(content)
+    except json.JSONDecodeError as exc:
+        raise EvolutionModelError("Evolution 大模型没有返回合法 JSON") from exc
+
+    validate_model_analysis(data, expected_blocks=len(raw_blocks))
+    return data
+
+
+def validate_model_analysis(data: dict[str, Any], expected_blocks: int) -> None:
+    note = data.get("note")
+    blocks = data.get("blocks")
+
+    if not isinstance(note, dict):
+        raise EvolutionModelError("Evolution 大模型返回缺少 note 对象")
+
+    if not clean_text(note.get("l2_summary", "")):
+        raise EvolutionModelError("Evolution 大模型返回缺少 note.l2_summary")
+
+    if not isinstance(blocks, list) or len(blocks) != expected_blocks:
+        raise EvolutionModelError("Evolution 大模型返回的 blocks 数量与原文分块不一致")
+
+    for index, block in enumerate(blocks):
+        if not isinstance(block, dict):
+            raise EvolutionModelError(f"Evolution 大模型返回的 block {index} 不是对象")
+
+        if int(block.get("block_index", index)) != index:
+            raise EvolutionModelError(f"Evolution 大模型返回的 block_index 不连续：{index}")
+
+        if not clean_text(block.get("l2_summary", "")):
+            raise EvolutionModelError(f"Evolution 大模型返回缺少 block {index} 的 l2_summary")
+
+        claims = block.get("claims", [])
+
+        if claims is None:
+            block["claims"] = []
+            continue
+
+        if not isinstance(claims, list):
+            raise EvolutionModelError(f"Evolution 大模型返回的 block {index} claims 不是数组")
+
+
+def normalize_model_blocks(blocks: object, expected_count: int) -> list[dict[str, Any]]:
+    if not isinstance(blocks, list) or len(blocks) != expected_count:
+        raise EvolutionModelError("Evolution 大模型返回的 blocks 不可用")
+
+    normalized: list[dict[str, Any]] = []
+
+    for index, block in enumerate(blocks):
+        if not isinstance(block, dict):
+            raise EvolutionModelError(f"Evolution 大模型返回的 block {index} 不可用")
+
+        normalized.append(block)
+
+    return normalized
+
+
+def normalize_model_claims(claims: object, block_text: str) -> list[dict[str, object]]:
+    if not isinstance(claims, list):
+        return []
+
+    normalized: list[dict[str, object]] = []
+    seen: set[str] = set()
+
+    for item in claims[:24]:
+        if not isinstance(item, dict):
+            continue
+
+        claim_text = clean_text(item.get("claim_text", ""))
+        source_text = clean_text(item.get("source_text", "")) or claim_text
+
+        if len(claim_text) < 4:
+            continue
+
+        fingerprint = normalize_text(claim_text)
+
+        if not fingerprint or fingerprint in seen:
+            continue
+
+        seen.add(fingerprint)
+        keywords = clean_keywords(item.get("keywords", []), limit=8)
+        normalized.append(
+            {
+                "claim_text": claim_text,
+                "subject": clean_text(item.get("subject", ""))[:48],
+                "predicate": clean_text(item.get("predicate", ""))[:40] or "related_to",
+                "object_text": clean_text(item.get("object_text", ""))[:160],
+                "source_text": source_text[:220],
+                "keywords": keywords,
+                "confidence": normalize_confidence(item.get("confidence", 0.7)),
+            }
+        )
+
+    return normalized
+
+
+def clean_text(value: object) -> str:
+    return re.sub(r"\s+", " ", str(value or "")).strip()
+
+
+def clean_keywords(value: object, limit: int) -> list[str]:
+    if not isinstance(value, list):
+        return []
+
+    keywords: list[str] = []
+    seen: set[str] = set()
+
+    for item in value:
+        keyword = clean_text(item).strip("，,;；")
+
+        if not keyword or keyword in seen:
+            continue
+
+        seen.add(keyword)
+        keywords.append(keyword[:40])
+
+        if len(keywords) >= limit:
+            break
+
+    return keywords
+
+
+def normalize_confidence(value: object) -> float:
+    try:
+        confidence = float(value)
+    except (TypeError, ValueError):
+        confidence = 0.7
+
+    return max(0.0, min(1.0, confidence))
 
 
 def split_note_blocks(note: dict[str, str]) -> list[dict[str, str]]:
@@ -185,99 +405,6 @@ def split_note_blocks(note: dict[str, str]) -> list[dict[str, str]]:
         blocks.append({"heading": current_heading, "text": "\n".join(current_lines)})
 
     return [block for block in blocks if block["text"].strip()] or [{"heading": current_heading, "text": ""}]
-
-
-def summarize_text(text: str, limit: int = 120) -> str:
-    cleaned = re.sub(r"\s+", " ", strip_markdown(text)).strip()
-
-    if not cleaned:
-        return "空白笔记，等待继续补充。"
-
-    sentence_match = re.split(r"(?<=[。！？.!?])\s+", cleaned, maxsplit=1)
-    summary = sentence_match[0] if sentence_match else cleaned
-
-    if len(summary) < 24 and len(cleaned) > len(summary):
-        summary = cleaned
-
-    return summary[:limit].rstrip()
-
-
-def extract_claims(text: str, fallback_keywords: list[str]) -> list[dict[str, object]]:
-    claims: list[dict[str, object]] = []
-    clean_lines = []
-    in_code_block = False
-
-    for line in text.splitlines():
-        stripped = line.strip()
-
-        if stripped.startswith("```"):
-            in_code_block = not in_code_block
-            continue
-
-        if in_code_block:
-            continue
-
-        stripped = re.sub(r"^#{1,6}\s+", "", stripped)
-        stripped = re.sub(r"^[-+*]\s+(\[[ xX]\]\s+)?", "", stripped)
-        stripped = re.sub(r"^\d+[.)]\s+", "", stripped)
-
-        if stripped:
-            clean_lines.append(stripped)
-
-    fragments = re.split(r"[。！？!?；;]\s*|\n+", "\n".join(clean_lines))
-
-    for fragment in fragments:
-        claim_text = re.sub(r"\s+", " ", fragment).strip(" -")
-
-        if len(claim_text) < 6:
-            continue
-
-        subject, predicate, object_text = parse_claim_parts(claim_text, fallback_keywords)
-        keywords = extract_keywords(claim_text, limit=8) or fallback_keywords[:4]
-        claims.append(
-            {
-                "claim_text": claim_text,
-                "subject": subject,
-                "predicate": predicate,
-                "object_text": object_text,
-                "source_text": claim_text,
-                "keywords": keywords,
-                "vector": text_vector(" ".join(keywords + [claim_text])),
-                "confidence": 0.72,
-            }
-        )
-
-    return dedupe_claims(claims)
-
-
-def parse_claim_parts(text: str, fallback_keywords: list[str]) -> tuple[str, str, str]:
-    for predicate in PREDICATES:
-        if predicate not in text:
-            continue
-
-        left, right = text.split(predicate, 1)
-        subject = left.strip(" ，,：:") or (fallback_keywords[0] if fallback_keywords else text[:12])
-        object_text = right.strip(" ，,：:") or text
-        return subject[:48], predicate, object_text[:120]
-
-    subject = fallback_keywords[0] if fallback_keywords else text[:12]
-    return subject[:48], "related_to", text[:120]
-
-
-def dedupe_claims(claims: list[dict[str, object]]) -> list[dict[str, object]]:
-    unique: list[dict[str, object]] = []
-    seen: set[str] = set()
-
-    for claim in claims:
-        fingerprint = normalize_text(str(claim["claim_text"]))
-
-        if fingerprint in seen:
-            continue
-
-        seen.add(fingerprint)
-        unique.append(claim)
-
-    return unique[:24]
 
 
 def build_merge_suggestions(
@@ -475,19 +602,6 @@ def strip_markdown(text: str) -> str:
     text = re.sub(r"^\d+[.)]\s+", "", text, flags=re.MULTILINE)
     text = re.sub(r"[*_>\[\]()]|https?://\S+", " ", text)
     return text
-
-
-def extract_keywords(text: str, limit: int = 12) -> list[str]:
-    tokens = tokenize(text)
-    scores: dict[str, float] = {}
-
-    for index, token in enumerate(tokens):
-        if token in STOP_WORDS:
-            continue
-
-        scores[token] = scores.get(token, 0.0) + 1.0 + max(0.0, 0.4 - (index * 0.01))
-
-    return [token for token, _score in sorted(scores.items(), key=lambda item: item[1], reverse=True)[:limit]]
 
 
 def tokenize(text: str) -> list[str]:

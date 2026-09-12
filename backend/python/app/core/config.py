@@ -13,6 +13,12 @@ class Settings(BaseSettings):
     agent_model: str = "gpt-4o-mini"
     agent_timeout_seconds: int = 30
 
+    evolution_api_base_url: str = ""
+    evolution_api_key: str = ""
+    evolution_model: str = ""
+    evolution_timeout_seconds: int = 0
+    evolution_temperature: float = 0
+
     auth_password: str = "evonote2026"
     auth_token: str = "evonote-dev-token"
 
