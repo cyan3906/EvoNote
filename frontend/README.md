@@ -1,6 +1,6 @@
 # Evonote Frontend
 
-Frontend for the Evonote note app. It includes the login screen, note workspace, and Markdown editor preview.
+Frontend for the Evonote note app. It includes the login screen, note workspace, Markdown editor preview, and export controls.
 
 ## Structure
 
@@ -28,6 +28,8 @@ uvicorn app.main:app --reload
 Then open http://127.0.0.1:8000/ in a browser. The backend serves the login screen as the default note-space entry.
 
 The default development password is `evonote2026`.
+
+Notes are stored by the backend SQLite database, not browser cache.
 
 ## Test
 

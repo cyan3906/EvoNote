@@ -1,7 +1,6 @@
 import { markdownToHtml } from "./markdown.mjs";
 
 const API_BASE_URL = "http://127.0.0.1:8000/api";
-const NOTES_KEY = "evonote_notes";
 
 const page = document.querySelector(".login-page");
 const loginPanel = document.querySelector(".login-panel");
@@ -24,22 +23,32 @@ const manualSaveButton = document.querySelector("#manual-save-button");
 const deleteNoteButton = document.querySelector("#delete-note-button");
 const editorWorkbench = document.querySelector("#editor-workbench");
 const markdownPreview = document.querySelector("#markdown-preview");
+const exportFormat = document.querySelector("#export-format");
+const exportButton = document.querySelector("#export-button");
 const formatButtons = document.querySelectorAll("[data-format]");
 const modeButtons = document.querySelectorAll("[data-mode]");
 
+let authToken = "";
 let notes = [];
 let activeNoteId = null;
 let saveTimer = null;
 
-function createNote() {
-  const now = new Date().toISOString();
+function createSampleNotePayload() {
   return {
-    id: crypto.randomUUID(),
-    title: "",
-    tags: "",
-    body: "",
-    createdAt: now,
-    updatedAt: now,
+    title: "Markdown 示例",
+    tags: "markdown, evonote",
+    body: [
+      "# 今天的笔记",
+      "",
+      "- 先写一个想法",
+      "  - 再补一个子想法",
+      "  - 子列表可以继续展开",
+      "- 把结论放在最后",
+      "",
+      "```js",
+      "console.log('Evonote');",
+      "```",
+    ].join("\n"),
   };
 }
 
@@ -49,10 +58,7 @@ function showApp(isLoggedIn) {
   page.classList.toggle("is-authenticated", isLoggedIn);
 
   if (isLoggedIn) {
-    loadNotes();
-    renderNotes();
-    openNote(activeNoteId || notes[0]?.id);
-    noteTitle.focus();
+    loadNotes().then(() => noteTitle.focus()).catch(showError);
     return;
   }
 
@@ -66,6 +72,46 @@ function setMessage(text, isError = false) {
 
 function setSaveStatus(text) {
   saveStatus.textContent = text;
+}
+
+function showError(error) {
+  setSaveStatus(error.message || "操作失败");
+}
+
+async function apiRequest(path, options = {}) {
+  const headers = new Headers(options.headers || {});
+
+  if (options.body && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  if (authToken) {
+    headers.set("Authorization", `Bearer ${authToken}`);
+  }
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers,
+  });
+
+  if (!response.ok) {
+    let message = "请求失败";
+
+    try {
+      const result = await response.json();
+      message = result.detail || message;
+    } catch {
+      message = response.statusText || message;
+    }
+
+    throw new Error(message);
+  }
+
+  if (response.status === 204) {
+    return null;
+  }
+
+  return response.json();
 }
 
 async function login(password) {
@@ -84,38 +130,22 @@ async function login(password) {
   return response.json();
 }
 
-function loadNotes() {
-  try {
-    notes = JSON.parse(localStorage.getItem(NOTES_KEY) || "[]");
-  } catch {
-    notes = [];
-  }
+async function loadNotes() {
+  setSaveStatus("正在加载");
+  notes = await apiRequest("/notes");
 
   if (notes.length === 0) {
-    const firstNote = createNote();
-    firstNote.title = "Markdown 示例";
-    firstNote.body = [
-      "# 今天的笔记",
-      "",
-      "- 先写一个想法",
-      "  - 再补一个子想法",
-      "  - 子列表可以继续展开",
-      "- 把结论放在最后",
-      "",
-      "```js",
-      "console.log('Evonote');",
-      "```",
-    ].join("\n");
+    const firstNote = await apiRequest("/notes", {
+      method: "POST",
+      body: JSON.stringify(createSampleNotePayload()),
+    });
     notes = [firstNote];
-    activeNoteId = firstNote.id;
-    persistNotes();
   }
 
-  notes.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-}
-
-function persistNotes() {
-  localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+  activeNoteId = notes[0]?.id || null;
+  renderNotes();
+  openNote(activeNoteId);
+  setSaveStatus("已保存");
 }
 
 function getActiveNote() {
@@ -168,7 +198,10 @@ function renderNotes() {
     const button = document.createElement("button");
     button.className = `note-item${note.id === activeNoteId ? " is-active" : ""}`;
     button.type = "button";
-    button.addEventListener("click", () => openNote(note.id));
+    button.addEventListener("click", async () => {
+      await saveActiveNote();
+      openNote(note.id);
+    });
 
     const title = document.createElement("span");
     title.className = "note-item-title";
@@ -180,7 +213,7 @@ function renderNotes() {
 
     const meta = document.createElement("span");
     meta.className = "note-item-meta";
-    meta.textContent = formatDate(note.updatedAt);
+    meta.textContent = formatDate(note.updated_at);
 
     button.append(title, preview, meta);
     noteList.append(button);
@@ -188,6 +221,7 @@ function renderNotes() {
 }
 
 function openNote(noteId) {
+  window.clearTimeout(saveTimer);
   const note = notes.find((item) => item.id === noteId) || notes[0];
 
   if (!note) {
@@ -198,50 +232,63 @@ function openNote(noteId) {
   noteTitle.value = note.title;
   noteTags.value = note.tags;
   noteBody.value = note.body;
-  noteUpdated.textContent = `更新于 ${formatDate(note.updatedAt)}`;
+  noteUpdated.textContent = `更新于 ${formatDate(note.updated_at)}`;
   setSaveStatus("已保存");
   updatePreview();
   renderNotes();
 }
 
-function saveActiveNote() {
+async function saveActiveNote() {
   const note = getActiveNote();
 
   if (!note) {
-    return;
+    return null;
   }
 
-  note.title = noteTitle.value;
-  note.tags = noteTags.value;
-  note.body = noteBody.value;
-  note.updatedAt = new Date().toISOString();
+  window.clearTimeout(saveTimer);
+  setSaveStatus("正在保存");
 
-  notes.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-  persistNotes();
-  noteUpdated.textContent = `更新于 ${formatDate(note.updatedAt)}`;
+  const updated = await apiRequest(`/notes/${note.id}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      title: noteTitle.value,
+      tags: noteTags.value,
+      body: noteBody.value,
+    }),
+  });
+
+  notes = notes.filter((item) => item.id !== updated.id);
+  notes.unshift(updated);
+  activeNoteId = updated.id;
+  noteUpdated.textContent = `更新于 ${formatDate(updated.updated_at)}`;
   setSaveStatus("已保存");
   updatePreview();
   renderNotes();
+  return updated;
 }
 
 function queueSave() {
   window.clearTimeout(saveTimer);
   setSaveStatus("正在输入");
   updatePreview();
-  saveTimer = window.setTimeout(saveActiveNote, 450);
+  saveTimer = window.setTimeout(() => {
+    saveActiveNote().catch(showError);
+  }, 450);
 }
 
-function addNewNote() {
-  const note = createNote();
+async function addNewNote() {
+  await saveActiveNote();
+  const note = await apiRequest("/notes", {
+    method: "POST",
+    body: JSON.stringify({ title: "", tags: "", body: "" }),
+  });
   notes.unshift(note);
-  activeNoteId = note.id;
-  persistNotes();
   noteSearch.value = "";
   renderNotes();
   openNote(note.id);
 }
 
-function deleteActiveNote() {
+async function deleteActiveNote() {
   const note = getActiveNote();
 
   if (!note) {
@@ -254,16 +301,54 @@ function deleteActiveNote() {
     return;
   }
 
+  await apiRequest(`/notes/${note.id}`, { method: "DELETE" });
   notes = notes.filter((item) => item.id !== note.id);
 
   if (notes.length === 0) {
-    notes.push(createNote());
+    const next = await apiRequest("/notes", {
+      method: "POST",
+      body: JSON.stringify({ title: "", tags: "", body: "" }),
+    });
+    notes.push(next);
   }
 
   activeNoteId = notes[0].id;
-  persistNotes();
   renderNotes();
   openNote(activeNoteId);
+}
+
+async function exportActiveNote() {
+  const note = await saveActiveNote();
+
+  if (!note) {
+    return;
+  }
+
+  const format = exportFormat.value;
+  const response = await fetch(`${API_BASE_URL}/notes/${note.id}/export?format=${format}`, {
+    headers: {
+      Authorization: `Bearer ${authToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("导出失败");
+  }
+
+  const blob = await response.blob();
+  const disposition = response.headers.get("Content-Disposition") || "";
+  const filenameMatch = disposition.match(/filename="([^"]+)"/);
+  const filename = filenameMatch ? filenameMatch[1] : `note.${format}`;
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  setSaveStatus("已导出");
 }
 
 function replaceSelection(nextValue, cursorOffset = nextValue.length) {
@@ -361,6 +446,7 @@ loginForm.addEventListener("submit", async (event) => {
 
   try {
     const result = await login(password);
+    authToken = result.access_token;
     noteShell.dataset.token = result.access_token;
     passwordInput.value = "";
     setMessage("");
@@ -379,13 +465,17 @@ togglePasswordButton.addEventListener("click", () => {
 });
 
 logoutButton.addEventListener("click", () => {
+  authToken = "";
   delete noteShell.dataset.token;
+  notes = [];
+  activeNoteId = null;
   showApp(false);
 });
 
-newNoteButton.addEventListener("click", addNewNote);
-manualSaveButton.addEventListener("click", saveActiveNote);
-deleteNoteButton.addEventListener("click", deleteActiveNote);
+newNoteButton.addEventListener("click", () => addNewNote().catch(showError));
+manualSaveButton.addEventListener("click", () => saveActiveNote().catch(showError));
+deleteNoteButton.addEventListener("click", () => deleteActiveNote().catch(showError));
+exportButton.addEventListener("click", () => exportActiveNote().catch(showError));
 noteSearch.addEventListener("input", renderNotes);
 noteBody.addEventListener("keydown", (event) => {
   if (event.key !== "Tab") {

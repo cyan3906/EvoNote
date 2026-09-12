@@ -26,6 +26,31 @@ AUTH_PASSWORD=your-password
 AUTH_TOKEN=replace-with-a-long-random-token
 ```
 
+## Notes API
+
+Evonote stores notes in SQLite by default:
+
+```text
+data/evonote.sqlite3
+```
+
+Override the path in `.env` when needed:
+
+```text
+SQLITE_DATABASE_PATH=data/evonote.sqlite3
+```
+
+- `GET /api/notes`: list notes.
+- `POST /api/notes`: create a note.
+- `GET /api/notes/{note_id}`: read one note.
+- `PUT /api/notes/{note_id}`: update one note.
+- `DELETE /api/notes/{note_id}`: delete one note.
+- `GET /api/notes/{note_id}/export?format=txt`: export TXT.
+- `GET /api/notes/{note_id}/export?format=pdf`: export PDF.
+- `GET /api/notes/{note_id}/export?format=docx`: export Word.
+
+PDF and Word export are generated with Python's standard library.
+
 ## Knowledge association API
 
 The knowledge agent accepts one source knowledge item and compares it with candidate knowledge items. If candidates are omitted, the API uses the built-in five computer interview knowledge items as mock retrieval results.

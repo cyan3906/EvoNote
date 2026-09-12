@@ -804,3 +804,49 @@ textarea:focus {
     justify-content: center;
   }
 }
+
+.export-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 8px 0 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.export-control label {
+  color: var(--muted);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.export-control select {
+  min-height: 32px;
+  color: var(--ink);
+  background: var(--surface-soft);
+  border: 0;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  outline: none;
+}
+
+.export-control .ghost-button {
+  min-height: 32px;
+  padding: 0 10px;
+}
+
+@media (max-width: 720px) {
+  .header-actions {
+    flex-wrap: wrap;
+  }
+
+  .export-control {
+    order: 3;
+    width: 100%;
+    justify-content: space-between;
+  }
+}

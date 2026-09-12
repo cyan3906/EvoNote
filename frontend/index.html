@@ -59,6 +59,15 @@
 
           <div class="header-actions">
             <p id="save-status" class="save-status" role="status" aria-live="polite">已保存</p>
+            <div class="export-control">
+              <label for="export-format">导出</label>
+              <select id="export-format">
+                <option value="pdf">PDF</option>
+                <option value="txt">TXT</option>
+                <option value="docx">Word</option>
+              </select>
+              <button id="export-button" class="ghost-button" type="button">下载</button>
+            </div>
             <a class="ghost-link" href="/info/markdown" target="_blank" rel="noreferrer">Markdown 帮助</a>
             <button id="logout-button" class="ghost-button" type="button">退出</button>
           </div>

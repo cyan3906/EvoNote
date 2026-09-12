@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     auth_password: str = "evonote2026"
     auth_token: str = "evonote-dev-token"
 
+    sqlite_database_path: str = "data/evonote.sqlite3"
+
     redis_host: str = "127.0.0.1"
     redis_port: int = 6379
     redis_db: int = 0
