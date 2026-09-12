@@ -1,6 +1,6 @@
 import { markdownToHtml } from "./markdown.mjs";
 
-const API_BASE_URL = "http://127.0.0.1:8000/api";
+const API_BASE_URL = `${window.location.origin}/api`;
 
 const page = document.querySelector(".login-page");
 const loginPanel = document.querySelector(".login-panel");
@@ -21,10 +21,20 @@ const noteBody = document.querySelector("#note-body");
 const noteUpdated = document.querySelector("#note-updated");
 const manualSaveButton = document.querySelector("#manual-save-button");
 const deleteNoteButton = document.querySelector("#delete-note-button");
+const editorPane = document.querySelector(".editor-pane");
+const evolutionPane = document.querySelector("#evolution-pane");
 const editorWorkbench = document.querySelector("#editor-workbench");
 const markdownPreview = document.querySelector("#markdown-preview");
 const exportFormat = document.querySelector("#export-format");
 const exportButton = document.querySelector("#export-button");
+const openEvolutionButton = document.querySelector("#open-evolution-button");
+const backToEditorButton = document.querySelector("#back-to-editor-button");
+const scanNoteButton = document.querySelector("#scan-note-button");
+const evolutionStatus = document.querySelector("#evolution-status");
+const l2Summary = document.querySelector("#l2-summary");
+const l3Keywords = document.querySelector("#l3-keywords");
+const claimList = document.querySelector("#claim-list");
+const suggestionList = document.querySelector("#suggestion-list");
 const formatButtons = document.querySelectorAll("[data-format]");
 const modeButtons = document.querySelectorAll("[data-mode]");
 
@@ -32,6 +42,8 @@ let authToken = "";
 let notes = [];
 let activeNoteId = null;
 let saveTimer = null;
+let activeWorkspace = "editor";
+let initialWorkspace = window.location.pathname === "/evolution" ? "evolution" : "editor";
 
 function createSampleNotePayload() {
   return {
@@ -58,7 +70,14 @@ function showApp(isLoggedIn) {
   page.classList.toggle("is-authenticated", isLoggedIn);
 
   if (isLoggedIn) {
-    loadNotes().then(() => noteTitle.focus()).catch(showError);
+    setWorkspaceView(initialWorkspace);
+    loadNotes()
+      .then(() => {
+        if (activeWorkspace === "editor") {
+          noteTitle.focus();
+        }
+      })
+      .catch(showError);
     return;
   }
 
@@ -76,6 +95,21 @@ function setSaveStatus(text) {
 
 function showError(error) {
   setSaveStatus(error.message || "操作失败");
+}
+
+function setEvolutionStatus(text) {
+  evolutionStatus.textContent = text;
+}
+
+function setWorkspaceView(view, shouldPushUrl = false) {
+  activeWorkspace = view;
+  editorPane.hidden = view !== "editor";
+  evolutionPane.hidden = view !== "evolution";
+  openEvolutionButton.classList.toggle("is-active", view === "evolution");
+
+  if (shouldPushUrl) {
+    window.history.pushState({ workspace: view }, "", view === "evolution" ? "/evolution" : "/notes");
+  }
 }
 
 async function apiRequest(path, options = {}) {
@@ -236,6 +270,11 @@ function openNote(noteId) {
   setSaveStatus("已保存");
   updatePreview();
   renderNotes();
+
+  if (activeWorkspace === "evolution") {
+    renderEvolutionState(null);
+    loadEvolutionState(note.id).catch(showError);
+  }
 }
 
 async function saveActiveNote() {
@@ -264,6 +303,11 @@ async function saveActiveNote() {
   setSaveStatus("已保存");
   updatePreview();
   renderNotes();
+
+  if (activeWorkspace === "evolution") {
+    await loadEvolutionState(updated.id);
+  }
+
   return updated;
 }
 
@@ -315,6 +359,205 @@ async function deleteActiveNote() {
   activeNoteId = notes[0].id;
   renderNotes();
   openNote(activeNoteId);
+}
+
+async function loadEvolutionState(noteId) {
+  if (!noteId) {
+    renderEvolutionState(null);
+    return null;
+  }
+
+  setEvolutionStatus("正在分析");
+  const state = await apiRequest(`/evolution/notes/${noteId}`);
+
+  if (noteId !== activeNoteId) {
+    return state;
+  }
+
+  renderEvolutionState(state);
+  setEvolutionStatus("已分析");
+  return state;
+}
+
+async function scanActiveNote() {
+  const note = await saveActiveNote();
+
+  if (!note) {
+    return;
+  }
+
+  setEvolutionStatus("正在扫描");
+  const state = await apiRequest(`/evolution/notes/${note.id}/scan`, {
+    method: "POST",
+  });
+  renderEvolutionState(state);
+  setEvolutionStatus("扫描完成");
+}
+
+async function openEvolutionView() {
+  setWorkspaceView("evolution", true);
+  renderEvolutionState(null);
+
+  try {
+    const note = await saveActiveNote();
+    await loadEvolutionState(note?.id || activeNoteId);
+  } catch (error) {
+    setEvolutionStatus("加载失败");
+    throw error;
+  }
+}
+
+async function openEditorView() {
+  setWorkspaceView("editor", true);
+  noteTitle.focus();
+}
+
+function renderEvolutionState(state) {
+  claimList.innerHTML = "";
+  suggestionList.innerHTML = "";
+  l3Keywords.innerHTML = "";
+
+  if (!state) {
+    l2Summary.textContent = "保存后生成摘要";
+    setEvolutionStatus("等待分析");
+    renderEmpty(claimList, "暂无 claim");
+    renderEmpty(suggestionList, "暂无建议");
+    return;
+  }
+
+  l2Summary.textContent = state.representation.l2_summary || "暂无摘要";
+
+  for (const keyword of state.representation.keywords || []) {
+    const badge = document.createElement("span");
+    badge.className = "keyword-badge";
+    badge.textContent = keyword;
+    l3Keywords.append(badge);
+  }
+
+  if (!l3Keywords.children.length) {
+    renderEmpty(l3Keywords, "暂无关键词");
+  }
+
+  if (!state.claims.length) {
+    renderEmpty(claimList, "没有抽取到可合并的知识点");
+  }
+
+  for (const claim of state.claims.slice(0, 8)) {
+    const item = document.createElement("article");
+    item.className = "claim-item";
+
+    const text = document.createElement("p");
+    text.textContent = claim.claim_text;
+
+    const meta = document.createElement("span");
+    meta.textContent = `${claim.subject || "未知主题"} · ${claim.predicate}`;
+
+    item.append(text, meta);
+    claimList.append(item);
+  }
+
+  if (!state.suggestions.length) {
+    renderEmpty(suggestionList, "没有发现需要合并或去重的内容");
+  }
+
+  for (const suggestion of state.suggestions) {
+    suggestionList.append(createSuggestionItem(suggestion));
+  }
+}
+
+function renderEmpty(container, text) {
+  const empty = document.createElement("p");
+  empty.className = "mini-empty";
+  empty.textContent = text;
+  container.append(empty);
+}
+
+function createSuggestionItem(suggestion) {
+  const item = document.createElement("article");
+  item.className = `suggestion-item is-${suggestion.relation}`;
+
+  const header = document.createElement("div");
+  header.className = "suggestion-title";
+
+  const relation = document.createElement("strong");
+  relation.textContent = relationLabel(suggestion.relation);
+
+  const score = document.createElement("span");
+  score.textContent = `${Math.round(suggestion.confidence * 100)}% · ${riskLabel(suggestion.risk_level)}`;
+
+  header.append(relation, score);
+
+  const reason = document.createElement("p");
+  reason.textContent = suggestion.reason;
+
+  const patch = document.createElement("div");
+  patch.className = "patch-preview";
+  patch.textContent = suggestion.patch.content || suggestion.patch.source_claim || "等待确认";
+
+  const actions = document.createElement("div");
+  actions.className = "suggestion-actions";
+
+  const applyButton = document.createElement("button");
+  applyButton.className = "secondary-button";
+  applyButton.type = "button";
+  applyButton.textContent = suggestion.risk_level === "high" ? "确认记录" : "接受";
+  applyButton.addEventListener("click", () => applySuggestion(suggestion.id).catch(showError));
+
+  const rejectButton = document.createElement("button");
+  rejectButton.className = "ghost-button";
+  rejectButton.type = "button";
+  rejectButton.textContent = "忽略";
+  rejectButton.addEventListener("click", () => rejectSuggestion(suggestion.id).catch(showError));
+
+  actions.append(applyButton, rejectButton);
+  item.append(header, reason, patch, actions);
+  return item;
+}
+
+async function applySuggestion(suggestionId) {
+  setEvolutionStatus("正在应用");
+  await apiRequest(`/evolution/suggestions/${suggestionId}/apply`, { method: "POST" });
+  notes = await apiRequest("/notes");
+  const current = notes.find((note) => note.id === activeNoteId);
+
+  if (current) {
+    openNote(current.id);
+  } else {
+    renderNotes();
+    await loadEvolutionState(activeNoteId);
+  }
+
+  setSaveStatus("已应用建议");
+}
+
+async function rejectSuggestion(suggestionId) {
+  await apiRequest(`/evolution/suggestions/${suggestionId}/reject`, { method: "POST" });
+  await loadEvolutionState(activeNoteId);
+  setEvolutionStatus("已忽略");
+}
+
+function relationLabel(relation) {
+  if (relation === "duplicate") {
+    return "可能重复";
+  }
+
+  if (relation === "conflict") {
+    return "可能冲突";
+  }
+
+  return "可补充";
+}
+
+function riskLabel(risk) {
+  if (risk === "high") {
+    return "高风险";
+  }
+
+  if (risk === "medium") {
+    return "需确认";
+  }
+
+  return "低风险";
 }
 
 async function exportActiveNote() {
@@ -476,6 +719,9 @@ newNoteButton.addEventListener("click", () => addNewNote().catch(showError));
 manualSaveButton.addEventListener("click", () => saveActiveNote().catch(showError));
 deleteNoteButton.addEventListener("click", () => deleteActiveNote().catch(showError));
 exportButton.addEventListener("click", () => exportActiveNote().catch(showError));
+openEvolutionButton.addEventListener("click", () => openEvolutionView().catch(showError));
+backToEditorButton.addEventListener("click", () => openEditorView().catch(showError));
+scanNoteButton.addEventListener("click", () => scanActiveNote().catch(showError));
 noteSearch.addEventListener("input", renderNotes);
 noteBody.addEventListener("keydown", (event) => {
   if (event.key !== "Tab") {
@@ -510,5 +756,14 @@ for (const button of formatButtons) {
 for (const button of modeButtons) {
   button.addEventListener("click", () => setViewMode(button.dataset.mode));
 }
+
+window.addEventListener("popstate", () => {
+  initialWorkspace = window.location.pathname === "/evolution" ? "evolution" : "editor";
+  setWorkspaceView(initialWorkspace);
+
+  if (authToken && activeWorkspace === "evolution") {
+    loadEvolutionState(activeNoteId).catch(showError);
+  }
+});
 
 showApp(false);

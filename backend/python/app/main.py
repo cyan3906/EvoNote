@@ -14,6 +14,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.routes.auth import router as auth_router
+from app.api.routes.evolution import router as evolution_router
 from app.api.routes.health import router as health_router
 from app.api.routes.knowledge import router as knowledge_router
 from app.api.routes.notes import router as notes_router
@@ -34,6 +35,7 @@ app.include_router(auth_router, prefix="/api")
 app.include_router(health_router, prefix="/api")
 app.include_router(knowledge_router, prefix="/api")
 app.include_router(notes_router, prefix="/api")
+app.include_router(evolution_router, prefix="/api")
 
 
 @app.on_event("startup")
@@ -50,6 +52,11 @@ def root() -> FileResponse:
 
 @app.get("/notes")
 def notes() -> FileResponse:
+    return FileResponse(FRONTEND_ROOT / "index.html")
+
+
+@app.get("/evolution")
+def evolution() -> FileResponse:
     return FileResponse(FRONTEND_ROOT / "index.html")
 
 

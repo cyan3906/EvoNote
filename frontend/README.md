@@ -1,6 +1,6 @@
 # Evonote Frontend
 
-Frontend for the Evonote note app. It includes the login screen, note workspace, Markdown editor preview, and export controls.
+Frontend for the Evonote note app. It includes the login screen, Markdown note workspace, export controls, and a separate self-evolving note interface.
 
 ## Structure
 
@@ -30,6 +30,8 @@ Then open http://127.0.0.1:8000/ in a browser. The backend serves the login scre
 The default development password is `evonote2026`.
 
 Notes are stored by the backend SQLite database, not browser cache.
+
+The main workspace remains focused on Markdown writing. Click `智能整理` or open `/evolution` to view L2 summaries, L3 retrieval keywords, extracted claims, and merge suggestions for the active note.
 
 ## Test
 

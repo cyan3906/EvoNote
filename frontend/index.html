@@ -9,7 +9,7 @@
       type="image/svg+xml"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232f6f65'/%3E%3Cpath d='M20 17h25v8H29v8h14v8H29v8h17v8H20z' fill='white'/%3E%3C/svg%3E"
     />
-    <link rel="stylesheet" href="/static/styles/main.css" />
+    <link rel="stylesheet" href="/static/styles/main.css?v=20260912-evolution-view" />
   </head>
   <body>
     <main class="login-page">
@@ -69,6 +69,7 @@
               <button id="export-button" class="ghost-button" type="button">下载</button>
             </div>
             <a class="ghost-link" href="/info/markdown" target="_blank" rel="noreferrer">Markdown 帮助</a>
+            <button id="open-evolution-button" class="ghost-button" type="button">智能整理</button>
             <button id="logout-button" class="ghost-button" type="button">退出</button>
           </div>
         </header>
@@ -135,10 +136,46 @@
               <button id="manual-save-button" class="secondary-button" type="button">保存</button>
             </footer>
           </article>
+
+          <article id="evolution-pane" class="evolution-page" aria-label="智能整理" hidden>
+            <div class="evolution-page-header">
+              <div>
+                <p class="evolution-kicker">Self-evolving</p>
+                <h3>智能整理</h3>
+              </div>
+              <div class="evolution-actions">
+                <span id="evolution-status">等待分析</span>
+                <button id="back-to-editor-button" class="ghost-button" type="button">返回编辑</button>
+                <button id="scan-note-button" class="secondary-button" type="button">扫描当前笔记</button>
+              </div>
+            </div>
+
+            <div class="evolution-grid">
+              <div class="evolution-box">
+                <span class="box-label">L2 摘要</span>
+                <p id="l2-summary">保存后生成摘要</p>
+              </div>
+              <div class="evolution-box">
+                <span class="box-label">L3 检索</span>
+                <div id="l3-keywords" class="keyword-row"></div>
+              </div>
+            </div>
+
+            <div class="evolution-columns">
+              <div>
+                <div class="section-heading">Claims</div>
+                <div id="claim-list" class="claim-list"></div>
+              </div>
+              <div>
+                <div class="section-heading">合并建议</div>
+                <div id="suggestion-list" class="suggestion-list"></div>
+              </div>
+            </div>
+          </article>
         </div>
       </section>
     </main>
 
-    <script type="module" src="/static/src/app.mjs"></script>
+    <script type="module" src="/static/src/app.mjs?v=20260912-evolution-view"></script>
   </body>
 </html>

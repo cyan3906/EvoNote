@@ -1,4 +1,5 @@
 import sqlite3
+import json
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
@@ -42,6 +43,91 @@ def init_db() -> None:
                 body TEXT NOT NULL DEFAULT '',
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS note_representations (
+                note_id TEXT PRIMARY KEY,
+                l2_summary TEXT NOT NULL DEFAULT '',
+                l3_text TEXT NOT NULL DEFAULT '',
+                keywords_json TEXT NOT NULL DEFAULT '[]',
+                vector_json TEXT NOT NULL DEFAULT '[]',
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS note_blocks (
+                id TEXT PRIMARY KEY,
+                note_id TEXT NOT NULL,
+                block_index INTEGER NOT NULL,
+                heading TEXT NOT NULL DEFAULT '',
+                l1_text TEXT NOT NULL DEFAULT '',
+                l2_summary TEXT NOT NULL DEFAULT '',
+                l3_text TEXT NOT NULL DEFAULT '',
+                keywords_json TEXT NOT NULL DEFAULT '[]',
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS knowledge_claims (
+                id TEXT PRIMARY KEY,
+                note_id TEXT NOT NULL,
+                block_id TEXT NOT NULL,
+                claim_index INTEGER NOT NULL,
+                claim_text TEXT NOT NULL,
+                subject TEXT NOT NULL DEFAULT '',
+                predicate TEXT NOT NULL DEFAULT '',
+                object_text TEXT NOT NULL DEFAULT '',
+                source_text TEXT NOT NULL DEFAULT '',
+                keywords_json TEXT NOT NULL DEFAULT '[]',
+                vector_json TEXT NOT NULL DEFAULT '[]',
+                confidence REAL NOT NULL DEFAULT 0.7,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE,
+                FOREIGN KEY (block_id) REFERENCES note_blocks(id) ON DELETE CASCADE
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS merge_suggestions (
+                id TEXT PRIMARY KEY,
+                source_note_id TEXT NOT NULL,
+                target_note_id TEXT NOT NULL,
+                source_claim_id TEXT,
+                target_claim_id TEXT,
+                relation TEXT NOT NULL,
+                confidence REAL NOT NULL,
+                risk_level TEXT NOT NULL,
+                reason TEXT NOT NULL DEFAULT '',
+                patch_json TEXT NOT NULL DEFAULT '{}',
+                status TEXT NOT NULL DEFAULT 'pending',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (source_note_id) REFERENCES notes(id) ON DELETE CASCADE,
+                FOREIGN KEY (target_note_id) REFERENCES notes(id) ON DELETE CASCADE
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS note_versions (
+                id TEXT PRIMARY KEY,
+                note_id TEXT NOT NULL,
+                title TEXT NOT NULL DEFAULT '',
+                tags TEXT NOT NULL DEFAULT '',
+                body TEXT NOT NULL DEFAULT '',
+                reason TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
             )
             """
         )
@@ -156,6 +242,376 @@ def delete_note(note_id: str) -> bool:
     init_db()
 
     with connect() as connection:
+        connection.execute("DELETE FROM merge_suggestions WHERE source_note_id = ? OR target_note_id = ?", (note_id, note_id))
+        connection.execute("DELETE FROM knowledge_claims WHERE note_id = ?", (note_id,))
+        connection.execute("DELETE FROM note_blocks WHERE note_id = ?", (note_id,))
+        connection.execute("DELETE FROM note_representations WHERE note_id = ?", (note_id,))
+        connection.execute("DELETE FROM note_versions WHERE note_id = ?", (note_id,))
         cursor = connection.execute("DELETE FROM notes WHERE id = ?", (note_id,))
 
     return cursor.rowcount > 0
+
+
+def row_to_representation(row: sqlite3.Row) -> dict[str, object]:
+    return {
+        "note_id": row["note_id"],
+        "l2_summary": row["l2_summary"],
+        "l3_text": row["l3_text"],
+        "keywords": json.loads(row["keywords_json"]),
+        "vector": json.loads(row["vector_json"]),
+        "updated_at": row["updated_at"],
+    }
+
+
+def row_to_block(row: sqlite3.Row) -> dict[str, object]:
+    return {
+        "id": row["id"],
+        "note_id": row["note_id"],
+        "block_index": row["block_index"],
+        "heading": row["heading"],
+        "l1_text": row["l1_text"],
+        "l2_summary": row["l2_summary"],
+        "l3_text": row["l3_text"],
+        "keywords": json.loads(row["keywords_json"]),
+        "created_at": row["created_at"],
+    }
+
+
+def row_to_claim(row: sqlite3.Row) -> dict[str, object]:
+    return {
+        "id": row["id"],
+        "note_id": row["note_id"],
+        "block_id": row["block_id"],
+        "claim_index": row["claim_index"],
+        "claim_text": row["claim_text"],
+        "subject": row["subject"],
+        "predicate": row["predicate"],
+        "object_text": row["object_text"],
+        "source_text": row["source_text"],
+        "keywords": json.loads(row["keywords_json"]),
+        "vector": json.loads(row["vector_json"]),
+        "confidence": row["confidence"],
+        "created_at": row["created_at"],
+    }
+
+
+def row_to_suggestion(row: sqlite3.Row) -> dict[str, object]:
+    return {
+        "id": row["id"],
+        "source_note_id": row["source_note_id"],
+        "target_note_id": row["target_note_id"],
+        "source_claim_id": row["source_claim_id"],
+        "target_claim_id": row["target_claim_id"],
+        "relation": row["relation"],
+        "confidence": row["confidence"],
+        "risk_level": row["risk_level"],
+        "reason": row["reason"],
+        "patch": json.loads(row["patch_json"]),
+        "status": row["status"],
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
+    }
+
+
+def replace_note_analysis(
+    note_id: str,
+    representation: dict[str, object],
+    blocks: list[dict[str, object]],
+    claims: list[dict[str, object]],
+) -> None:
+    init_db()
+    updated_at = now_iso()
+
+    with connect() as connection:
+        connection.execute("DELETE FROM knowledge_claims WHERE note_id = ?", (note_id,))
+        connection.execute("DELETE FROM note_blocks WHERE note_id = ?", (note_id,))
+        connection.execute(
+            """
+            INSERT INTO note_representations (note_id, l2_summary, l3_text, keywords_json, vector_json, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(note_id) DO UPDATE SET
+                l2_summary = excluded.l2_summary,
+                l3_text = excluded.l3_text,
+                keywords_json = excluded.keywords_json,
+                vector_json = excluded.vector_json,
+                updated_at = excluded.updated_at
+            """,
+            (
+                note_id,
+                str(representation.get("l2_summary", "")),
+                str(representation.get("l3_text", "")),
+                json.dumps(representation.get("keywords", []), ensure_ascii=False),
+                json.dumps(representation.get("vector", []), ensure_ascii=False),
+                updated_at,
+            ),
+        )
+
+        for block in blocks:
+            connection.execute(
+                """
+                INSERT INTO note_blocks (id, note_id, block_index, heading, l1_text, l2_summary, l3_text, keywords_json, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    block["id"],
+                    note_id,
+                    block["block_index"],
+                    block["heading"],
+                    block["l1_text"],
+                    block["l2_summary"],
+                    block["l3_text"],
+                    json.dumps(block.get("keywords", []), ensure_ascii=False),
+                    updated_at,
+                ),
+            )
+
+        for claim in claims:
+            connection.execute(
+                """
+                INSERT INTO knowledge_claims (
+                    id, note_id, block_id, claim_index, claim_text, subject, predicate,
+                    object_text, source_text, keywords_json, vector_json, confidence, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    claim["id"],
+                    note_id,
+                    claim["block_id"],
+                    claim["claim_index"],
+                    claim["claim_text"],
+                    claim["subject"],
+                    claim["predicate"],
+                    claim["object_text"],
+                    claim["source_text"],
+                    json.dumps(claim.get("keywords", []), ensure_ascii=False),
+                    json.dumps(claim.get("vector", []), ensure_ascii=False),
+                    claim.get("confidence", 0.7),
+                    updated_at,
+                ),
+            )
+
+
+def list_claims(note_id: str | None = None, exclude_note_id: str | None = None) -> list[dict[str, object]]:
+    init_db()
+    clauses = []
+    values: list[str] = []
+
+    if note_id:
+        clauses.append("note_id = ?")
+        values.append(note_id)
+
+    if exclude_note_id:
+        clauses.append("note_id != ?")
+        values.append(exclude_note_id)
+
+    where_sql = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+
+    with connect() as connection:
+        rows = connection.execute(
+            f"""
+            SELECT id, note_id, block_id, claim_index, claim_text, subject, predicate,
+                   object_text, source_text, keywords_json, vector_json, confidence, created_at
+            FROM knowledge_claims
+            {where_sql}
+            ORDER BY created_at DESC, claim_index ASC
+            """,
+            tuple(values),
+        ).fetchall()
+
+    return [row_to_claim(row) for row in rows]
+
+
+def get_note_representation(note_id: str) -> dict[str, object] | None:
+    init_db()
+
+    with connect() as connection:
+        row = connection.execute(
+            """
+            SELECT note_id, l2_summary, l3_text, keywords_json, vector_json, updated_at
+            FROM note_representations
+            WHERE note_id = ?
+            """,
+            (note_id,),
+        ).fetchone()
+
+    return row_to_representation(row) if row else None
+
+
+def list_note_blocks(note_id: str) -> list[dict[str, object]]:
+    init_db()
+
+    with connect() as connection:
+        rows = connection.execute(
+            """
+            SELECT id, note_id, block_index, heading, l1_text, l2_summary, l3_text, keywords_json, created_at
+            FROM note_blocks
+            WHERE note_id = ?
+            ORDER BY block_index ASC
+            """,
+            (note_id,),
+        ).fetchall()
+
+    return [row_to_block(row) for row in rows]
+
+
+def create_merge_suggestions(suggestions: list[dict[str, object]]) -> list[dict[str, object]]:
+    if not suggestions:
+        return []
+
+    init_db()
+    created_at = now_iso()
+    source_note_ids = sorted({str(suggestion["source_note_id"]) for suggestion in suggestions})
+
+    with connect() as connection:
+        for source_note_id in source_note_ids:
+            connection.execute(
+                "UPDATE merge_suggestions SET status = 'superseded', updated_at = ? WHERE source_note_id = ? AND status = 'pending'",
+                (created_at, source_note_id),
+            )
+
+        for suggestion in suggestions:
+            connection.execute(
+                """
+                INSERT INTO merge_suggestions (
+                    id, source_note_id, target_note_id, source_claim_id, target_claim_id,
+                    relation, confidence, risk_level, reason, patch_json, status, created_at, updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+                """,
+                (
+                    suggestion["id"],
+                    suggestion["source_note_id"],
+                    suggestion["target_note_id"],
+                    suggestion.get("source_claim_id"),
+                    suggestion.get("target_claim_id"),
+                    suggestion["relation"],
+                    suggestion["confidence"],
+                    suggestion["risk_level"],
+                    suggestion["reason"],
+                    json.dumps(suggestion["patch"], ensure_ascii=False),
+                    created_at,
+                    created_at,
+                ),
+            )
+
+    return list_merge_suggestions(source_note_id=source_note_ids[0], status="pending")
+
+
+def supersede_pending_suggestions(source_note_id: str) -> None:
+    init_db()
+    updated_at = now_iso()
+
+    with connect() as connection:
+        connection.execute(
+            "UPDATE merge_suggestions SET status = 'superseded', updated_at = ? WHERE source_note_id = ? AND status = 'pending'",
+            (updated_at, source_note_id),
+        )
+
+
+def list_merge_suggestions(
+    source_note_id: str | None = None,
+    target_note_id: str | None = None,
+    status: str | None = "pending",
+) -> list[dict[str, object]]:
+    init_db()
+    clauses = []
+    values: list[str] = []
+
+    if source_note_id:
+        clauses.append("source_note_id = ?")
+        values.append(source_note_id)
+
+    if target_note_id:
+        clauses.append("target_note_id = ?")
+        values.append(target_note_id)
+
+    if status:
+        clauses.append("status = ?")
+        values.append(status)
+
+    where_sql = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+
+    with connect() as connection:
+        rows = connection.execute(
+            f"""
+            SELECT id, source_note_id, target_note_id, source_claim_id, target_claim_id,
+                   relation, confidence, risk_level, reason, patch_json, status, created_at, updated_at
+            FROM merge_suggestions
+            {where_sql}
+            ORDER BY confidence DESC, created_at DESC
+            """,
+            tuple(values),
+        ).fetchall()
+
+    return [row_to_suggestion(row) for row in rows]
+
+
+def get_merge_suggestion(suggestion_id: str) -> dict[str, object] | None:
+    init_db()
+
+    with connect() as connection:
+        row = connection.execute(
+            """
+            SELECT id, source_note_id, target_note_id, source_claim_id, target_claim_id,
+                   relation, confidence, risk_level, reason, patch_json, status, created_at, updated_at
+            FROM merge_suggestions
+            WHERE id = ?
+            """,
+            (suggestion_id,),
+        ).fetchone()
+
+    return row_to_suggestion(row) if row else None
+
+
+def update_merge_suggestion_status(suggestion_id: str, status: str) -> dict[str, object] | None:
+    init_db()
+    updated_at = now_iso()
+
+    with connect() as connection:
+        cursor = connection.execute(
+            "UPDATE merge_suggestions SET status = ?, updated_at = ? WHERE id = ?",
+            (status, updated_at, suggestion_id),
+        )
+
+    if cursor.rowcount == 0:
+        return None
+
+    return get_merge_suggestion(suggestion_id)
+
+
+def save_note_version(note_id: str, reason: str = "") -> dict[str, str] | None:
+    note = get_note(note_id)
+
+    if not note:
+        return None
+
+    created_at = now_iso()
+    version = {
+        "id": str(uuid4()),
+        "note_id": note_id,
+        "title": note["title"],
+        "tags": note["tags"],
+        "body": note["body"],
+        "reason": reason,
+        "created_at": created_at,
+    }
+
+    with connect() as connection:
+        connection.execute(
+            """
+            INSERT INTO note_versions (id, note_id, title, tags, body, reason, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                version["id"],
+                version["note_id"],
+                version["title"],
+                version["tags"],
+                version["body"],
+                version["reason"],
+                version["created_at"],
+            ),
+        )
+
+    return version

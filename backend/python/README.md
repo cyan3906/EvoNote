@@ -13,6 +13,7 @@ uvicorn app.main:app --reload
 ```
 
 Open http://127.0.0.1:8000/ for the Evonote login screen.
+Open http://127.0.0.1:8000/evolution for the standalone self-evolving note interface after login.
 Open http://127.0.0.1:8000/docs for the interactive API docs.
 
 ## Auth API
@@ -50,6 +51,32 @@ SQLITE_DATABASE_PATH=data/evonote.sqlite3
 - `GET /api/notes/{note_id}/export?format=docx`: export Word.
 
 PDF and Word export are generated with Python's standard library.
+
+## Evolution API
+
+Evonote maintains extra knowledge layers for every note:
+
+- `L1`: the original Markdown note body.
+- `L2`: a short summary for reading and model context.
+- `L3`: keywords and a lightweight local vector for retrieval.
+- `Claims`: small comparable knowledge points extracted from L1.
+- `Patches`: merge suggestions that can append, mark duplicates, or record conflicts.
+
+Related notes are found with L3 keywords/vectors and then compared at claim level. Suggestions are stored first, so risky changes can be reviewed before they alter a note.
+
+- `GET /api/evolution/notes/{note_id}`: read L2/L3, blocks, claims, and pending suggestions.
+- `POST /api/evolution/notes/{note_id}/scan`: rebuild analysis and generate merge suggestions.
+- `GET /api/evolution/suggestions`: list pending suggestions.
+- `POST /api/evolution/suggestions/{suggestion_id}/apply`: apply one patch suggestion.
+- `POST /api/evolution/suggestions/{suggestion_id}/reject`: reject one patch suggestion.
+
+Evolution data is stored in these SQLite tables:
+
+- `note_representations`
+- `note_blocks`
+- `knowledge_claims`
+- `merge_suggestions`
+- `note_versions`
 
 ## Knowledge association API
 
