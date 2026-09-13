@@ -4,13 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
 from app.core import database
-from app.core.evolution import (
-    EvolutionModelError,
-    apply_suggestion,
-    get_note_evolution_state,
-    reject_suggestion,
-    scan_note,
-)
+from app.core.evolution import apply_suggestion, get_note_evolution_snapshot, reject_suggestion
+from app.core.evolution_jobs import get_scan_job, queue_note_scan
+from app.core.retrieval import hybrid_retrieve_claims, rebuild_hybrid_indexes
 from app.core.security import require_auth
 
 router = APIRouter(prefix="/evolution", tags=["evolution"], dependencies=[Depends(require_auth)])
@@ -71,21 +67,49 @@ class SuggestionResponse(BaseModel):
 
 class EvolutionStateResponse(BaseModel):
     note: dict[str, str]
-    representation: RepresentationResponse
+    representation: RepresentationResponse | None = None
     blocks: list[BlockResponse]
     claims: list[ClaimResponse]
     suggestions: list[SuggestionResponse]
+    stale: bool = False
+    analysis_status: str = "ready"
+    error: str = ""
+
+
+class RetrievalHitResponse(BaseModel):
+    claim_id: str
+    note_id: str
+    score: float
+    rank: int
+    source: str
+    title: str = ""
+    reason: str = ""
+
+
+class IndexRebuildResponse(BaseModel):
+    indexed_notes: int
+    indexed_claims: int
+    errors: list[str]
+
+
+class ScanJobResponse(BaseModel):
+    id: str
+    note_id: str
+    status: str
+    error: str = ""
+    created_at: str
+    updated_at: str
 
 
 def _state_or_404(note_id: str) -> dict[str, object]:
-    try:
-        state = get_note_evolution_state(note_id)
-    except EvolutionModelError as exc:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+    state = get_note_evolution_snapshot(note_id)
 
     if not state:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="笔记不存在")
 
+    job = get_scan_job(note_id)
+    state["analysis_status"] = job.status if job else ("stale" if state.get("stale") else "ready")
+    state["error"] = job.error if job and job.status == "failed" else ""
     return state
 
 
@@ -94,17 +118,44 @@ def read_note_evolution(note_id: str) -> dict[str, object]:
     return _state_or_404(note_id)
 
 
-@router.post("/notes/{note_id}/scan", response_model=EvolutionStateResponse)
+@router.post("/notes/{note_id}/scan", response_model=ScanJobResponse, status_code=status.HTTP_202_ACCEPTED)
 def scan_note_evolution(note_id: str) -> dict[str, object]:
-    try:
-        state = scan_note(note_id)
-    except EvolutionModelError as exc:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
-
-    if not state:
+    if not database.get_note(note_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="笔记不存在")
 
-    return state
+    return queue_note_scan(note_id).to_dict()
+
+
+@router.get("/notes/{note_id}/scan/status", response_model=ScanJobResponse)
+def read_scan_status(note_id: str) -> dict[str, object]:
+    if not database.get_note(note_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="笔记不存在")
+
+    job = get_scan_job(note_id)
+
+    if not job:
+        return queue_note_scan(note_id).to_dict()
+
+    return job.to_dict()
+
+
+@router.get("/notes/{note_id}/retrieve", response_model=list[RetrievalHitResponse])
+def retrieve_related_claims(note_id: str) -> list[dict[str, object]]:
+    state = _state_or_404(note_id)
+
+    if not state.get("representation"):
+        return []
+
+    hits = hybrid_retrieve_claims(
+        state["representation"],
+        exclude_note_id=note_id,
+    )
+    return [hit.to_dict() for hit in hits]
+
+
+@router.post("/index/rebuild", response_model=IndexRebuildResponse)
+def rebuild_indexes() -> dict[str, object]:
+    return rebuild_hybrid_indexes()
 
 
 @router.get("/suggestions", response_model=list[SuggestionResponse])
@@ -130,3 +181,4 @@ def reject_merge_suggestion(suggestion_id: str) -> dict[str, object]:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="合并建议不存在")
 
     return suggestion
+

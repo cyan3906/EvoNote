@@ -86,6 +86,7 @@ def get_demo_knowledge_graph() -> KnowledgeAssociationResponse:
     return _to_response(result)
 
 
+@router.post("/associate", response_model=KnowledgeAssociationResponse)
 @router.get("/associate", response_model=KnowledgeAssociationResponse)
 def associate_knowledge(request: AssociateKnowledgeRequest) -> KnowledgeAssociationResponse:
     source = _to_knowledge_item(request.source)

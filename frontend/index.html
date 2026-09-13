@@ -9,7 +9,7 @@
       type="image/svg+xml"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232f6f65'/%3E%3Cpath d='M20 17h25v8H29v8h14v8H29v8h17v8H20z' fill='white'/%3E%3C/svg%3E"
     />
-    <link rel="stylesheet" href="/static/styles/main.css?v=20260912-evolution-view" />
+    <link rel="stylesheet" href="/static/styles/main.css?v=20260914-merge-status-2" />
   </head>
   <body>
     <main class="login-page">
@@ -133,7 +133,10 @@
 
             <footer class="editor-footer">
               <span id="note-updated">刚刚更新</span>
-              <button id="manual-save-button" class="secondary-button" type="button">保存</button>
+              <div class="editor-actions">
+                <button id="manual-save-button" class="ghost-button" type="button">保存</button>
+                <button id="merge-note-button" class="secondary-button" type="button">合并</button>
+              </div>
             </footer>
           </article>
 
@@ -176,6 +179,6 @@
       </section>
     </main>
 
-    <script type="module" src="/static/src/app.mjs?v=20260912-evolution-view"></script>
+    <script type="module" src="/static/src/app.mjs?v=20260914-merge-status-2"></script>
   </body>
 </html>

@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel
 
 from app.core import database
-from app.core.evolution import EvolutionModelError, scan_note
 from app.core.exports import note_filename, note_to_docx, note_to_pdf, note_to_text
 from app.core.security import require_auth
 
@@ -21,13 +20,6 @@ class NoteResponse(NotePayload):
     updated_at: str
 
 
-def scan_note_without_blocking_save(note_id: str) -> None:
-    try:
-        scan_note(note_id)
-    except EvolutionModelError:
-        return
-
-
 @router.get("", response_model=list[NoteResponse])
 def list_notes(query: str | None = None) -> list[dict[str, str]]:
     return database.list_notes(query=query)
@@ -35,13 +27,11 @@ def list_notes(query: str | None = None) -> list[dict[str, str]]:
 
 @router.post("", response_model=NoteResponse, status_code=status.HTTP_201_CREATED)
 def create_note(payload: NotePayload) -> dict[str, str]:
-    note = database.create_note(
+    return database.create_note(
         title=payload.title,
         tags=payload.tags,
         body=payload.body,
     )
-    scan_note_without_blocking_save(note["id"])
-    return note
 
 
 @router.get("/{note_id}", response_model=NoteResponse)
@@ -51,7 +41,6 @@ def get_note(note_id: str) -> dict[str, str]:
     if not note:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="笔记不存在")
 
-    scan_note_without_blocking_save(note["id"])
     return note
 
 

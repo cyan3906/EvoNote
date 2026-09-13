@@ -327,12 +327,32 @@ textarea:focus {
   box-shadow: 0 8px 22px rgba(35, 36, 37, 0.08);
 }
 
+.note-item-title-row {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .note-item-title {
+  min-width: 0;
   overflow: hidden;
   font-size: 15px;
   font-weight: 760;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.note-item-status {
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid #b7d7ce;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 760;
+  line-height: 1;
 }
 
 .note-item-preview {
@@ -592,6 +612,12 @@ textarea:focus {
   border-top: 1px solid var(--line);
 }
 
+.editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 @media (max-width: 820px) {
   .app-header {
     height: auto;
@@ -680,6 +706,16 @@ textarea:focus {
     align-items: stretch;
     flex-direction: column;
     padding-top: 14px;
+  }
+
+  .editor-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .editor-actions .ghost-button,
+  .editor-actions .secondary-button {
+    width: 100%;
   }
 }
 

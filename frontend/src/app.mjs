@@ -20,6 +20,7 @@ const noteTags = document.querySelector("#note-tags");
 const noteBody = document.querySelector("#note-body");
 const noteUpdated = document.querySelector("#note-updated");
 const manualSaveButton = document.querySelector("#manual-save-button");
+const mergeNoteButton = document.querySelector("#merge-note-button");
 const deleteNoteButton = document.querySelector("#delete-note-button");
 const editorPane = document.querySelector(".editor-pane");
 const evolutionPane = document.querySelector("#evolution-pane");
@@ -42,6 +43,8 @@ let authToken = "";
 let notes = [];
 let activeNoteId = null;
 let saveTimer = null;
+let mergingNoteIds = new Set();
+let evolutionPollTimers = new Map();
 let activeWorkspace = "editor";
 let initialWorkspace = window.location.pathname === "/evolution" ? "evolution" : "editor";
 
@@ -99,6 +102,41 @@ function showError(error) {
 
 function setEvolutionStatus(text) {
   evolutionStatus.textContent = text;
+}
+
+function setNoteMerging(noteId, isMerging) {
+  if (!noteId) {
+    return;
+  }
+
+  if (isMerging) {
+    mergingNoteIds.add(noteId);
+  } else {
+    mergingNoteIds.delete(noteId);
+  }
+
+  renderNotes();
+}
+
+function clearEvolutionPoll(noteId) {
+  const timer = evolutionPollTimers.get(noteId);
+
+  if (timer) {
+    window.clearTimeout(timer);
+    evolutionPollTimers.delete(noteId);
+  }
+}
+
+function clearEvolutionPolls() {
+  for (const timer of evolutionPollTimers.values()) {
+    window.clearTimeout(timer);
+  }
+
+  evolutionPollTimers = new Map();
+}
+
+function setMergeButtonsDisabled(isDisabled) {
+  mergeNoteButton.disabled = isDisabled;
 }
 
 function setWorkspaceView(view, shouldPushUrl = false) {
@@ -166,6 +204,7 @@ async function login(password) {
 
 async function loadNotes() {
   setSaveStatus("正在加载");
+  mergingNoteIds = new Set();
   notes = await apiRequest("/notes");
 
   if (notes.length === 0) {
@@ -237,9 +276,21 @@ function renderNotes() {
       openNote(note.id);
     });
 
+    const titleRow = document.createElement("span");
+    titleRow.className = "note-item-title-row";
+
     const title = document.createElement("span");
     title.className = "note-item-title";
     title.textContent = getNoteTitle(note);
+
+    titleRow.append(title);
+
+    if (mergingNoteIds.has(note.id)) {
+      const badge = document.createElement("span");
+      badge.className = "note-item-status";
+      badge.textContent = "正在合并";
+      titleRow.append(badge);
+    }
 
     const preview = document.createElement("span");
     preview.className = "note-item-preview";
@@ -249,7 +300,7 @@ function renderNotes() {
     meta.className = "note-item-meta";
     meta.textContent = formatDate(note.updated_at);
 
-    button.append(title, preview, meta);
+    button.append(titleRow, preview, meta);
     noteList.append(button);
   }
 }
@@ -305,7 +356,7 @@ async function saveActiveNote() {
   renderNotes();
 
   if (activeWorkspace === "evolution") {
-    await loadEvolutionState(updated.id);
+    loadEvolutionState(updated.id).catch(showError);
   }
 
   return updated;
@@ -361,13 +412,13 @@ async function deleteActiveNote() {
   openNote(activeNoteId);
 }
 
-async function loadEvolutionState(noteId) {
+async function loadEvolutionState(noteId, options = {}) {
   if (!noteId) {
     renderEvolutionState(null);
     return null;
   }
 
-  setEvolutionStatus("正在分析");
+  setEvolutionStatus("正在加载");
   const state = await apiRequest(`/evolution/notes/${noteId}`);
 
   if (noteId !== activeNoteId) {
@@ -375,8 +426,100 @@ async function loadEvolutionState(noteId) {
   }
 
   renderEvolutionState(state);
-  setEvolutionStatus("已分析");
+
+  if (state.analysis_status === "queued" || state.analysis_status === "running") {
+    setNoteMerging(noteId, true);
+    setEvolutionStatus("后台分析中");
+    pollEvolutionScan(noteId, options);
+    return state;
+  }
+
+  setNoteMerging(noteId, false);
+
+  if (state.stale && options.startIfStale) {
+    await startEvolutionScan(noteId, options);
+    return state;
+  }
+
+  setEvolutionStatus(state.stale ? "内容已更新，等待整理" : "已分析");
   return state;
+}
+
+async function startEvolutionScan(noteId, options = {}) {
+  if (!noteId) {
+    return null;
+  }
+
+  const job = await apiRequest(`/evolution/notes/${noteId}/scan`, {
+    method: "POST",
+  });
+
+  if (noteId === activeNoteId) {
+    setEvolutionStatus(job.status === "failed" ? `分析失败：${job.error || "请稍后重试"}` : "后台分析中");
+
+    if (options.updateSaveStatus) {
+      setSaveStatus("已保存，后台整理中");
+    }
+  }
+
+  if (job.status === "queued" || job.status === "running") {
+    setNoteMerging(noteId, true);
+    pollEvolutionScan(noteId, options);
+  } else {
+    setNoteMerging(noteId, false);
+  }
+
+  return job;
+}
+
+function pollEvolutionScan(noteId, options = {}) {
+  clearEvolutionPoll(noteId);
+
+  const tick = async () => {
+    const job = await apiRequest(`/evolution/notes/${noteId}/scan/status`);
+
+    if (job.status === "queued" || job.status === "running") {
+      setNoteMerging(noteId, true);
+
+      if (noteId === activeNoteId) {
+        setEvolutionStatus("后台分析中");
+      }
+
+      evolutionPollTimers.set(noteId, window.setTimeout(tick, 1500));
+      return;
+    }
+
+    clearEvolutionPoll(noteId);
+    setNoteMerging(noteId, false);
+
+    if (job.status === "succeeded") {
+      const state = await apiRequest(`/evolution/notes/${noteId}`);
+
+      if (noteId === activeNoteId) {
+        renderEvolutionState(state);
+        setEvolutionStatus("扫描完成");
+
+        if (options.updateSaveStatus) {
+          setSaveStatus("已保存并整理");
+        }
+      }
+      return;
+    }
+
+    if (job.status === "failed") {
+      if (noteId === activeNoteId) {
+        setEvolutionStatus(`分析失败：${job.error || "请稍后重试"}`);
+      }
+
+      if (options.updateSaveStatus) {
+        setSaveStatus("已保存，整理失败");
+      }
+    }
+  };
+
+  evolutionPollTimers.set(noteId, window.setTimeout(() => {
+    tick().catch(showError);
+  }, 1500));
 }
 
 async function scanActiveNote() {
@@ -386,12 +529,37 @@ async function scanActiveNote() {
     return;
   }
 
-  setEvolutionStatus("正在扫描");
-  const state = await apiRequest(`/evolution/notes/${note.id}/scan`, {
-    method: "POST",
-  });
-  renderEvolutionState(state);
-  setEvolutionStatus("扫描完成");
+  setEvolutionStatus("正在提交后台扫描");
+  await startEvolutionScan(note.id);
+}
+
+async function submitActiveNote() {
+  const note = await saveActiveNote();
+
+  if (!note) {
+    return;
+  }
+
+  setSaveStatus("已保存，后台整理中");
+  await startEvolutionScan(note.id, { updateSaveStatus: true });
+}
+
+async function mergeActiveNote() {
+  setMergeButtonsDisabled(true);
+
+  try {
+    const note = await saveActiveNote();
+
+    if (!note) {
+      return;
+    }
+
+    setSaveStatus("已保存，正在合并");
+    setNoteMerging(note.id, true);
+    await startEvolutionScan(note.id, { updateSaveStatus: true });
+  } finally {
+    setMergeButtonsDisabled(false);
+  }
 }
 
 async function openEvolutionView() {
@@ -400,7 +568,7 @@ async function openEvolutionView() {
 
   try {
     const note = await saveActiveNote();
-    await loadEvolutionState(note?.id || activeNoteId);
+    await loadEvolutionState(note?.id || activeNoteId, { startIfStale: true });
   } catch (error) {
     setEvolutionStatus("加载失败");
     throw error;
@@ -417,9 +585,9 @@ function renderEvolutionState(state) {
   suggestionList.innerHTML = "";
   l3Keywords.innerHTML = "";
 
-  if (!state) {
+  if (!state || !state.representation) {
     l2Summary.textContent = "保存后生成摘要";
-    setEvolutionStatus("等待分析");
+    setEvolutionStatus(state?.analysis_status === "running" ? "后台分析中" : "等待分析");
     renderEmpty(claimList, "暂无 claim");
     renderEmpty(suggestionList, "暂无建议");
     return;
@@ -438,11 +606,14 @@ function renderEvolutionState(state) {
     renderEmpty(l3Keywords, "暂无关键词");
   }
 
-  if (!state.claims.length) {
+  const claims = state.claims || [];
+  const suggestions = state.suggestions || [];
+
+  if (!claims.length) {
     renderEmpty(claimList, "没有抽取到可合并的知识点");
   }
 
-  for (const claim of state.claims.slice(0, 8)) {
+  for (const claim of claims.slice(0, 8)) {
     const item = document.createElement("article");
     item.className = "claim-item";
 
@@ -456,11 +627,11 @@ function renderEvolutionState(state) {
     claimList.append(item);
   }
 
-  if (!state.suggestions.length) {
+  if (!suggestions.length) {
     renderEmpty(suggestionList, "没有发现需要合并或去重的内容");
   }
 
-  for (const suggestion of state.suggestions) {
+  for (const suggestion of suggestions) {
     suggestionList.append(createSuggestionItem(suggestion));
   }
 }
@@ -712,11 +883,14 @@ logoutButton.addEventListener("click", () => {
   delete noteShell.dataset.token;
   notes = [];
   activeNoteId = null;
+  mergingNoteIds = new Set();
+  clearEvolutionPolls();
   showApp(false);
 });
 
 newNoteButton.addEventListener("click", () => addNewNote().catch(showError));
 manualSaveButton.addEventListener("click", () => saveActiveNote().catch(showError));
+mergeNoteButton.addEventListener("click", () => mergeActiveNote().catch(showError));
 deleteNoteButton.addEventListener("click", () => deleteActiveNote().catch(showError));
 exportButton.addEventListener("click", () => exportActiveNote().catch(showError));
 openEvolutionButton.addEventListener("click", () => openEvolutionView().catch(showError));

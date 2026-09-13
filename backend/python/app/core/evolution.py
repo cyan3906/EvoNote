@@ -9,6 +9,8 @@ from openai import OpenAI
 
 from app.core import database
 from app.core.config import settings
+from app.core.retrieval import embed_text, hybrid_retrieve_claims, sync_note_indexes
+from app.core.retry import retry_call
 
 VECTOR_SIZE = 64
 MAX_CANDIDATE_CLAIMS = 80
@@ -96,7 +98,6 @@ def scan_note(note_id: str) -> dict[str, object] | None:
     if not note:
         return None
 
-    candidate_claims = database.list_claims(exclude_note_id=note_id)
     candidate_notes = {item["id"]: item for item in database.list_notes() if item["id"] != note_id}
     analysis = analyze_note(note)
     database.replace_note_analysis(
@@ -105,7 +106,16 @@ def scan_note(note_id: str) -> dict[str, object] | None:
         blocks=analysis["blocks"],
         claims=analysis["claims"],
     )
+    sync_note_indexes(note, analysis["representation"], analysis["claims"])
     database.supersede_pending_suggestions(note_id)
+    candidate_claims = retrieve_candidate_claims(
+        note_id=note_id,
+        representation=analysis["representation"],
+    )
+
+    if not candidate_claims:
+        candidate_claims = database.list_claims(exclude_note_id=note_id)
+
     suggestions = build_merge_suggestions(
         source_note=note,
         source_claims=analysis["claims"],
@@ -131,7 +141,7 @@ def get_note_evolution_state(note_id: str) -> dict[str, object] | None:
 
     representation = database.get_note_representation(note_id)
 
-    if representation is None:
+    if representation is None or is_representation_stale(note, representation):
         return scan_note(note_id)
 
     return {
@@ -141,6 +151,29 @@ def get_note_evolution_state(note_id: str) -> dict[str, object] | None:
         "claims": database.list_claims(note_id=note_id),
         "suggestions": database.list_merge_suggestions(source_note_id=note_id, status="pending"),
     }
+
+
+
+
+def get_note_evolution_snapshot(note_id: str) -> dict[str, object] | None:
+    note = database.get_note(note_id)
+
+    if not note:
+        return None
+
+    representation = database.get_note_representation(note_id)
+    stale = representation is None or is_representation_stale(note, representation)
+
+    return {
+        "note": note,
+        "representation": representation,
+        "blocks": database.list_note_blocks(note_id) if representation else [],
+        "claims": database.list_claims(note_id=note_id) if representation else [],
+        "suggestions": database.list_merge_suggestions(source_note_id=note_id, status="pending") if representation else [],
+        "stale": stale,
+    }
+def is_representation_stale(note: dict[str, str], representation: dict[str, object]) -> bool:
+    return str(note.get("updated_at", "")) > str(representation.get("updated_at", ""))
 
 
 def analyze_note(note: dict[str, str]) -> dict[str, object]:
@@ -173,18 +206,21 @@ def analyze_note(note: dict[str, str]) -> dict[str, object]:
             claim["note_id"] = note["id"]
             claim["block_id"] = block_id
             claim["claim_index"] = claim_index
-            claim["vector"] = text_vector(" ".join(claim["keywords"] + [claim["claim_text"]]))
+            claim["vector"] = embedding_or_local_vector(" ".join(claim["keywords"] + [claim["claim_text"]]))
             claims.append(claim)
 
     model_note = model_analysis.get("note", {})
     note_keywords = clean_keywords(model_note.get("keywords", []), limit=14)
+    note_l2_summary = clean_text(model_note.get("l2_summary", ""))
     note_l3_text = clean_text(model_note.get("l3_text", "")) or " ".join(note_keywords)
     representation = {
         "note_id": note["id"],
-        "l2_summary": clean_text(model_note.get("l2_summary", "")),
+        "l2_summary": note_l2_summary,
         "l3_text": note_l3_text,
         "keywords": note_keywords,
-        "vector": text_vector(f"{note_l3_text} {' '.join(note_keywords)}"),
+        "vector": embedding_or_local_vector(
+            note_l2_summary or f"{note_l3_text} {' '.join(note_keywords)}"
+        ),
     }
 
     return {
@@ -229,17 +265,20 @@ def analyze_note_with_model(note: dict[str, str], raw_blocks: list[dict[str, str
     )
 
     try:
-        response = client.chat.completions.create(
-            model=model,
-            temperature=settings.evolution_temperature,
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": ANALYSIS_SYSTEM_PROMPT},
-                {
-                    "role": "user",
-                    "content": json.dumps(payload, ensure_ascii=False, indent=2),
-                },
-            ],
+        response = retry_call(
+            lambda: client.chat.completions.create(
+                model=model,
+                temperature=settings.evolution_temperature,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": ANALYSIS_SYSTEM_PROMPT},
+                    {
+                        "role": "user",
+                        "content": json.dumps(payload, ensure_ascii=False, indent=2),
+                    },
+                ],
+            ),
+            operation_name="Evolution model request",
         )
     except Exception as exc:
         raise EvolutionModelError(f"调用 Evolution 大模型失败：{exc}") from exc
@@ -253,6 +292,27 @@ def analyze_note_with_model(note: dict[str, str], raw_blocks: list[dict[str, str
 
     validate_model_analysis(data, expected_blocks=len(raw_blocks))
     return data
+
+
+def retrieve_candidate_claims(
+    note_id: str,
+    representation: dict[str, object],
+) -> list[dict[str, object]]:
+    hits = hybrid_retrieve_claims(
+        representation,
+        exclude_note_id=note_id,
+        top_k=settings.retrieval_top_k,
+    )
+
+    if not hits:
+        return []
+
+    claim_ids = [hit.claim_id for hit in hits]
+    claim_map = {
+        str(claim["id"]): claim
+        for claim in database.list_claims(exclude_note_id=note_id)
+    }
+    return [claim_map[claim_id] for claim_id in claim_ids if claim_id in claim_map]
 
 
 def validate_model_analysis(data: dict[str, Any], expected_blocks: int) -> None:
@@ -375,6 +435,15 @@ def normalize_confidence(value: object) -> float:
         confidence = 0.7
 
     return max(0.0, min(1.0, confidence))
+
+
+def embedding_or_local_vector(text: str) -> list[float]:
+    try:
+        vector = embed_text(text)
+    except Exception:
+        vector = []
+
+    return vector or text_vector(text)
 
 
 def split_note_blocks(note: dict[str, str]) -> list[dict[str, str]]:
@@ -671,3 +740,4 @@ def claim_similarity_for_text(left: str, right: str) -> float:
 
 def normalize_text(text: str) -> str:
     return re.sub(r"\W+", "", text.lower())
+

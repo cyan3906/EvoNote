@@ -109,3 +109,53 @@ AGENT_API_KEY=...
 AGENT_MODEL=...
 AGENT_TIMEOUT_SECONDS=30
 ```
+
+## Hybrid retrieval
+
+After a note is scanned, Evonote embeds L2/L3/claim text, writes claim vectors to Milvus,
+writes keyword/search documents to Elasticsearch, then uses RRF to fuse vector and keyword
+retrieval results before generating merge suggestions.
+
+Configure embeddings, Milvus, and Elasticsearch in `.env`:
+
+```text
+EMBEDDING_API_KEY=
+EMBEDDING_BASE_URL=https://api.quickrouter.ai
+EMBEDDING_MODEL=text-embedding-3-large
+EMBEDDING_DIMENSIONS=3072
+
+MILVUS_HOST=localhost
+MILVUS_PORT=19530
+MILVUS_TOKEN=
+MILVUS_COLLECTION=evonote_claims
+
+ES_URL=http://127.0.0.1:9200
+ES_INDEX=evonote_claims
+RETRIEVAL_TOP_K=20
+RRF_K=60
+EXTERNAL_RETRY_ATTEMPTS=3
+EXTERNAL_RETRY_BASE_DELAY_SECONDS=0.5
+EXTERNAL_RETRY_MAX_DELAY_SECONDS=4.0
+```
+
+- `POST /api/evolution/index/rebuild`: rebuild Milvus and Elasticsearch indexes for analyzed notes.
+- `GET /api/evolution/notes/{note_id}/retrieve`: view fused related-claim retrieval results.
+
+External calls to the LLM, embedding API, Milvus, and Elasticsearch use exponential retry
+with the settings above. Indexing failures are reported in rebuild results and do not block
+raw note storage.
+
+Start the app, Milvus, and Elasticsearch with Docker Compose from the project root.
+Runtime data is stored under `E:\huadian\evonote\backend\python\data`:
+
+```powershell
+cd E:\huadian\evonote
+docker compose up -d --build
+```
+
+Stop all services with:
+
+```powershell
+docker compose down
+```
+

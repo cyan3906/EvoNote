@@ -1,0 +1,97 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: evonote-app
+    environment:
+      APP_NAME: Evonote API
+      APP_ENV: development
+      APP_DEBUG: "true"
+      HOST: 0.0.0.0
+      PORT: 8000
+      MILVUS_HOST: milvus
+      MILVUS_PORT: 19530
+      MILVUS_TOKEN: ""
+      MILVUS_COLLECTION: evonote_claims
+      ES_URL: http://elasticsearch:9200
+      ES_INDEX: evonote_claims
+      SQLITE_DATABASE_PATH: data/evonote.sqlite3
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/python/data:/app/backend/python/data
+    depends_on:
+      milvus:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=5).read()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  milvus:
+    image: milvusdb/milvus:v2.6.3
+    container_name: evonote-milvus
+    command: ["milvus", "run", "standalone"]
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      ETCD_USE_EMBED: "true"
+      ETCD_DATA_DIR: /var/lib/milvus/etcd
+      ETCD_CONFIG_PATH: /milvus/configs/embedEtcd.yaml
+      COMMON_STORAGETYPE: local
+      DEPLOY_MODE: STANDALONE
+    ports:
+      - "19530:19530"
+      - "9091:9091"
+    volumes:
+      - ./infra/milvus/embedEtcd.yaml:/milvus/configs/embedEtcd.yaml:ro
+      - ./infra/milvus/user.yaml:/milvus/configs/user.yaml:ro
+      - ./backend/python/data/milvus:/var/lib/milvus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+      start_period: 90s
+    restart: unless-stopped
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    container_name: evonote-elasticsearch
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - ./backend/python/data/elasticsearch:/usr/share/elasticsearch/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsS http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s || exit 1",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+networks:
+  default:
+    name: evonote
+

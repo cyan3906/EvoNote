@@ -1,13 +1,4 @@
 from __future__ import annotations
-import sys
-from pathlib import Path
-
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-# print(PROJECT_ROOT)
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.append(str(PROJECT_ROOT))
-
-print(PROJECT_ROOT)
 
 import json
 from dataclasses import asdict, dataclass, field
@@ -15,6 +6,7 @@ from typing import Any, Literal
 from uuid import uuid4
 from openai import OpenAI
 from app.core.config import settings
+from app.core.retry import retry_call
 
 RelationType = Literal["包括", "关联", "冲突"]
 
@@ -157,12 +149,6 @@ RELATION_PROMPT_TEMPLATE = """
 
 class KnowledgeAssociationAgent:
     def __init__(self, prompt_template: str = RELATION_PROMPT_TEMPLATE) -> None:
-        
-        
-        print(settings.agent_api_key)
-        print(settings.agent_model)
-        print(settings.agent_timeout_seconds)
-        
         self.client = OpenAI(
             api_key=settings.agent_api_key,
             base_url=settings.agent_api_base_url.strip(),
@@ -210,18 +196,24 @@ class KnowledgeAssociationAgent:
         if not settings.agent_api_key or settings.agent_api_key == "change-me":
             return None
 
-        response = self.client.chat.completions.create(
-            model=settings.agent_model,
-            temperature=0,
-            messages=[
-                {
-                    "role": "system",
-                    "content": "你是严格的知识关系判断智能体，只输出 JSON。",
-                },
-                {"role": "user", "content": prompt},
-            ],
-            response_format={"type": "json_object"},
-        )
+        try:
+            response = retry_call(
+                lambda: self.client.chat.completions.create(
+                    model=settings.agent_model,
+                    temperature=0,
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "你是严格的知识关系判断智能体，只输出 JSON。",
+                        },
+                        {"role": "user", "content": prompt},
+                    ],
+                    response_format={"type": "json_object"},
+                ),
+                operation_name="Knowledge association model request",
+            )
+        except Exception:
+            return None
 
         content = response.choices[0].message.content or "{}"
         return json.loads(content)
