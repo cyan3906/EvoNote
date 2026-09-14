@@ -44,6 +44,7 @@ let notes = [];
 let activeNoteId = null;
 let saveTimer = null;
 let mergingNoteIds = new Set();
+let mergePendingNoteIds = new Set();
 let evolutionPollTimers = new Map();
 let activeWorkspace = "editor";
 let initialWorkspace = window.location.pathname === "/evolution" ? "evolution" : "editor";
@@ -111,11 +112,48 @@ function setNoteMerging(noteId, isMerging) {
 
   if (isMerging) {
     mergingNoteIds.add(noteId);
+    mergePendingNoteIds.delete(noteId);
   } else {
     mergingNoteIds.delete(noteId);
   }
 
   renderNotes();
+}
+
+function setNoteMergePending(noteId, isPending) {
+  if (!noteId) {
+    return;
+  }
+
+  if (isPending) {
+    mergePendingNoteIds.add(noteId);
+  } else {
+    mergePendingNoteIds.delete(noteId);
+  }
+
+  renderNotes();
+}
+
+function hasPendingMergeSuggestions(state) {
+  return (state?.suggestions || []).some((suggestion) => suggestion.status === "pending");
+}
+
+function syncMergePendingFromState(noteId, state) {
+  setNoteMergePending(noteId, hasPendingMergeSuggestions(state));
+}
+
+async function refreshPendingMergeNotes() {
+  try {
+    const suggestions = await apiRequest("/evolution/suggestions");
+    mergePendingNoteIds = new Set(
+      suggestions
+        .filter((suggestion) => suggestion.status === "pending")
+        .map((suggestion) => suggestion.source_note_id)
+    );
+    renderNotes();
+  } catch {
+    mergePendingNoteIds = new Set();
+  }
 }
 
 function clearEvolutionPoll(noteId) {
@@ -205,6 +243,7 @@ async function login(password) {
 async function loadNotes() {
   setSaveStatus("正在加载");
   mergingNoteIds = new Set();
+  mergePendingNoteIds = new Set();
   notes = await apiRequest("/notes");
 
   if (notes.length === 0) {
@@ -218,6 +257,7 @@ async function loadNotes() {
   activeNoteId = notes[0]?.id || null;
   renderNotes();
   openNote(activeNoteId);
+  await refreshPendingMergeNotes();
   setSaveStatus("已保存");
 }
 
@@ -273,6 +313,7 @@ function renderNotes() {
     button.type = "button";
     button.addEventListener("click", async () => {
       await saveActiveNote();
+      setWorkspaceView("editor", true);
       openNote(note.id);
     });
 
@@ -289,6 +330,27 @@ function renderNotes() {
       const badge = document.createElement("span");
       badge.className = "note-item-status";
       badge.textContent = "正在合并";
+      titleRow.append(badge);
+    } else if (mergePendingNoteIds.has(note.id)) {
+      const badge = document.createElement("span");
+      badge.className = "note-item-status is-actionable";
+      badge.role = "button";
+      badge.tabIndex = 0;
+      badge.title = "打开智能整理确认合并建议";
+      badge.textContent = "合并待确认";
+      badge.addEventListener("click", (event) => {
+        event.stopPropagation();
+        openPendingMergeReview(note.id).catch(showError);
+      });
+      badge.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") {
+          return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+        openPendingMergeReview(note.id).catch(showError);
+      });
       titleRow.append(badge);
     }
 
@@ -347,8 +409,14 @@ async function saveActiveNote() {
     }),
   });
 
-  notes = notes.filter((item) => item.id !== updated.id);
-  notes.unshift(updated);
+  const noteIndex = notes.findIndex((item) => item.id === updated.id);
+
+  if (noteIndex === -1) {
+    notes.unshift(updated);
+  } else {
+    notes = notes.map((item) => (item.id === updated.id ? updated : item));
+  }
+
   activeNoteId = updated.id;
   noteUpdated.textContent = `更新于 ${formatDate(updated.updated_at)}`;
   setSaveStatus("已保存");
@@ -426,6 +494,7 @@ async function loadEvolutionState(noteId, options = {}) {
   }
 
   renderEvolutionState(state);
+  syncMergePendingFromState(noteId, state);
 
   if (state.analysis_status === "queued" || state.analysis_status === "running") {
     setNoteMerging(noteId, true);
@@ -435,6 +504,7 @@ async function loadEvolutionState(noteId, options = {}) {
   }
 
   setNoteMerging(noteId, false);
+  syncMergePendingFromState(noteId, state);
 
   if (state.stale && options.startIfStale) {
     await startEvolutionScan(noteId, options);
@@ -494,6 +564,7 @@ function pollEvolutionScan(noteId, options = {}) {
 
     if (job.status === "succeeded") {
       const state = await apiRequest(`/evolution/notes/${noteId}`);
+      syncMergePendingFromState(noteId, state);
 
       if (noteId === activeNoteId) {
         renderEvolutionState(state);
@@ -562,13 +633,21 @@ async function mergeActiveNote() {
   }
 }
 
+async function openPendingMergeReview(noteId) {
+  await saveActiveNote();
+  openNote(noteId);
+  setWorkspaceView("evolution", true);
+  renderEvolutionState(null);
+  await loadEvolutionState(noteId);
+}
+
 async function openEvolutionView() {
   setWorkspaceView("evolution", true);
   renderEvolutionState(null);
 
   try {
     const note = await saveActiveNote();
-    await loadEvolutionState(note?.id || activeNoteId, { startIfStale: true });
+    await loadEvolutionState(note?.id || activeNoteId);
   } catch (error) {
     setEvolutionStatus("加载失败");
     throw error;
@@ -698,12 +777,14 @@ async function applySuggestion(suggestionId) {
     await loadEvolutionState(activeNoteId);
   }
 
+  await refreshPendingMergeNotes();
   setSaveStatus("已应用建议");
 }
 
 async function rejectSuggestion(suggestionId) {
   await apiRequest(`/evolution/suggestions/${suggestionId}/reject`, { method: "POST" });
   await loadEvolutionState(activeNoteId);
+  await refreshPendingMergeNotes();
   setEvolutionStatus("已忽略");
 }
 
@@ -884,6 +965,7 @@ logoutButton.addEventListener("click", () => {
   notes = [];
   activeNoteId = null;
   mergingNoteIds = new Set();
+  mergePendingNoteIds = new Set();
   clearEvolutionPolls();
   showApp(false);
 });

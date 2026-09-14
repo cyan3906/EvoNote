@@ -134,7 +134,14 @@ def read_scan_status(note_id: str) -> dict[str, object]:
     job = get_scan_job(note_id)
 
     if not job:
-        return queue_note_scan(note_id).to_dict()
+        return {
+            "id": "",
+            "note_id": note_id,
+            "status": "idle",
+            "error": "",
+            "created_at": "",
+            "updated_at": "",
+        }
 
     return job.to_dict()
 
