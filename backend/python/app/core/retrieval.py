@@ -40,6 +40,19 @@ class RetrievalHit:
         return asdict(self)
 
 
+@dataclass(frozen=True)
+class NoteRetrievalHit:
+    note_id: str
+    score: float
+    rank: int
+    source: str
+    title: str = ""
+    reason: str = ""
+
+    def to_dict(self) -> dict[str, object]:
+        return asdict(self)
+
+
 def embed_text(text: str) -> list[float]:
     content = text.strip()
     api_key = settings.embedding_api_key.strip()
@@ -109,22 +122,10 @@ def build_claim_documents(
         l3_text = str(representation.get("l3_text", ""))
         l2_summary = str(representation.get("l2_summary", ""))
         claim_text = str(claim.get("claim_text", ""))
-        embedding_text = " ".join(
-            value
-            for value in (
-                note.get("title", ""),
-                note.get("tags", ""),
-                l2_summary,
-                l3_text,
-                claim_text,
-                " ".join(keywords),
-            )
-            if value
-        )
         vector = representation_vector
 
         if len(vector) != settings.embedding_dimensions:
-            vector = safe_embed_text(embedding_text)
+            vector = safe_embed_text(l2_summary)
 
         documents.append(
             {
@@ -332,6 +333,148 @@ def query_elasticsearch_by_keywords(
     return hits
 
 
+def query_milvus_notes_by_l2_vector(
+    query_vector: list[float],
+    *,
+    top_k: int | None = None,
+    exclude_note_id: str | None = None,
+) -> list[NoteRetrievalHit]:
+    claim_hits = query_milvus_by_vector(
+        query_vector,
+        top_k=max((top_k or settings.retrieval_top_k) * 10, top_k or settings.retrieval_top_k),
+        exclude_note_id=exclude_note_id,
+    )
+    hits: list[NoteRetrievalHit] = []
+    seen: set[str] = set()
+
+    for claim_hit in claim_hits:
+        if not claim_hit.note_id or claim_hit.note_id in seen:
+            continue
+
+        seen.add(claim_hit.note_id)
+        hits.append(
+            NoteRetrievalHit(
+                note_id=claim_hit.note_id,
+                score=claim_hit.score,
+                rank=len(hits) + 1,
+                source="milvus",
+                title=claim_hit.title,
+                reason=claim_hit.reason,
+            )
+        )
+
+        if len(hits) >= (top_k or settings.retrieval_top_k):
+            break
+
+    return hits
+
+
+def query_elasticsearch_notes_by_l3(
+    query_text: str,
+    keywords: list[str],
+    *,
+    top_k: int | None = None,
+    exclude_note_id: str | None = None,
+) -> list[NoteRetrievalHit]:
+    ensure_retrieval_backends_initialized()
+    client = elasticsearch_client()
+    search_text = " ".join(unique_values([query_text, *keywords])).strip()
+
+    if not search_text:
+        return []
+
+    must_not = []
+
+    if exclude_note_id:
+        must_not.append({"term": {"note_id": exclude_note_id}})
+
+    response = retry_call(
+        lambda: client.search(
+            index=settings.es_index,
+            size=top_k or settings.retrieval_top_k,
+            collapse={"field": "note_id"},
+            query={
+                "bool": {
+                    "must": [
+                        {
+                            "multi_match": {
+                                "query": search_text,
+                                "fields": [
+                                    "l3_text^4",
+                                    "keywords_text^2",
+                                    "l2_summary",
+                                    "title",
+                                    "tags",
+                                ],
+                                "type": "best_fields",
+                            }
+                        }
+                    ],
+                    "must_not": must_not,
+                }
+            },
+        ),
+        operation_name="Elasticsearch note keyword search",
+    )
+    hits: list[NoteRetrievalHit] = []
+
+    for rank, item in enumerate(response.get("hits", {}).get("hits", []), start=1):
+        source = item.get("_source", {})
+        note_id = str(source.get("note_id", ""))
+
+        if not note_id:
+            continue
+
+        hits.append(
+            NoteRetrievalHit(
+                note_id=note_id,
+                score=float(item.get("_score", 0.0) or 0.0),
+                rank=rank,
+                source="elasticsearch",
+                title=str(source.get("title", "")),
+                reason=str(source.get("l3_text", "")),
+            )
+        )
+
+    return hits
+
+
+def hybrid_retrieve_notes(
+    representation: dict[str, object],
+    *,
+    exclude_note_id: str | None = None,
+    top_k: int | None = None,
+) -> list[NoteRetrievalHit]:
+    vector_hits: list[NoteRetrievalHit] = []
+    keyword_hits: list[NoteRetrievalHit] = []
+    query_vector = normalize_vector(representation.get("vector", []))
+
+    try:
+        vector_hits = query_milvus_notes_by_l2_vector(
+            query_vector,
+            top_k=top_k,
+            exclude_note_id=exclude_note_id,
+        )
+    except Exception:
+        vector_hits = []
+
+    try:
+        keyword_hits = query_elasticsearch_notes_by_l3(
+            str(representation.get("l3_text", "")),
+            normalize_keywords(representation.get("keywords", [])),
+            top_k=top_k,
+            exclude_note_id=exclude_note_id,
+        )
+    except Exception:
+        keyword_hits = []
+
+    return reciprocal_rank_fusion_notes(
+        [vector_hits, keyword_hits],
+        rrf_k=settings.rrf_k,
+        top_k=top_k or settings.retrieval_top_k,
+    )
+
+
 def hybrid_retrieve_claims(
     representation: dict[str, object],
     *,
@@ -366,6 +509,48 @@ def hybrid_retrieve_claims(
         rrf_k=settings.rrf_k,
         top_k=top_k or settings.retrieval_top_k,
     )
+
+
+def reciprocal_rank_fusion_notes(
+    rankings: list[list[NoteRetrievalHit]],
+    *,
+    rrf_k: int = 60,
+    top_k: int = 20,
+) -> list[NoteRetrievalHit]:
+    scores: dict[str, float] = {}
+    best_hit: dict[str, NoteRetrievalHit] = {}
+    sources: dict[str, list[str]] = {}
+
+    for ranking in rankings:
+        for rank, hit in enumerate(ranking, start=1):
+            if not hit.note_id:
+                continue
+
+            scores[hit.note_id] = scores.get(hit.note_id, 0.0) + (1.0 / (rrf_k + rank))
+            sources.setdefault(hit.note_id, []).append(hit.source)
+
+            if hit.note_id not in best_hit or hit.score > best_hit[hit.note_id].score:
+                best_hit[hit.note_id] = hit
+
+    fused: list[NoteRetrievalHit] = []
+
+    for rank, note_id in enumerate(
+        sorted(scores, key=lambda item: scores[item], reverse=True)[:top_k],
+        start=1,
+    ):
+        hit = best_hit[note_id]
+        fused.append(
+            NoteRetrievalHit(
+                note_id=note_id,
+                score=round(scores[note_id], 6),
+                rank=rank,
+                source="+".join(unique_values(sources.get(note_id, []))),
+                title=hit.title,
+                reason=hit.reason,
+            )
+        )
+
+    return fused
 
 
 def reciprocal_rank_fusion(

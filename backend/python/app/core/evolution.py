@@ -9,11 +9,10 @@ from openai import OpenAI
 
 from app.core import database
 from app.core.config import settings
-from app.core.retrieval import embed_text, hybrid_retrieve_claims, sync_note_indexes
+from app.core.retrieval import embed_text, hybrid_retrieve_notes, sync_note_indexes
 from app.core.retry import retry_call
 
 VECTOR_SIZE = 64
-MAX_CANDIDATE_CLAIMS = 80
 MAX_SUGGESTIONS = 8
 
 STOP_WORDS = {
@@ -298,21 +297,21 @@ def retrieve_candidate_claims(
     note_id: str,
     representation: dict[str, object],
 ) -> list[dict[str, object]]:
-    hits = hybrid_retrieve_claims(
+    note_hits = hybrid_retrieve_notes(
         representation,
         exclude_note_id=note_id,
         top_k=settings.retrieval_top_k,
     )
 
-    if not hits:
+    if not note_hits:
         return []
 
-    claim_ids = [hit.claim_id for hit in hits]
-    claim_map = {
-        str(claim["id"]): claim
-        for claim in database.list_claims(exclude_note_id=note_id)
-    }
-    return [claim_map[claim_id] for claim_id in claim_ids if claim_id in claim_map]
+    candidate_claims: list[dict[str, object]] = []
+
+    for hit in note_hits:
+        candidate_claims.extend(database.list_claims(note_id=hit.note_id))
+
+    return candidate_claims
 
 
 def validate_model_analysis(data: dict[str, Any], expected_blocks: int) -> None:
@@ -529,7 +528,7 @@ def rank_candidate_claims(
     ranked: list[tuple[dict[str, object], dict[str, object], float]] = []
 
     for source_claim in source_claims:
-        for target_claim in candidate_claims[:MAX_CANDIDATE_CLAIMS]:
+        for target_claim in candidate_claims:
             score = claim_similarity(source_claim, target_claim)
 
             if score >= 0.38:
