@@ -12,6 +12,7 @@ if str(PROJECT_ROOT) not in sys.path:
     
 from openai import OpenAI
 
+from app.core import metrics
 from app.core.config import settings
 from app.core.retry import retry_call
 
@@ -55,23 +56,33 @@ class NoteRetrievalHit:
 
 def embed_text(text: str) -> list[float]:
     content = text.strip()
-    api_key = settings.embedding_api_key.strip()
+    api_key = settings.embedding_api_key.strip() or settings.agent_api_key.strip()
+    base_url = settings.embedding_base_url.strip() or settings.agent_api_base_url.strip()
 
     if not content or not api_key:
         return []
 
     client = OpenAI(
         api_key=api_key,
-        base_url=settings.embedding_base_url.strip() or None,
+        base_url=base_url or None,
         timeout=settings.agent_timeout_seconds,
     )
-    response = retry_call(
-        lambda: client.embeddings.create(
-            model=settings.embedding_model,
-            input=content,
-        ),
-        operation_name="Embedding request",
-    )
+    with metrics.api_call(
+        operation_name="embedding_text",
+        provider="openai-compatible",
+        model=settings.embedding_model,
+        request_size_chars=len(content),
+    ) as call:
+        response = retry_call(
+            lambda: client.embeddings.create(
+                model=settings.embedding_model,
+                input=content,
+            ),
+            operation_name="Embedding request",
+        )
+        metrics.set_call_usage(call, getattr(response, "usage", None))
+        metrics.set_call_response_size(call, response)
+
     return [float(value) for value in response.data[0].embedding]
 
 
@@ -161,26 +172,29 @@ def sync_milvus_claims(note_id: str, documents: list[dict[str, object]]) -> int:
     if not vector_documents:
         return 0
 
-    ensure_retrieval_backends_initialized()
-    client = milvus_client()
-    retry_call(
-        lambda: client.delete(
-            collection_name=settings.milvus_collection,
-            filter=f'note_id == "{escape_milvus_value(note_id)}"',
-        ),
-        operation_name="Milvus delete claims",
-    )
-    retry_call(
-        lambda: client.insert(
-            collection_name=settings.milvus_collection,
-            data=[milvus_document(document) for document in vector_documents],
-        ),
-        operation_name="Milvus insert claims",
-    )
-    retry_call(
-        lambda: client.flush(collection_name=settings.milvus_collection),
-        operation_name="Milvus flush claims",
-    )
+    with metrics.api_call(operation_name="milvus_index_sync", provider="milvus") as call:
+        ensure_retrieval_backends_initialized()
+        client = milvus_client()
+        retry_call(
+            lambda: client.delete(
+                collection_name=settings.milvus_collection,
+                filter=f'note_id == "{escape_milvus_value(note_id)}"',
+            ),
+            operation_name="Milvus delete claims",
+        )
+        retry_call(
+            lambda: client.insert(
+                collection_name=settings.milvus_collection,
+                data=[milvus_document(document) for document in vector_documents],
+            ),
+            operation_name="Milvus insert claims",
+        )
+        retry_call(
+            lambda: client.flush(collection_name=settings.milvus_collection),
+            operation_name="Milvus flush claims",
+        )
+        metrics.set_call_response_size(call, len(vector_documents))
+
     return len(vector_documents)
 
 
@@ -234,35 +248,38 @@ def query_milvus_by_vector(
 
 
 def sync_elasticsearch_claims(note_id: str, documents: list[dict[str, object]]) -> int:
-    ensure_retrieval_backends_initialized()
-    client = elasticsearch_client()
-    retry_call(
-        lambda: client.delete_by_query(
-            index=settings.es_index,
-            query={"term": {"note_id": note_id}},
-            ignore_unavailable=True,
-            conflicts="proceed",
-            refresh=True,
-        ),
-        operation_name="Elasticsearch delete old claims",
-    )
-
-    for document in documents:
+    with metrics.api_call(operation_name="elasticsearch_index_sync", provider="elasticsearch") as call:
+        ensure_retrieval_backends_initialized()
+        client = elasticsearch_client()
         retry_call(
-            lambda document=document: client.index(
+            lambda: client.delete_by_query(
                 index=settings.es_index,
-                id=str(document["claim_id"]),
-                document=elasticsearch_document(document),
-                refresh=False,
+                query={"term": {"note_id": note_id}},
+                ignore_unavailable=True,
+                conflicts="proceed",
+                refresh=True,
             ),
-            operation_name="Elasticsearch index claim",
+            operation_name="Elasticsearch delete old claims",
         )
 
-    if documents:
-        retry_call(
-            lambda: client.indices.refresh(index=settings.es_index),
-            operation_name="Elasticsearch refresh index",
-        )
+        for document in documents:
+            retry_call(
+                lambda document=document: client.index(
+                    index=settings.es_index,
+                    id=str(document["claim_id"]),
+                    document=elasticsearch_document(document),
+                    refresh=False,
+                ),
+                operation_name="Elasticsearch index claim",
+            )
+
+        if documents:
+            retry_call(
+                lambda: client.indices.refresh(index=settings.es_index),
+                operation_name="Elasticsearch refresh index",
+            )
+
+        metrics.set_call_response_size(call, len(documents))
 
     return len(documents)
 
@@ -339,11 +356,14 @@ def query_milvus_notes_by_l2_vector(
     top_k: int | None = None,
     exclude_note_id: str | None = None,
 ) -> list[NoteRetrievalHit]:
-    claim_hits = query_milvus_by_vector(
-        query_vector,
-        top_k=max((top_k or settings.retrieval_top_k) * 10, top_k or settings.retrieval_top_k),
-        exclude_note_id=exclude_note_id,
-    )
+    with metrics.api_call(operation_name="milvus_note_search", provider="milvus") as call:
+        claim_hits = query_milvus_by_vector(
+            query_vector,
+            top_k=max((top_k or settings.retrieval_top_k) * 10, top_k or settings.retrieval_top_k),
+            exclude_note_id=exclude_note_id,
+        )
+        metrics.set_call_response_size(call, len(claim_hits))
+
     hits: list[NoteRetrievalHit] = []
     seen: set[str] = set()
 
@@ -388,34 +408,41 @@ def query_elasticsearch_notes_by_l3(
     if exclude_note_id:
         must_not.append({"term": {"note_id": exclude_note_id}})
 
-    response = retry_call(
-        lambda: client.search(
-            index=settings.es_index,
-            size=top_k or settings.retrieval_top_k,
-            collapse={"field": "note_id"},
-            query={
-                "bool": {
-                    "must": [
-                        {
-                            "multi_match": {
-                                "query": search_text,
-                                "fields": [
-                                    "l3_text^4",
-                                    "keywords_text^2",
-                                    "l2_summary",
-                                    "title",
-                                    "tags",
-                                ],
-                                "type": "best_fields",
+    with metrics.api_call(
+        operation_name="elasticsearch_note_search",
+        provider="elasticsearch",
+        request_size_chars=len(search_text),
+    ) as call:
+        response = retry_call(
+            lambda: client.search(
+                index=settings.es_index,
+                size=top_k or settings.retrieval_top_k,
+                collapse={"field": "note_id"},
+                query={
+                    "bool": {
+                        "must": [
+                            {
+                                "multi_match": {
+                                    "query": search_text,
+                                    "fields": [
+                                        "l3_text^4",
+                                        "keywords_text^2",
+                                        "l2_summary",
+                                        "title",
+                                        "tags",
+                                    ],
+                                    "type": "best_fields",
+                                }
                             }
-                        }
-                    ],
-                    "must_not": must_not,
-                }
-            },
-        ),
-        operation_name="Elasticsearch note keyword search",
-    )
+                        ],
+                        "must_not": must_not,
+                    }
+                },
+            ),
+            operation_name="Elasticsearch note keyword search",
+        )
+        metrics.set_call_response_size(call, response)
+
     hits: list[NoteRetrievalHit] = []
 
     for rank, item in enumerate(response.get("hits", {}).get("hits", []), start=1):

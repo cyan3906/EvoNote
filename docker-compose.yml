@@ -4,6 +4,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: evonote-app
+    env_file:
+      - ./backend/python/.env
     environment:
       APP_NAME: Evonote API
       APP_ENV: development

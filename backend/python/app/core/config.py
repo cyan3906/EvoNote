@@ -1,4 +1,10 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+ENV_FILE = PROJECT_ROOT / ".env"
 
 
 class Settings(BaseSettings):
@@ -8,9 +14,9 @@ class Settings(BaseSettings):
     host: str = "127.0.0.1"
     port: int = 8000
 
-    agent_api_base_url: str = "https://api.uiuihao.com/v1" 
-    agent_api_key: str = "sk-EvGLrMBijuYrWTRfHSYEr5qGATNAfPBJ1q1l9WtwXHyzQ3ee"
-    agent_model: str = "gpt-4o-mini"
+    agent_api_base_url: str = ""
+    agent_api_key: str = ""
+    agent_model: str = ""
     agent_timeout_seconds: int = 30
 
     evolution_api_base_url: str = ""
@@ -19,8 +25,8 @@ class Settings(BaseSettings):
     evolution_timeout_seconds: int = 0
     evolution_temperature: float = 0
 
-    embedding_api_key: str = "sk-RpWp5bSSc8tbV9WzS26lo9qNauXL3rmFM8Nu0oqNwgJx7GtJ"
-    embedding_base_url: str = "https://api.quickrouter.ai"
+    embedding_api_key: str = ""
+    embedding_base_url: str = ""
     embedding_model: str = "text-embedding-3-large"
     embedding_dimensions: int = 3072
 
@@ -50,7 +56,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://127.0.0.1:6379/0"
     redis_cache_ttl_seconds: int = 3600
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(env_file=ENV_FILE, env_file_encoding="utf-8")
 
 
 settings = Settings()

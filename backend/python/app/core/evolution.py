@@ -7,7 +7,7 @@ from uuid import uuid4
 
 from openai import OpenAI
 
-from app.core import database
+from app.core import database, metrics
 from app.core.config import settings
 from app.core.retrieval import embed_text, hybrid_retrieve_notes, sync_note_indexes
 from app.core.retry import retry_call
@@ -91,45 +91,90 @@ class EvolutionModelError(RuntimeError):
     pass
 
 
-def scan_note(note_id: str) -> dict[str, object] | None:
+def scan_note(
+    note_id: str,
+    *,
+    job_id: str = "",
+    created_at: str = "",
+    trigger_type: str = "scan",
+) -> dict[str, object] | None:
     note = database.get_note(note_id)
 
     if not note:
         return None
 
-    candidate_notes = {item["id"]: item for item in database.list_notes() if item["id"] != note_id}
-    analysis = analyze_note(note)
-    database.replace_note_analysis(
+    job_id = job_id or str(uuid4())
+
+    with metrics.evolution_job(
+        job_id=job_id,
         note_id=note_id,
-        representation=analysis["representation"],
-        blocks=analysis["blocks"],
-        claims=analysis["claims"],
-    )
-    sync_note_indexes(note, analysis["representation"], analysis["claims"])
-    database.supersede_pending_suggestions(note_id)
-    candidate_claims = retrieve_candidate_claims(
-        note_id=note_id,
-        representation=analysis["representation"],
-    )
+        note_title=note.get("title", ""),
+        trigger_type=trigger_type,
+        created_at=created_at,
+    ):
+        candidate_notes = {item["id"]: item for item in database.list_notes() if item["id"] != note_id}
 
-    if not candidate_claims:
-        candidate_claims = database.list_claims(exclude_note_id=note_id)
+        with metrics.stage("analyze_note_ms"):
+            analysis = analyze_note(note)
 
-    suggestions = build_merge_suggestions(
-        source_note=note,
-        source_claims=analysis["claims"],
-        candidate_claims=candidate_claims,
-        candidate_notes=candidate_notes,
-    )
-    stored_suggestions = database.create_merge_suggestions(suggestions)
+        metrics.record_counts(source_claim_count=len(analysis["claims"]))
 
-    return {
-        "note": note,
-        "representation": analysis["representation"],
-        "blocks": analysis["blocks"],
-        "claims": analysis["claims"],
-        "suggestions": stored_suggestions,
-    }
+        with metrics.stage("save_analysis_ms"):
+            database.replace_note_analysis(
+                note_id=note_id,
+                representation=analysis["representation"],
+                blocks=analysis["blocks"],
+                claims=analysis["claims"],
+            )
+
+        with metrics.stage("sync_index_ms"):
+            sync_note_indexes(note, analysis["representation"], analysis["claims"])
+
+        database.supersede_pending_suggestions(note_id)
+        candidate_claims = retrieve_candidate_claims(
+            note_id=note_id,
+            representation=analysis["representation"],
+        )
+
+        if not candidate_claims:
+            candidate_claims = database.list_claims(exclude_note_id=note_id)
+            fallback_note_ids = {str(claim["note_id"]) for claim in candidate_claims}
+            metrics.record_counts(
+                candidate_note_count=len(fallback_note_ids),
+                candidate_claim_count=len(candidate_claims),
+            )
+            metrics.record_extra(
+                candidate_note_ids=sorted(fallback_note_ids),
+                retrieval_mode="fallback_all_claims",
+            )
+
+        with metrics.stage("create_suggestions_ms"):
+            suggestions = build_merge_suggestions(
+                source_note=note,
+                source_claims=analysis["claims"],
+                candidate_claims=candidate_claims,
+                candidate_notes=candidate_notes,
+            )
+            stored_suggestions = database.create_merge_suggestions(suggestions)
+
+        relation_counts = {
+            "duplicate_count": sum(1 for suggestion in stored_suggestions if suggestion["relation"] == "duplicate"),
+            "supplement_count": sum(1 for suggestion in stored_suggestions if suggestion["relation"] == "supplement"),
+            "conflict_count": sum(1 for suggestion in stored_suggestions if suggestion["relation"] == "conflict"),
+        }
+        metrics.record_counts(
+            suggestion_count=len(stored_suggestions),
+            pending_suggestion_count=sum(1 for suggestion in stored_suggestions if suggestion["status"] == "pending"),
+            **relation_counts,
+        )
+
+        return {
+            "note": note,
+            "representation": analysis["representation"],
+            "blocks": analysis["blocks"],
+            "claims": analysis["claims"],
+            "suggestions": stored_suggestions,
+        }
 
 
 def get_note_evolution_state(note_id: str) -> dict[str, object] | None:
@@ -264,25 +309,36 @@ def analyze_note_with_model(note: dict[str, str], raw_blocks: list[dict[str, str
     )
 
     try:
-        response = retry_call(
-            lambda: client.chat.completions.create(
-                model=model,
-                temperature=settings.evolution_temperature,
-                response_format={"type": "json_object"},
-                messages=[
-                    {"role": "system", "content": ANALYSIS_SYSTEM_PROMPT},
-                    {
-                        "role": "user",
-                        "content": json.dumps(payload, ensure_ascii=False, indent=2),
-                    },
-                ],
-            ),
-            operation_name="Evolution model request",
-        )
+        request_body = json.dumps(payload, ensure_ascii=False, indent=2)
+
+        with metrics.api_call(
+            operation_name="evolution_model_analysis",
+            provider="openai-compatible",
+            model=model,
+            call_group="model_calls",
+            request_size_chars=len(request_body),
+        ) as call:
+            response = retry_call(
+                lambda: client.chat.completions.create(
+                    model=model,
+                    temperature=settings.evolution_temperature,
+                    response_format={"type": "json_object"},
+                    messages=[
+                        {"role": "system", "content": ANALYSIS_SYSTEM_PROMPT},
+                        {
+                            "role": "user",
+                            "content": request_body,
+                        },
+                    ],
+                ),
+                operation_name="Evolution model request",
+            )
+            metrics.set_call_usage(call, getattr(response, "usage", None))
     except Exception as exc:
         raise EvolutionModelError(f"调用 Evolution 大模型失败：{exc}") from exc
 
     content = response.choices[0].message.content or "{}"
+    metrics.set_call_response_size(call, content)
 
     try:
         data = json.loads(content)
@@ -297,19 +353,28 @@ def retrieve_candidate_claims(
     note_id: str,
     representation: dict[str, object],
 ) -> list[dict[str, object]]:
-    note_hits = hybrid_retrieve_notes(
-        representation,
-        exclude_note_id=note_id,
-        top_k=settings.retrieval_top_k,
-    )
+    with metrics.stage("retrieve_candidate_notes_ms"):
+        note_hits = hybrid_retrieve_notes(
+            representation,
+            exclude_note_id=note_id,
+            top_k=settings.retrieval_top_k,
+        )
 
     if not note_hits:
         return []
 
     candidate_claims: list[dict[str, object]] = []
+    candidate_note_ids = [hit.note_id for hit in note_hits]
 
-    for hit in note_hits:
-        candidate_claims.extend(database.list_claims(note_id=hit.note_id))
+    with metrics.stage("load_candidate_claims_ms"):
+        for hit in note_hits:
+            candidate_claims.extend(database.list_claims(note_id=hit.note_id))
+
+    metrics.record_counts(
+        candidate_note_count=len(candidate_note_ids),
+        candidate_claim_count=len(candidate_claims),
+    )
+    metrics.record_extra(candidate_note_ids=candidate_note_ids)
 
     return candidate_claims
 
@@ -526,13 +591,15 @@ def rank_candidate_claims(
     candidate_claims: list[dict[str, object]],
 ) -> list[tuple[dict[str, object], dict[str, object], float]]:
     ranked: list[tuple[dict[str, object], dict[str, object], float]] = []
+    metrics.record_counts(comparison_count=len(source_claims) * len(candidate_claims))
 
-    for source_claim in source_claims:
-        for target_claim in candidate_claims:
-            score = claim_similarity(source_claim, target_claim)
+    with metrics.stage("compare_claims_ms"):
+        for source_claim in source_claims:
+            for target_claim in candidate_claims:
+                score = claim_similarity(source_claim, target_claim)
 
-            if score >= 0.38:
-                ranked.append((source_claim, target_claim, score))
+                if score >= 0.38:
+                    ranked.append((source_claim, target_claim, score))
 
     return sorted(ranked, key=lambda item: item[2], reverse=True)
 

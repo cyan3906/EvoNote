@@ -44,7 +44,7 @@ def queue_note_scan(note_id: str) -> EvolutionScanJob:
             updated_at=now,
         )
         _JOBS_BY_NOTE_ID[note_id] = job
-        _EXECUTOR.submit(_run_scan_job, job.id, note_id)
+        _EXECUTOR.submit(_run_scan_job, job.id, note_id, job.created_at)
         return job
 
 
@@ -53,13 +53,13 @@ def get_scan_job(note_id: str) -> EvolutionScanJob | None:
         return _JOBS_BY_NOTE_ID.get(note_id)
 
 
-def _run_scan_job(job_id: str, note_id: str) -> None:
+def _run_scan_job(job_id: str, note_id: str, created_at: str) -> None:
     _update_job(note_id, job_id, status="running")
 
     try:
         from app.core.evolution import scan_note
 
-        scan_note(note_id)
+        scan_note(note_id, job_id=job_id, created_at=created_at)
     except Exception as exc:
         _update_job(note_id, job_id, status="failed", error=str(exc))
         return
