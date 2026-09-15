@@ -221,8 +221,16 @@ def create_note(title: str = "", tags: str = "", body: str = "") -> dict[str, st
 def update_note(note_id: str, title: str, tags: str, body: str) -> dict[str, str] | None:
     init_db()
     updated_at = now_iso()
+    had_analysis = False
 
     with connect() as connection:
+        had_analysis = (
+            connection.execute(
+                "SELECT 1 FROM note_representations WHERE note_id = ? LIMIT 1",
+                (note_id,),
+            ).fetchone()
+            is not None
+        )
         cursor = connection.execute(
             """
             UPDATE notes
@@ -235,13 +243,24 @@ def update_note(note_id: str, title: str, tags: str, body: str) -> dict[str, str
     if cursor.rowcount == 0:
         return None
 
+    if had_analysis:
+        _delete_external_note_indexes(note_id)
+
     return get_note(note_id)
 
 
 def delete_note(note_id: str) -> bool:
     init_db()
+    had_analysis = False
 
     with connect() as connection:
+        had_analysis = (
+            connection.execute(
+                "SELECT 1 FROM note_representations WHERE note_id = ? LIMIT 1",
+                (note_id,),
+            ).fetchone()
+            is not None
+        )
         connection.execute("DELETE FROM merge_suggestions WHERE source_note_id = ? OR target_note_id = ?", (note_id, note_id))
         connection.execute("DELETE FROM knowledge_claims WHERE note_id = ?", (note_id,))
         connection.execute("DELETE FROM note_blocks WHERE note_id = ?", (note_id,))
@@ -249,7 +268,19 @@ def delete_note(note_id: str) -> bool:
         connection.execute("DELETE FROM note_versions WHERE note_id = ?", (note_id,))
         cursor = connection.execute("DELETE FROM notes WHERE id = ?", (note_id,))
 
+    if cursor.rowcount > 0 and had_analysis:
+        _delete_external_note_indexes(note_id)
+
     return cursor.rowcount > 0
+
+
+def _delete_external_note_indexes(note_id: str) -> None:
+    try:
+        from app.core.retrieval import delete_note_indexes
+
+        delete_note_indexes(note_id)
+    except Exception:
+        return
 
 
 def row_to_representation(row: sqlite3.Row) -> dict[str, object]:

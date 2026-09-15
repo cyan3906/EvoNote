@@ -125,7 +125,6 @@ def build_claim_documents(
 ) -> list[dict[str, object]]:
     documents: list[dict[str, object]] = []
     note_keywords = normalize_keywords(representation.get("keywords", []))
-    representation_vector = normalize_vector(representation.get("vector", []))
 
     for claim in claims:
         claim_keywords = normalize_keywords(claim.get("keywords", []))
@@ -133,10 +132,10 @@ def build_claim_documents(
         l3_text = str(representation.get("l3_text", ""))
         l2_summary = str(representation.get("l2_summary", ""))
         claim_text = str(claim.get("claim_text", ""))
-        vector = representation_vector
+        vector = normalize_vector(claim.get("vector", []))
 
         if len(vector) != settings.embedding_dimensions:
-            vector = safe_embed_text(l2_summary)
+            vector = safe_embed_text(" ".join([*claim_keywords, claim_text]))
 
         documents.append(
             {
@@ -162,6 +161,28 @@ def build_claim_documents(
     return documents
 
 
+def delete_note_indexes(note_id: str) -> dict[str, object]:
+    result: dict[str, object] = {
+        "milvus_deleted": False,
+        "es_deleted": False,
+        "errors": [],
+    }
+
+    try:
+        delete_elasticsearch_claims(note_id)
+        result["es_deleted"] = True
+    except Exception as exc:
+        result["errors"].append(f"Elasticsearch cleanup skipped: {exc}")
+
+    try:
+        delete_milvus_claims(note_id)
+        result["milvus_deleted"] = True
+    except Exception as exc:
+        result["errors"].append(f"Milvus cleanup skipped: {exc}")
+
+    return result
+
+
 def sync_milvus_claims(note_id: str, documents: list[dict[str, object]]) -> int:
     vector_documents = [
         document
@@ -169,19 +190,14 @@ def sync_milvus_claims(note_id: str, documents: list[dict[str, object]]) -> int:
         if len(normalize_vector(document.get("vector", []))) == settings.embedding_dimensions
     ]
 
-    if not vector_documents:
-        return 0
-
     with metrics.api_call(operation_name="milvus_index_sync", provider="milvus") as call:
-        ensure_retrieval_backends_initialized()
+        delete_milvus_claims(note_id)
+
+        if not vector_documents:
+            metrics.set_call_response_size(call, 0)
+            return 0
+
         client = milvus_client()
-        retry_call(
-            lambda: client.delete(
-                collection_name=settings.milvus_collection,
-                filter=f'note_id == "{escape_milvus_value(note_id)}"',
-            ),
-            operation_name="Milvus delete claims",
-        )
         retry_call(
             lambda: client.insert(
                 collection_name=settings.milvus_collection,
@@ -196,6 +212,22 @@ def sync_milvus_claims(note_id: str, documents: list[dict[str, object]]) -> int:
         metrics.set_call_response_size(call, len(vector_documents))
 
     return len(vector_documents)
+
+
+def delete_milvus_claims(note_id: str) -> None:
+    ensure_retrieval_backends_initialized()
+    client = milvus_client()
+    retry_call(
+        lambda: client.delete(
+            collection_name=settings.milvus_collection,
+            filter=f'note_id == "{escape_milvus_value(note_id)}"',
+        ),
+        operation_name="Milvus delete claims",
+    )
+    retry_call(
+        lambda: client.flush(collection_name=settings.milvus_collection),
+        operation_name="Milvus flush deleted claims",
+    )
 
 
 def query_milvus_by_vector(
@@ -249,18 +281,7 @@ def query_milvus_by_vector(
 
 def sync_elasticsearch_claims(note_id: str, documents: list[dict[str, object]]) -> int:
     with metrics.api_call(operation_name="elasticsearch_index_sync", provider="elasticsearch") as call:
-        ensure_retrieval_backends_initialized()
-        client = elasticsearch_client()
-        retry_call(
-            lambda: client.delete_by_query(
-                index=settings.es_index,
-                query={"term": {"note_id": note_id}},
-                ignore_unavailable=True,
-                conflicts="proceed",
-                refresh=True,
-            ),
-            operation_name="Elasticsearch delete old claims",
-        )
+        client = delete_elasticsearch_claims(note_id)
 
         for document in documents:
             retry_call(
@@ -282,6 +303,22 @@ def sync_elasticsearch_claims(note_id: str, documents: list[dict[str, object]]) 
         metrics.set_call_response_size(call, len(documents))
 
     return len(documents)
+
+
+def delete_elasticsearch_claims(note_id: str):
+    ensure_retrieval_backends_initialized()
+    client = elasticsearch_client()
+    retry_call(
+        lambda: client.delete_by_query(
+            index=settings.es_index,
+            query={"term": {"note_id": note_id}},
+            ignore_unavailable=True,
+            conflicts="proceed",
+            refresh=True,
+        ),
+        operation_name="Elasticsearch delete old claims",
+    )
+    return client
 
 
 def query_elasticsearch_by_keywords(
