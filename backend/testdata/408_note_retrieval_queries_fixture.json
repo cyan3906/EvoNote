@@ -1,0 +1,275 @@
+{
+  "schema_version": "1.0",
+  "dataset_name": "408_note_retrieval_queries_fixture",
+  "target_level": "note",
+  "purpose": "用于评估RAG阶段相似文章检索质量，分别衡量ES、Milvus和RRF是否召回相关note。",
+  "relevance_policy": {
+    "3": "高度相关，应该优先召回。",
+    "2": "相关，可作为补充上下文。",
+    "1": "弱相关，只在更大top_k中接受。"
+  },
+  "queries": [
+    {
+      "query_id": "retrieval_001",
+      "query_text": "顺序表和链表在访问和插入删除上的区别是什么？",
+      "keywords": ["顺序表", "链表", "随机访问", "插入删除"],
+      "gold_relevant_notes": [
+        { "note_id": "note_001", "relevance": 3 }
+      ]
+    },
+    {
+      "query_id": "retrieval_002",
+      "query_text": "表达式求值和括号匹配为什么常用栈？",
+      "keywords": ["栈", "表达式求值", "括号匹配"],
+      "gold_relevant_notes": [
+        { "note_id": "note_002", "relevance": 3 }
+      ]
+    },
+    {
+      "query_id": "retrieval_003",
+      "query_text": "循环队列如何判断队满，为什么能避免假溢出？",
+      "keywords": ["循环队列", "队满", "假溢出", "front", "rear"],
+      "gold_relevant_notes": [
+        { "note_id": "note_003", "relevance": 3 }
+      ]
+    },
+    {
+      "query_id": "retrieval_004",
+      "query_text": "KMP失配时为什么主串指针不用回退？",
+      "keywords": ["KMP", "next数组", "失配", "前后缀"],
+      "gold_relevant_notes": [
+        { "note_id": "note_004", "relevance": 3 }
+      ]
+    },
+    {
+      "query_id": "retrieval_005",
+      "query_text": "只给前序和后序遍历能不能唯一确定二叉树？",
+      "keywords": ["二叉树", "前序遍历", "后序遍历", "中序遍历"],
+      "gold_relevant_notes": [
+        { "note_id": "note_005", "relevance": 3 }
+      ]
+    },
+    {
+      "query_id": "retrieval_006",
+      "query_text": "二叉排序树退化时查找复杂度为什么会变差？",
+      "keywords": ["二叉排序树", "查找复杂度", "树高", "单链表"],
+      "gold_relevant_notes": [
+        { "note_id": "note_006", "relevance": 3 },
+        { "note_id": "note_007", "relevance": 2 }
+      ]
+    },
+    {
+      "query_id": "retrieval_007",
+      "query_text": "AVL树插入后失衡应该怎么旋转？",
+      "keywords": ["AVL树", "LL", "RR", "LR", "RL", "旋转"],
+      "gold_relevant_notes": [
+        { "note_id": "note_007", "relevance": 3 },
+        { "note_id": "note_006", "relevance": 1 }
+      ]
+    },
+    {
+      "query_id": "retrieval_008",
+      "query_text": "哈希表开放定址法删除元素为什么不能直接置空？",
+      "keywords": ["哈希表", "开放定址法", "删除", "探测路径"],
+      "gold_relevant_notes": [
+        { "note_id": "note_008", "relevance": 3 }
+      ]
+    },
+    {
+      "query_id": "retrieval_009",
+      "query_text": "BFS和DFS分别适合解决什么图遍历问题？",
+      "keywords": ["BFS", "DFS", "图遍历", "无权图最短路径"],
+      "gold_relevant_notes": [
+        { "note_id": "note_009", "relevance": 3 },
+        { "note_id": "note_011", "relevance": 1 }
+      ]
+    },
+    {
+      "query_id": "retrieval_010",
+      "query_text": "Prim和Kruskal最小生成树算法有什么区别？",
+      "keywords": ["Prim算法", "Kruskal算法", "最小生成树", "并查集"],
+      "gold_relevant_notes": [
+        { "note_id": "note_010", "relevance": 3 }
+      ]
+    },
+    {
+      "query_id": "retrieval_011",
+      "query_text": "Dijkstra算法为什么不能处理负权边？",
+      "keywords": ["Dijkstra", "单源最短路径", "负权边"],
+      "gold_relevant_notes": [
+        { "note_id": "note_011", "relevance": 3 },
+        { "note_id": "note_010", "relevance": 1 }
+      ]
+    },
+    {
+      "query_id": "retrieval_012",
+      "query_text": "拓扑排序如何判断有向图中是否存在环？",
+      "keywords": ["拓扑排序", "有向无环图", "入度", "环"],
+      "gold_relevant_notes": [
+        { "note_id": "note_012", "relevance": 3 }
+      ]
+    },
+    {
+      "query_id": "retrieval_013",
+      "query_text": "哪些排序算法是稳定的，快速排序和堆排序稳定吗？",
+      "keywords": ["排序稳定性", "快速排序", "堆排序", "归并排序"],
+      "gold_relevant_notes": [
+        { "note_id": "note_013", "relevance": 3 },
+        { "note_id": "note_014", "relevance": 2 },
+        { "note_id": "note_015", "relevance": 2 }
+      ]
+    },
+    {
+      "query_id": "retrieval_014",
+      "query_text": "快速排序什么时候会退化到O(n^2)？",
+      "keywords": ["快速排序", "枢轴", "O(n^2)", "划分"],
+      "gold_relevant_notes": [
+        { "note_id": "note_014", "relevance": 3 },
+        { "note_id": "note_013", "relevance": 1 }
+      ]
+    },
+    {
+      "query_id": "retrieval_015",
+      "query_text": "补码加法如何判断溢出？",
+      "keywords": ["补码", "加法溢出", "同号数", "异号结果"],
+      "gold_relevant_notes": [
+        { "note_id": "note_016", "relevance": 3 }
+      ]
+    },
+    {
+      "query_id": "retrieval_016",
+      "query_text": "浮点数中阶码和尾数分别影响什么？",
+      "keywords": ["浮点数", "阶码", "尾数", "表示范围", "精度"],
+      "gold_relevant_notes": [
+        { "note_id": "note_017", "relevance": 3 }
+      ]
+    },
+    {
+      "query_id": "retrieval_017",
+      "query_text": "硬布线控制器和微程序控制器的取舍是什么？",
+      "keywords": ["硬布线控制器", "微程序控制器", "控制信号", "微指令"],
+      "gold_relevant_notes": [
+        { "note_id": "note_020", "relevance": 3 },
+        { "note_id": "note_019", "relevance": 1 }
+      ]
+    },
+    {
+      "query_id": "retrieval_018",
+      "query_text": "指令流水线能提高什么，为什么不能明显降低单条指令延迟？",
+      "keywords": ["指令流水线", "吞吐率", "执行延迟", "时钟周期"],
+      "gold_relevant_notes": [
+        { "note_id": "note_021", "relevance": 3 }
+      ]
+    },
+    {
+      "query_id": "retrieval_019",
+      "query_text": "Cache为什么有效，时间局部性和空间局部性是什么意思？",
+      "keywords": ["Cache", "时间局部性", "空间局部性"],
+      "gold_relevant_notes": [
+        { "note_id": "note_022", "relevance": 3 },
+        { "note_id": "note_023", "relevance": 2 }
+      ]
+    },
+    {
+      "query_id": "retrieval_020",
+      "query_text": "直接映射、全相联映射和组相联映射有什么区别？",
+      "keywords": ["Cache映射", "直接映射", "全相联映射", "组相联映射"],
+      "gold_relevant_notes": [
+        { "note_id": "note_023", "relevance": 3 },
+        { "note_id": "note_022", "relevance": 1 }
+      ]
+    },
+    {
+      "query_id": "retrieval_021",
+      "query_text": "分页系统中虚拟地址如何通过页表转换成物理块号？",
+      "keywords": ["虚拟存储器", "分页系统", "虚拟地址", "页表", "物理块号"],
+      "gold_relevant_notes": [
+        { "note_id": "note_024", "relevance": 3 },
+        { "note_id": "note_033", "relevance": 2 },
+        { "note_id": "note_034", "relevance": 1 }
+      ]
+    },
+    {
+      "query_id": "retrieval_022",
+      "query_text": "DMA和中断方式在I/O传输中的区别是什么？",
+      "keywords": ["DMA", "中断", "CPU", "外设", "I/O"],
+      "gold_relevant_notes": [
+        { "note_id": "note_026", "relevance": 3 },
+        { "note_id": "note_037", "relevance": 3 }
+      ]
+    },
+    {
+      "query_id": "retrieval_023",
+      "query_text": "进程和线程的核心区别是什么？",
+      "keywords": ["进程", "线程", "资源分配", "CPU调度", "地址空间"],
+      "gold_relevant_notes": [
+        { "note_id": "note_027", "relevance": 3 },
+        { "note_id": "note_028", "relevance": 1 }
+      ]
+    },
+    {
+      "query_id": "retrieval_024",
+      "query_text": "阻塞进程事件完成后为什么不是直接运行？",
+      "keywords": ["进程状态", "阻塞态", "就绪态", "运行态"],
+      "gold_relevant_notes": [
+        { "note_id": "note_028", "relevance": 3 },
+        { "note_id": "note_029", "relevance": 1 }
+      ]
+    },
+    {
+      "query_id": "retrieval_025",
+      "query_text": "死锁的四个必要条件和银行家算法分别是什么？",
+      "keywords": ["死锁", "四个必要条件", "银行家算法", "安全状态"],
+      "gold_relevant_notes": [
+        { "note_id": "note_032", "relevance": 3 }
+      ]
+    },
+    {
+      "query_id": "retrieval_026",
+      "query_text": "分页和分段的区别是什么，页面置换什么时候发生？",
+      "keywords": ["分页", "分段", "页面置换", "缺页"],
+      "gold_relevant_notes": [
+        { "note_id": "note_033", "relevance": 3 },
+        { "note_id": "note_034", "relevance": 3 },
+        { "note_id": "note_024", "relevance": 2 }
+      ]
+    },
+    {
+      "query_id": "retrieval_027",
+      "query_text": "OSI七层模型和TCP/IP四层模型分别是什么？",
+      "keywords": ["OSI七层模型", "TCP/IP模型", "网络层", "传输层", "应用层"],
+      "gold_relevant_notes": [
+        { "note_id": "note_038", "relevance": 3 }
+      ]
+    },
+    {
+      "query_id": "retrieval_028",
+      "query_text": "ARP协议如何根据IP地址找到MAC地址？",
+      "keywords": ["ARP", "IP地址", "MAC地址", "广播", "下一跳"],
+      "gold_relevant_notes": [
+        { "note_id": "note_043", "relevance": 3 },
+        { "note_id": "note_042", "relevance": 1 }
+      ]
+    },
+    {
+      "query_id": "retrieval_029",
+      "query_text": "TCP三次握手和四次挥手分别解决什么问题？",
+      "keywords": ["TCP", "三次握手", "四次挥手", "SYN", "FIN", "ACK"],
+      "gold_relevant_notes": [
+        { "note_id": "note_045", "relevance": 3 },
+        { "note_id": "note_046", "relevance": 3 },
+        { "note_id": "note_047", "relevance": 2 }
+      ]
+    },
+    {
+      "query_id": "retrieval_030",
+      "query_text": "TCP流量控制和拥塞控制有什么区别，UDP适合什么场景？",
+      "keywords": ["TCP", "流量控制", "拥塞控制", "UDP", "实时音视频"],
+      "gold_relevant_notes": [
+        { "note_id": "note_048", "relevance": 3 },
+        { "note_id": "note_049", "relevance": 3 },
+        { "note_id": "note_047", "relevance": 2 }
+      ]
+    }
+  ]
+}

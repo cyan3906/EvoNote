@@ -1,0 +1,1401 @@
+{
+  "layer": "layer2_rag_retrieval",
+  "target_level": "note",
+  "input_mode": "oracle_smoke",
+  "queries_path": "backend\\testdata\\408_note_retrieval_queries_fixture.json",
+  "results_path": null,
+  "top_k": 10,
+  "metrics": {
+    "es": {
+      "recall_at_1": 0.688889,
+      "precision_at_1": 1.0,
+      "hit_rate_at_1": 1.0,
+      "recall_at_3": 1.0,
+      "precision_at_3": 0.577778,
+      "hit_rate_at_3": 1.0,
+      "recall_at_5": 1.0,
+      "precision_at_5": 0.346667,
+      "hit_rate_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "precision_at_10": 0.173333,
+      "hit_rate_at_10": 1.0,
+      "mrr": 1.0,
+      "ndcg_at_5": 1.0,
+      "ndcg_at_10": 1.0
+    },
+    "milvus": {
+      "recall_at_1": 0.688889,
+      "precision_at_1": 1.0,
+      "hit_rate_at_1": 1.0,
+      "recall_at_3": 1.0,
+      "precision_at_3": 0.577778,
+      "hit_rate_at_3": 1.0,
+      "recall_at_5": 1.0,
+      "precision_at_5": 0.346667,
+      "hit_rate_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "precision_at_10": 0.173333,
+      "hit_rate_at_10": 1.0,
+      "mrr": 1.0,
+      "ndcg_at_5": 1.0,
+      "ndcg_at_10": 1.0
+    },
+    "rrf": {
+      "recall_at_1": 0.688889,
+      "precision_at_1": 1.0,
+      "hit_rate_at_1": 1.0,
+      "recall_at_3": 1.0,
+      "precision_at_3": 0.577778,
+      "hit_rate_at_3": 1.0,
+      "recall_at_5": 1.0,
+      "precision_at_5": 0.346667,
+      "hit_rate_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "precision_at_10": 0.173333,
+      "hit_rate_at_10": 1.0,
+      "mrr": 1.0,
+      "ndcg_at_5": 1.0,
+      "ndcg_at_10": 1.0
+    }
+  },
+  "channel_comparison": {
+    "es_only_hit_at_10": 0,
+    "milvus_only_hit_at_10": 0,
+    "both_hit_at_10": 30,
+    "neither_hit_at_10": 0,
+    "rrf_improved_over_best_single_mrr_queries": 0,
+    "rrf_degraded_below_best_single_mrr_queries": 0
+  },
+  "counts": {
+    "queries": 30,
+    "gold_relevant_note_refs": 52,
+    "errors": 0
+  },
+  "errors": [],
+  "queries": [
+    {
+      "query_id": "retrieval_001",
+      "query_text": "顺序表和链表在访问和插入删除上的区别是什么？",
+      "gold_relevant_notes": [
+        {
+          "note_id": "note_001",
+          "relevance": 3
+        }
+      ],
+      "channels": {
+        "es": {
+          "retrieved_note_ids": [
+            "note_001"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "milvus": {
+          "retrieved_note_ids": [
+            "note_001"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "rrf": {
+          "retrieved_note_ids": [
+            "note_001"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        }
+      }
+    },
+    {
+      "query_id": "retrieval_002",
+      "query_text": "表达式求值和括号匹配为什么常用栈？",
+      "gold_relevant_notes": [
+        {
+          "note_id": "note_002",
+          "relevance": 3
+        }
+      ],
+      "channels": {
+        "es": {
+          "retrieved_note_ids": [
+            "note_002"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "milvus": {
+          "retrieved_note_ids": [
+            "note_002"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "rrf": {
+          "retrieved_note_ids": [
+            "note_002"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        }
+      }
+    },
+    {
+      "query_id": "retrieval_003",
+      "query_text": "循环队列如何判断队满，为什么能避免假溢出？",
+      "gold_relevant_notes": [
+        {
+          "note_id": "note_003",
+          "relevance": 3
+        }
+      ],
+      "channels": {
+        "es": {
+          "retrieved_note_ids": [
+            "note_003"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "milvus": {
+          "retrieved_note_ids": [
+            "note_003"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "rrf": {
+          "retrieved_note_ids": [
+            "note_003"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        }
+      }
+    },
+    {
+      "query_id": "retrieval_004",
+      "query_text": "KMP失配时为什么主串指针不用回退？",
+      "gold_relevant_notes": [
+        {
+          "note_id": "note_004",
+          "relevance": 3
+        }
+      ],
+      "channels": {
+        "es": {
+          "retrieved_note_ids": [
+            "note_004"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "milvus": {
+          "retrieved_note_ids": [
+            "note_004"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "rrf": {
+          "retrieved_note_ids": [
+            "note_004"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        }
+      }
+    },
+    {
+      "query_id": "retrieval_005",
+      "query_text": "只给前序和后序遍历能不能唯一确定二叉树？",
+      "gold_relevant_notes": [
+        {
+          "note_id": "note_005",
+          "relevance": 3
+        }
+      ],
+      "channels": {
+        "es": {
+          "retrieved_note_ids": [
+            "note_005"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "milvus": {
+          "retrieved_note_ids": [
+            "note_005"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "rrf": {
+          "retrieved_note_ids": [
+            "note_005"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        }
+      }
+    },
+    {
+      "query_id": "retrieval_006",
+      "query_text": "二叉排序树退化时查找复杂度为什么会变差？",
+      "gold_relevant_notes": [
+        {
+          "note_id": "note_006",
+          "relevance": 3
+        },
+        {
+          "note_id": "note_007",
+          "relevance": 2
+        }
+      ],
+      "channels": {
+        "es": {
+          "retrieved_note_ids": [
+            "note_006",
+            "note_007"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "milvus": {
+          "retrieved_note_ids": [
+            "note_006",
+            "note_007"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "rrf": {
+          "retrieved_note_ids": [
+            "note_006",
+            "note_007"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        }
+      }
+    },
+    {
+      "query_id": "retrieval_007",
+      "query_text": "AVL树插入后失衡应该怎么旋转？",
+      "gold_relevant_notes": [
+        {
+          "note_id": "note_007",
+          "relevance": 3
+        },
+        {
+          "note_id": "note_006",
+          "relevance": 1
+        }
+      ],
+      "channels": {
+        "es": {
+          "retrieved_note_ids": [
+            "note_007",
+            "note_006"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "milvus": {
+          "retrieved_note_ids": [
+            "note_007",
+            "note_006"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "rrf": {
+          "retrieved_note_ids": [
+            "note_007",
+            "note_006"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        }
+      }
+    },
+    {
+      "query_id": "retrieval_008",
+      "query_text": "哈希表开放定址法删除元素为什么不能直接置空？",
+      "gold_relevant_notes": [
+        {
+          "note_id": "note_008",
+          "relevance": 3
+        }
+      ],
+      "channels": {
+        "es": {
+          "retrieved_note_ids": [
+            "note_008"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "milvus": {
+          "retrieved_note_ids": [
+            "note_008"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "rrf": {
+          "retrieved_note_ids": [
+            "note_008"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        }
+      }
+    },
+    {
+      "query_id": "retrieval_009",
+      "query_text": "BFS和DFS分别适合解决什么图遍历问题？",
+      "gold_relevant_notes": [
+        {
+          "note_id": "note_009",
+          "relevance": 3
+        },
+        {
+          "note_id": "note_011",
+          "relevance": 1
+        }
+      ],
+      "channels": {
+        "es": {
+          "retrieved_note_ids": [
+            "note_009",
+            "note_011"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "milvus": {
+          "retrieved_note_ids": [
+            "note_009",
+            "note_011"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "rrf": {
+          "retrieved_note_ids": [
+            "note_009",
+            "note_011"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        }
+      }
+    },
+    {
+      "query_id": "retrieval_010",
+      "query_text": "Prim和Kruskal最小生成树算法有什么区别？",
+      "gold_relevant_notes": [
+        {
+          "note_id": "note_010",
+          "relevance": 3
+        }
+      ],
+      "channels": {
+        "es": {
+          "retrieved_note_ids": [
+            "note_010"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "milvus": {
+          "retrieved_note_ids": [
+            "note_010"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "rrf": {
+          "retrieved_note_ids": [
+            "note_010"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        }
+      }
+    },
+    {
+      "query_id": "retrieval_011",
+      "query_text": "Dijkstra算法为什么不能处理负权边？",
+      "gold_relevant_notes": [
+        {
+          "note_id": "note_011",
+          "relevance": 3
+        },
+        {
+          "note_id": "note_010",
+          "relevance": 1
+        }
+      ],
+      "channels": {
+        "es": {
+          "retrieved_note_ids": [
+            "note_011",
+            "note_010"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "milvus": {
+          "retrieved_note_ids": [
+            "note_011",
+            "note_010"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "rrf": {
+          "retrieved_note_ids": [
+            "note_011",
+            "note_010"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        }
+      }
+    },
+    {
+      "query_id": "retrieval_012",
+      "query_text": "拓扑排序如何判断有向图中是否存在环？",
+      "gold_relevant_notes": [
+        {
+          "note_id": "note_012",
+          "relevance": 3
+        }
+      ],
+      "channels": {
+        "es": {
+          "retrieved_note_ids": [
+            "note_012"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "milvus": {
+          "retrieved_note_ids": [
+            "note_012"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "rrf": {
+          "retrieved_note_ids": [
+            "note_012"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        }
+      }
+    },
+    {
+      "query_id": "retrieval_013",
+      "query_text": "哪些排序算法是稳定的，快速排序和堆排序稳定吗？",
+      "gold_relevant_notes": [
+        {
+          "note_id": "note_013",
+          "relevance": 3
+        },
+        {
+          "note_id": "note_014",
+          "relevance": 2
+        },
+        {
+          "note_id": "note_015",
+          "relevance": 2
+        }
+      ],
+      "channels": {
+        "es": {
+          "retrieved_note_ids": [
+            "note_013",
+            "note_014",
+            "note_015"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "milvus": {
+          "retrieved_note_ids": [
+            "note_013",
+            "note_014",
+            "note_015"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "rrf": {
+          "retrieved_note_ids": [
+            "note_013",
+            "note_014",
+            "note_015"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        }
+      }
+    },
+    {
+      "query_id": "retrieval_014",
+      "query_text": "快速排序什么时候会退化到O(n^2)？",
+      "gold_relevant_notes": [
+        {
+          "note_id": "note_014",
+          "relevance": 3
+        },
+        {
+          "note_id": "note_013",
+          "relevance": 1
+        }
+      ],
+      "channels": {
+        "es": {
+          "retrieved_note_ids": [
+            "note_014",
+            "note_013"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "milvus": {
+          "retrieved_note_ids": [
+            "note_014",
+            "note_013"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "rrf": {
+          "retrieved_note_ids": [
+            "note_014",
+            "note_013"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        }
+      }
+    },
+    {
+      "query_id": "retrieval_015",
+      "query_text": "补码加法如何判断溢出？",
+      "gold_relevant_notes": [
+        {
+          "note_id": "note_016",
+          "relevance": 3
+        }
+      ],
+      "channels": {
+        "es": {
+          "retrieved_note_ids": [
+            "note_016"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "milvus": {
+          "retrieved_note_ids": [
+            "note_016"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "rrf": {
+          "retrieved_note_ids": [
+            "note_016"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        }
+      }
+    },
+    {
+      "query_id": "retrieval_016",
+      "query_text": "浮点数中阶码和尾数分别影响什么？",
+      "gold_relevant_notes": [
+        {
+          "note_id": "note_017",
+          "relevance": 3
+        }
+      ],
+      "channels": {
+        "es": {
+          "retrieved_note_ids": [
+            "note_017"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "milvus": {
+          "retrieved_note_ids": [
+            "note_017"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "rrf": {
+          "retrieved_note_ids": [
+            "note_017"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        }
+      }
+    },
+    {
+      "query_id": "retrieval_017",
+      "query_text": "硬布线控制器和微程序控制器的取舍是什么？",
+      "gold_relevant_notes": [
+        {
+          "note_id": "note_020",
+          "relevance": 3
+        },
+        {
+          "note_id": "note_019",
+          "relevance": 1
+        }
+      ],
+      "channels": {
+        "es": {
+          "retrieved_note_ids": [
+            "note_020",
+            "note_019"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "milvus": {
+          "retrieved_note_ids": [
+            "note_020",
+            "note_019"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "rrf": {
+          "retrieved_note_ids": [
+            "note_020",
+            "note_019"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        }
+      }
+    },
+    {
+      "query_id": "retrieval_018",
+      "query_text": "指令流水线能提高什么，为什么不能明显降低单条指令延迟？",
+      "gold_relevant_notes": [
+        {
+          "note_id": "note_021",
+          "relevance": 3
+        }
+      ],
+      "channels": {
+        "es": {
+          "retrieved_note_ids": [
+            "note_021"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "milvus": {
+          "retrieved_note_ids": [
+            "note_021"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "rrf": {
+          "retrieved_note_ids": [
+            "note_021"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        }
+      }
+    },
+    {
+      "query_id": "retrieval_019",
+      "query_text": "Cache为什么有效，时间局部性和空间局部性是什么意思？",
+      "gold_relevant_notes": [
+        {
+          "note_id": "note_022",
+          "relevance": 3
+        },
+        {
+          "note_id": "note_023",
+          "relevance": 2
+        }
+      ],
+      "channels": {
+        "es": {
+          "retrieved_note_ids": [
+            "note_022",
+            "note_023"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "milvus": {
+          "retrieved_note_ids": [
+            "note_022",
+            "note_023"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "rrf": {
+          "retrieved_note_ids": [
+            "note_022",
+            "note_023"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        }
+      }
+    },
+    {
+      "query_id": "retrieval_020",
+      "query_text": "直接映射、全相联映射和组相联映射有什么区别？",
+      "gold_relevant_notes": [
+        {
+          "note_id": "note_023",
+          "relevance": 3
+        },
+        {
+          "note_id": "note_022",
+          "relevance": 1
+        }
+      ],
+      "channels": {
+        "es": {
+          "retrieved_note_ids": [
+            "note_023",
+            "note_022"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "milvus": {
+          "retrieved_note_ids": [
+            "note_023",
+            "note_022"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "rrf": {
+          "retrieved_note_ids": [
+            "note_023",
+            "note_022"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        }
+      }
+    },
+    {
+      "query_id": "retrieval_021",
+      "query_text": "分页系统中虚拟地址如何通过页表转换成物理块号？",
+      "gold_relevant_notes": [
+        {
+          "note_id": "note_024",
+          "relevance": 3
+        },
+        {
+          "note_id": "note_033",
+          "relevance": 2
+        },
+        {
+          "note_id": "note_034",
+          "relevance": 1
+        }
+      ],
+      "channels": {
+        "es": {
+          "retrieved_note_ids": [
+            "note_024",
+            "note_033",
+            "note_034"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "milvus": {
+          "retrieved_note_ids": [
+            "note_024",
+            "note_033",
+            "note_034"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "rrf": {
+          "retrieved_note_ids": [
+            "note_024",
+            "note_033",
+            "note_034"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        }
+      }
+    },
+    {
+      "query_id": "retrieval_022",
+      "query_text": "DMA和中断方式在I/O传输中的区别是什么？",
+      "gold_relevant_notes": [
+        {
+          "note_id": "note_026",
+          "relevance": 3
+        },
+        {
+          "note_id": "note_037",
+          "relevance": 3
+        }
+      ],
+      "channels": {
+        "es": {
+          "retrieved_note_ids": [
+            "note_026",
+            "note_037"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "milvus": {
+          "retrieved_note_ids": [
+            "note_026",
+            "note_037"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "rrf": {
+          "retrieved_note_ids": [
+            "note_026",
+            "note_037"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        }
+      }
+    },
+    {
+      "query_id": "retrieval_023",
+      "query_text": "进程和线程的核心区别是什么？",
+      "gold_relevant_notes": [
+        {
+          "note_id": "note_027",
+          "relevance": 3
+        },
+        {
+          "note_id": "note_028",
+          "relevance": 1
+        }
+      ],
+      "channels": {
+        "es": {
+          "retrieved_note_ids": [
+            "note_027",
+            "note_028"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "milvus": {
+          "retrieved_note_ids": [
+            "note_027",
+            "note_028"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "rrf": {
+          "retrieved_note_ids": [
+            "note_027",
+            "note_028"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        }
+      }
+    },
+    {
+      "query_id": "retrieval_024",
+      "query_text": "阻塞进程事件完成后为什么不是直接运行？",
+      "gold_relevant_notes": [
+        {
+          "note_id": "note_028",
+          "relevance": 3
+        },
+        {
+          "note_id": "note_029",
+          "relevance": 1
+        }
+      ],
+      "channels": {
+        "es": {
+          "retrieved_note_ids": [
+            "note_028",
+            "note_029"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "milvus": {
+          "retrieved_note_ids": [
+            "note_028",
+            "note_029"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "rrf": {
+          "retrieved_note_ids": [
+            "note_028",
+            "note_029"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        }
+      }
+    },
+    {
+      "query_id": "retrieval_025",
+      "query_text": "死锁的四个必要条件和银行家算法分别是什么？",
+      "gold_relevant_notes": [
+        {
+          "note_id": "note_032",
+          "relevance": 3
+        }
+      ],
+      "channels": {
+        "es": {
+          "retrieved_note_ids": [
+            "note_032"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "milvus": {
+          "retrieved_note_ids": [
+            "note_032"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "rrf": {
+          "retrieved_note_ids": [
+            "note_032"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        }
+      }
+    },
+    {
+      "query_id": "retrieval_026",
+      "query_text": "分页和分段的区别是什么，页面置换什么时候发生？",
+      "gold_relevant_notes": [
+        {
+          "note_id": "note_033",
+          "relevance": 3
+        },
+        {
+          "note_id": "note_034",
+          "relevance": 3
+        },
+        {
+          "note_id": "note_024",
+          "relevance": 2
+        }
+      ],
+      "channels": {
+        "es": {
+          "retrieved_note_ids": [
+            "note_033",
+            "note_034",
+            "note_024"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "milvus": {
+          "retrieved_note_ids": [
+            "note_033",
+            "note_034",
+            "note_024"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "rrf": {
+          "retrieved_note_ids": [
+            "note_033",
+            "note_034",
+            "note_024"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        }
+      }
+    },
+    {
+      "query_id": "retrieval_027",
+      "query_text": "OSI七层模型和TCP/IP四层模型分别是什么？",
+      "gold_relevant_notes": [
+        {
+          "note_id": "note_038",
+          "relevance": 3
+        }
+      ],
+      "channels": {
+        "es": {
+          "retrieved_note_ids": [
+            "note_038"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "milvus": {
+          "retrieved_note_ids": [
+            "note_038"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "rrf": {
+          "retrieved_note_ids": [
+            "note_038"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        }
+      }
+    },
+    {
+      "query_id": "retrieval_028",
+      "query_text": "ARP协议如何根据IP地址找到MAC地址？",
+      "gold_relevant_notes": [
+        {
+          "note_id": "note_043",
+          "relevance": 3
+        },
+        {
+          "note_id": "note_042",
+          "relevance": 1
+        }
+      ],
+      "channels": {
+        "es": {
+          "retrieved_note_ids": [
+            "note_043",
+            "note_042"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "milvus": {
+          "retrieved_note_ids": [
+            "note_043",
+            "note_042"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "rrf": {
+          "retrieved_note_ids": [
+            "note_043",
+            "note_042"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        }
+      }
+    },
+    {
+      "query_id": "retrieval_029",
+      "query_text": "TCP三次握手和四次挥手分别解决什么问题？",
+      "gold_relevant_notes": [
+        {
+          "note_id": "note_045",
+          "relevance": 3
+        },
+        {
+          "note_id": "note_046",
+          "relevance": 3
+        },
+        {
+          "note_id": "note_047",
+          "relevance": 2
+        }
+      ],
+      "channels": {
+        "es": {
+          "retrieved_note_ids": [
+            "note_045",
+            "note_046",
+            "note_047"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "milvus": {
+          "retrieved_note_ids": [
+            "note_045",
+            "note_046",
+            "note_047"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "rrf": {
+          "retrieved_note_ids": [
+            "note_045",
+            "note_046",
+            "note_047"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        }
+      }
+    },
+    {
+      "query_id": "retrieval_030",
+      "query_text": "TCP流量控制和拥塞控制有什么区别，UDP适合什么场景？",
+      "gold_relevant_notes": [
+        {
+          "note_id": "note_048",
+          "relevance": 3
+        },
+        {
+          "note_id": "note_049",
+          "relevance": 3
+        },
+        {
+          "note_id": "note_047",
+          "relevance": 2
+        }
+      ],
+      "channels": {
+        "es": {
+          "retrieved_note_ids": [
+            "note_048",
+            "note_049",
+            "note_047"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "milvus": {
+          "retrieved_note_ids": [
+            "note_048",
+            "note_049",
+            "note_047"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        },
+        "rrf": {
+          "retrieved_note_ids": [
+            "note_048",
+            "note_049",
+            "note_047"
+          ],
+          "first_relevant_rank": 1,
+          "hit_at_10": true,
+          "missed_relevant_note_ids_at_10": [],
+          "irrelevant_note_ids_at_10": []
+        }
+      }
+    }
+  ]
+}
