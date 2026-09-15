@@ -1,0 +1,1131 @@
+{
+  "layer": "layer1_l1_l3_claim",
+  "judge": "heuristic",
+  "gold_path": "backend\\testdata\\408_notes_claims_fixture.json",
+  "prediction_path": "backend\\testdata\\408_notes_claims_fixture.json",
+  "metrics": {
+    "l2_faithfulness_rate": 1.0,
+    "l2_coverage_score": 1.0,
+    "l3_precision": 1.0,
+    "l3_recall": 1.0,
+    "claim_precision": 1.0,
+    "claim_recall": 1.0,
+    "claim_evidence_support_rate": 1.0,
+    "claim_hallucination_rate": 0.0,
+    "claim_partial_support_rate": 0.0
+  },
+  "counts": {
+    "notes": 50,
+    "gold_l3": 369,
+    "predicted_l3": 369,
+    "matched_l3": 369,
+    "gold_claims": 137,
+    "predicted_claims": 137,
+    "matched_claims": 137,
+    "supported_claims": 137,
+    "partially_supported_claims": 0,
+    "unsupported_claims": 0
+  },
+  "notes": [
+    {
+      "note_id": "note_001",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 6,
+        "predicted_count": 6,
+        "matched_count": 6
+      },
+      "claims": {
+        "gold_count": 2,
+        "predicted_count": 2,
+        "matched_count": 2,
+        "support_counts": {
+          "supported": 2,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_002",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 8,
+        "predicted_count": 8,
+        "matched_count": 8
+      },
+      "claims": {
+        "gold_count": 2,
+        "predicted_count": 2,
+        "matched_count": 2,
+        "support_counts": {
+          "supported": 2,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_003",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 8,
+        "predicted_count": 8,
+        "matched_count": 8
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_004",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 6,
+        "predicted_count": 6,
+        "matched_count": 6
+      },
+      "claims": {
+        "gold_count": 2,
+        "predicted_count": 2,
+        "matched_count": 2,
+        "support_counts": {
+          "supported": 2,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_005",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 6,
+        "predicted_count": 6,
+        "matched_count": 6
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_006",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 7,
+        "predicted_count": 7,
+        "matched_count": 7
+      },
+      "claims": {
+        "gold_count": 2,
+        "predicted_count": 2,
+        "matched_count": 2,
+        "support_counts": {
+          "supported": 2,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_007",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 8,
+        "predicted_count": 8,
+        "matched_count": 8
+      },
+      "claims": {
+        "gold_count": 2,
+        "predicted_count": 2,
+        "matched_count": 2,
+        "support_counts": {
+          "supported": 2,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_008",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 7,
+        "predicted_count": 7,
+        "matched_count": 7
+      },
+      "claims": {
+        "gold_count": 2,
+        "predicted_count": 2,
+        "matched_count": 2,
+        "support_counts": {
+          "supported": 2,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_009",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 8,
+        "predicted_count": 8,
+        "matched_count": 8
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_010",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 8,
+        "predicted_count": 8,
+        "matched_count": 8
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_011",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 5,
+        "predicted_count": 5,
+        "matched_count": 5
+      },
+      "claims": {
+        "gold_count": 2,
+        "predicted_count": 2,
+        "matched_count": 2,
+        "support_counts": {
+          "supported": 2,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_012",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 6,
+        "predicted_count": 6,
+        "matched_count": 6
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_013",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 8,
+        "predicted_count": 8,
+        "matched_count": 8
+      },
+      "claims": {
+        "gold_count": 2,
+        "predicted_count": 2,
+        "matched_count": 2,
+        "support_counts": {
+          "supported": 2,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_014",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 7,
+        "predicted_count": 7,
+        "matched_count": 7
+      },
+      "claims": {
+        "gold_count": 2,
+        "predicted_count": 2,
+        "matched_count": 2,
+        "support_counts": {
+          "supported": 2,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_015",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 6,
+        "predicted_count": 6,
+        "matched_count": 6
+      },
+      "claims": {
+        "gold_count": 2,
+        "predicted_count": 2,
+        "matched_count": 2,
+        "support_counts": {
+          "supported": 2,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_016",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 6,
+        "predicted_count": 6,
+        "matched_count": 6
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_017",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 6,
+        "predicted_count": 6,
+        "matched_count": 6
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_018",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 6,
+        "predicted_count": 6,
+        "matched_count": 6
+      },
+      "claims": {
+        "gold_count": 2,
+        "predicted_count": 2,
+        "matched_count": 2,
+        "support_counts": {
+          "supported": 2,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_019",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 8,
+        "predicted_count": 8,
+        "matched_count": 8
+      },
+      "claims": {
+        "gold_count": 2,
+        "predicted_count": 2,
+        "matched_count": 2,
+        "support_counts": {
+          "supported": 2,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_020",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 6,
+        "predicted_count": 6,
+        "matched_count": 6
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_021",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 6,
+        "predicted_count": 6,
+        "matched_count": 6
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_022",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 5,
+        "predicted_count": 5,
+        "matched_count": 5
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_023",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 7,
+        "predicted_count": 7,
+        "matched_count": 7
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_024",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 9,
+        "predicted_count": 9,
+        "matched_count": 9
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_025",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 8,
+        "predicted_count": 8,
+        "matched_count": 8
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_026",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 7,
+        "predicted_count": 7,
+        "matched_count": 7
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_027",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 9,
+        "predicted_count": 9,
+        "matched_count": 9
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_028",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 7,
+        "predicted_count": 7,
+        "matched_count": 7
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_029",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 7,
+        "predicted_count": 7,
+        "matched_count": 7
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_030",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 6,
+        "predicted_count": 6,
+        "matched_count": 6
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_031",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 7,
+        "predicted_count": 7,
+        "matched_count": 7
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_032",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 9,
+        "predicted_count": 9,
+        "matched_count": 9
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_033",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 8,
+        "predicted_count": 8,
+        "matched_count": 8
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_034",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 7,
+        "predicted_count": 7,
+        "matched_count": 7
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_035",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 8,
+        "predicted_count": 8,
+        "matched_count": 8
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_036",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 8,
+        "predicted_count": 8,
+        "matched_count": 8
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_037",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 7,
+        "predicted_count": 7,
+        "matched_count": 7
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_038",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 9,
+        "predicted_count": 9,
+        "matched_count": 9
+      },
+      "claims": {
+        "gold_count": 2,
+        "predicted_count": 2,
+        "matched_count": 2,
+        "support_counts": {
+          "supported": 2,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_039",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 6,
+        "predicted_count": 6,
+        "matched_count": 6
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_040",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 8,
+        "predicted_count": 8,
+        "matched_count": 8
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_041",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 9,
+        "predicted_count": 9,
+        "matched_count": 9
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_042",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 7,
+        "predicted_count": 7,
+        "matched_count": 7
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_043",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 9,
+        "predicted_count": 9,
+        "matched_count": 9
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_044",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 9,
+        "predicted_count": 9,
+        "matched_count": 9
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_045",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 7,
+        "predicted_count": 7,
+        "matched_count": 7
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_046",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 8,
+        "predicted_count": 8,
+        "matched_count": 8
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_047",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 10,
+        "predicted_count": 10,
+        "matched_count": 10
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_048",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 9,
+        "predicted_count": 9,
+        "matched_count": 9
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_049",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 8,
+        "predicted_count": 8,
+        "matched_count": 8
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    },
+    {
+      "note_id": "note_050",
+      "l2": {
+        "faithfulness": 1.0,
+        "coverage": 1.0
+      },
+      "l3": {
+        "gold_count": 9,
+        "predicted_count": 9,
+        "matched_count": 9
+      },
+      "claims": {
+        "gold_count": 3,
+        "predicted_count": 3,
+        "matched_count": 3,
+        "support_counts": {
+          "supported": 3,
+          "partially_supported": 0,
+          "unsupported": 0
+        }
+      }
+    }
+  ]
+}
