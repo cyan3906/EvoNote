@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     embedding_base_url: str = ""
     embedding_model: str = "text-embedding-3-large"
     embedding_dimensions: int = 3072
+    embedding_batch_size: int = 32
+    embedding_max_concurrency: int = 4
+    embedding_circuit_failure_threshold: int = 5
+    embedding_circuit_cooldown_seconds: float = 30.0
 
     milvus_host: str = "localhost"
     milvus_port: int = 19530

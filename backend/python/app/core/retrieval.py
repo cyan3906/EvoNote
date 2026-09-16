@@ -9,12 +9,10 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.append(str(PROJECT_ROOT))
-    
-from openai import OpenAI
 
+from app.core.embeddings import embed_text, embed_texts
 from app.core import metrics
 from app.core.config import settings
-from app.core.retry import retry_call
 
 
 class RetrievalBackendError(RuntimeError):
@@ -52,38 +50,6 @@ class NoteRetrievalHit:
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
-
-
-def embed_text(text: str) -> list[float]:
-    content = text.strip()
-    api_key = settings.embedding_api_key.strip() or settings.agent_api_key.strip()
-    base_url = settings.embedding_base_url.strip() or settings.agent_api_base_url.strip()
-
-    if not content or not api_key:
-        return []
-
-    client = OpenAI(
-        api_key=api_key,
-        base_url=base_url or None,
-        timeout=settings.agent_timeout_seconds,
-    )
-    with metrics.api_call(
-        operation_name="embedding_text",
-        provider="openai-compatible",
-        model=settings.embedding_model,
-        request_size_chars=len(content),
-    ) as call:
-        response = retry_call(
-            lambda: client.embeddings.create(
-                model=settings.embedding_model,
-                input=content,
-            ),
-            operation_name="Embedding request",
-        )
-        metrics.set_call_usage(call, getattr(response, "usage", None))
-        metrics.set_call_response_size(call, response)
-
-    return [float(value) for value in response.data[0].embedding]
 
 
 def safe_embed_text(text: str) -> list[float]:

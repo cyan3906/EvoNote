@@ -9,7 +9,7 @@ from openai import OpenAI
 
 from app.core import database, metrics
 from app.core.config import settings
-from app.core.retrieval import embed_text, hybrid_retrieve_notes, sync_note_indexes
+from app.core.retrieval import embed_text, embed_texts, hybrid_retrieve_notes, sync_note_indexes
 from app.core.retry import retry_call
 
 VECTOR_SIZE = 64
@@ -225,6 +225,7 @@ def analyze_note(note: dict[str, str]) -> dict[str, object]:
     model_analysis = analyze_note_with_model(note, raw_blocks)
     blocks: list[dict[str, object]] = []
     claims: list[dict[str, object]] = []
+    claim_embedding_texts: list[str] = []
     model_blocks = normalize_model_blocks(model_analysis.get("blocks", []), expected_count=len(raw_blocks))
 
     for block_index, raw_block in enumerate(raw_blocks):
@@ -250,8 +251,8 @@ def analyze_note(note: dict[str, str]) -> dict[str, object]:
             claim["note_id"] = note["id"]
             claim["block_id"] = block_id
             claim["claim_index"] = claim_index
-            claim["vector"] = embedding_or_local_vector(" ".join(claim["keywords"] + [claim["claim_text"]]))
             claims.append(claim)
+            claim_embedding_texts.append(" ".join(claim["keywords"] + [claim["claim_text"]]))
 
     model_note = model_analysis.get("note", {})
     note_keywords = clean_keywords(model_note.get("keywords", []), limit=14)
@@ -262,10 +263,21 @@ def analyze_note(note: dict[str, str]) -> dict[str, object]:
         "l2_summary": note_l2_summary,
         "l3_text": note_l3_text,
         "keywords": note_keywords,
-        "vector": embedding_or_local_vector(
-            note_l2_summary or f"{note_l3_text} {' '.join(note_keywords)}"
-        ),
+        "vector": [],
     }
+    note_embedding_text = note_l2_summary or f"{note_l3_text} {' '.join(note_keywords)}"
+    vectors, _stats = embed_texts(
+        [note_embedding_text, *claim_embedding_texts],
+        fallback_vector=text_vector,
+    )
+    representation["vector"] = vectors[0] if vectors else text_vector(note_embedding_text)
+
+    for claim, vector in zip(claims, vectors[1:], strict=False):
+        claim["vector"] = vector
+
+    for claim, embedding_text in zip(claims, claim_embedding_texts, strict=False):
+        if not claim.get("vector"):
+            claim["vector"] = text_vector(embedding_text)
 
     return {
         "representation": representation,
