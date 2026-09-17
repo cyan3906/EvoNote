@@ -138,6 +138,10 @@ function hasPendingMergeSuggestions(state) {
   return (state?.suggestions || []).some((suggestion) => suggestion.status === "pending");
 }
 
+function countPendingMergeSuggestions(state) {
+  return (state?.suggestions || []).filter((suggestion) => suggestion.status === "pending").length;
+}
+
 function syncMergePendingFromState(noteId, state) {
   setNoteMergePending(noteId, hasPendingMergeSuggestions(state));
 }
@@ -263,6 +267,10 @@ async function loadNotes() {
 
 function getActiveNote() {
   return notes.find((note) => note.id === activeNoteId) || null;
+}
+
+function hasActiveNoteChanges(note) {
+  return noteTitle.value !== note.title || noteTags.value !== note.tags || noteBody.value !== note.body;
 }
 
 function formatDate(value) {
@@ -398,6 +406,12 @@ async function saveActiveNote() {
   }
 
   window.clearTimeout(saveTimer);
+
+  if (!hasActiveNoteChanges(note)) {
+    setSaveStatus("已保存");
+    return note;
+  }
+
   setSaveStatus("正在保存");
 
   const updated = await apiRequest(`/notes/${note.id}`, {
@@ -564,14 +578,19 @@ function pollEvolutionScan(noteId, options = {}) {
 
     if (job.status === "succeeded") {
       const state = await apiRequest(`/evolution/notes/${noteId}`);
+      const pendingCount = countPendingMergeSuggestions(state);
       syncMergePendingFromState(noteId, state);
 
       if (noteId === activeNoteId) {
+        if (pendingCount > 0 && options.openReviewWhenPending) {
+          setWorkspaceView("evolution", true);
+        }
+
         renderEvolutionState(state);
-        setEvolutionStatus("扫描完成");
+        setEvolutionStatus(pendingCount > 0 ? `扫描完成，发现 ${pendingCount} 条合并建议` : "扫描完成，没有发现需要合并的内容");
 
         if (options.updateSaveStatus) {
-          setSaveStatus("已保存并整理");
+          setSaveStatus(pendingCount > 0 ? `已保存，${pendingCount} 条合并待确认` : "已保存，无需合并");
         }
       }
       return;
@@ -627,7 +646,7 @@ async function mergeActiveNote() {
 
     setSaveStatus("已保存，正在合并");
     setNoteMerging(note.id, true);
-    await startEvolutionScan(note.id, { updateSaveStatus: true });
+    await startEvolutionScan(note.id, { updateSaveStatus: true, openReviewWhenPending: true });
   } finally {
     setMergeButtonsDisabled(false);
   }

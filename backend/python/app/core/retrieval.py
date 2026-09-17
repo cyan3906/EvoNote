@@ -13,6 +13,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from app.core.embeddings import embed_text, embed_texts
 from app.core import metrics
 from app.core.config import settings
+from app.core.retry import retry_call
 
 
 class RetrievalBackendError(RuntimeError):
@@ -884,7 +885,6 @@ def escape_milvus_value(value: str) -> str:
 if __name__ == "__main__":
     initialize_retrieval_backends()
     print("retrieval backends initialized")
-
 
 
 

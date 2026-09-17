@@ -224,6 +224,21 @@ def update_note(note_id: str, title: str, tags: str, body: str) -> dict[str, str
     had_analysis = False
 
     with connect() as connection:
+        existing = connection.execute(
+            """
+            SELECT id, title, tags, body, created_at, updated_at
+            FROM notes
+            WHERE id = ?
+            """,
+            (note_id,),
+        ).fetchone()
+
+        if existing is None:
+            return None
+
+        if existing["title"] == title and existing["tags"] == tags and existing["body"] == body:
+            return row_to_note(existing)
+
         had_analysis = (
             connection.execute(
                 "SELECT 1 FROM note_representations WHERE note_id = ? LIMIT 1",

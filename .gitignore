@@ -216,4 +216,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
->>>>>>> origin/main
+
+# Evonote local runtime data
+backend/python/data/*.sqlite3
+backend/python/data/metrics/
