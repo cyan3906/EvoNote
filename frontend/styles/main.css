@@ -22,6 +22,7 @@
 
 body {
   min-height: 100vh;
+  min-height: 100lvh;
   margin: 0;
   color: var(--ink);
   background: var(--bg);
@@ -49,12 +50,18 @@ svg {
 
 .login-page {
   min-height: 100vh;
+  min-height: 100lvh;
   display: grid;
   place-items: center;
   padding: 24px;
 }
 
 .login-page.is-authenticated {
+  display: block;
+  padding: 0;
+}
+
+.login-page:has(.note-shell:not([hidden])) {
   display: block;
   padding: 0;
 }
@@ -226,7 +233,9 @@ textarea:focus {
 }
 
 .note-shell {
+  width: 100%;
   min-height: 100vh;
+  min-height: 100lvh;
   background: var(--bg);
 }
 
@@ -261,6 +270,7 @@ textarea:focus {
 
 .workspace {
   height: calc(100vh - 76px);
+  height: calc(100lvh - 76px);
   min-height: 0;
   display: grid;
   grid-template-columns: 320px minmax(0, 1fr);
@@ -301,14 +311,20 @@ textarea:focus {
 
 .note-list {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
   gap: 8px;
   max-height: calc(100vh - 152px);
+  max-height: calc(100lvh - 152px);
   overflow: auto;
   padding-right: 2px;
+  scrollbar-gutter: stable;
 }
 
 .note-item {
   width: 100%;
+  min-width: 0;
+  justify-self: stretch;
   display: grid;
   gap: 7px;
   padding: 14px;
@@ -646,6 +662,7 @@ textarea:focus {
   .workspace {
     height: auto;
     min-height: calc(100vh - 84px);
+    min-height: calc(100lvh - 84px);
     grid-template-columns: 1fr;
     overflow: visible;
   }
@@ -666,6 +683,7 @@ textarea:focus {
 
   .editor-pane {
     min-height: 70vh;
+    min-height: 70lvh;
     overflow: visible;
     padding: 26px 20px 16px;
   }
@@ -682,6 +700,7 @@ textarea:focus {
 
   .editor-workbench {
     min-height: 56vh;
+    min-height: 56lvh;
     overflow: visible;
     grid-template-columns: 1fr;
   }
@@ -1008,13 +1027,123 @@ textarea:focus {
   gap: 10px;
 }
 
-.claim-list,
+.block-list,
 .suggestion-list {
+  min-height: 0;
   display: grid;
+  grid-auto-rows: max-content;
+  align-content: start;
   gap: 8px;
   max-height: 230px;
   overflow: auto;
   padding-right: 2px;
+  scrollbar-gutter: stable;
+}
+
+.block-item {
+  min-width: 0;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.block-toggle {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  color: var(--ink);
+  text-align: left;
+  background: transparent;
+  border: 0;
+}
+
+.block-toggle:hover,
+.block-toggle[aria-expanded="true"] {
+  background: var(--surface-soft);
+}
+
+.block-title {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.block-heading {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.block-meta {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.block-indicator {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.block-summary {
+  margin: 0;
+  padding: 0 12px 12px;
+  color: #4c4f50;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.block-details {
+  display: grid;
+  gap: 12px;
+  padding: 10px 12px 12px;
+  background: #f8f7f3;
+  border-top: 1px solid var(--line);
+}
+
+.block-details[hidden] {
+  display: none;
+}
+
+.block-source {
+  min-width: 0;
+  padding: 11px;
+  background: var(--surface);
+  border-left: 3px solid var(--accent);
+}
+
+.block-detail-label {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.block-source p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #2f3132;
+  font-size: 13px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.block-claims {
+  display: grid;
+  gap: 8px;
 }
 
 .claim-item,
@@ -1119,6 +1248,7 @@ textarea:focus {
   grid-template-rows: auto auto minmax(0, 1fr);
   gap: 18px;
   padding: 34px clamp(22px, 5vw, 72px) 22px;
+  overflow: hidden;
   background: var(--surface);
 }
 
@@ -1160,15 +1290,24 @@ textarea:focus {
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
 }
 
-.evolution-page .claim-list,
+.evolution-page .evolution-columns > div {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.evolution-page .block-list,
 .evolution-page .suggestion-list {
+  height: 100%;
   max-height: none;
 }
 
 @media (max-width: 820px) {
   .evolution-page {
     min-height: 70vh;
+    min-height: 70lvh;
     padding: 26px 20px 16px;
+    overflow: visible;
   }
 
   .evolution-page-header {
@@ -1183,6 +1322,16 @@ textarea:focus {
   .evolution-page .evolution-grid,
   .evolution-page .evolution-columns {
     grid-template-columns: 1fr;
+  }
+
+  .evolution-page .evolution-columns > div {
+    min-height: auto;
+  }
+
+  .evolution-page .block-list,
+  .evolution-page .suggestion-list {
+    height: auto;
+    max-height: 55vh;
   }
 }
 

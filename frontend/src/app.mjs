@@ -34,7 +34,7 @@ const scanNoteButton = document.querySelector("#scan-note-button");
 const evolutionStatus = document.querySelector("#evolution-status");
 const l2Summary = document.querySelector("#l2-summary");
 const l3Keywords = document.querySelector("#l3-keywords");
-const claimList = document.querySelector("#claim-list");
+const blockList = document.querySelector("#block-list");
 const suggestionList = document.querySelector("#suggestion-list");
 const formatButtons = document.querySelectorAll("[data-format]");
 const modeButtons = document.querySelectorAll("[data-mode]");
@@ -679,14 +679,14 @@ async function openEditorView() {
 }
 
 function renderEvolutionState(state) {
-  claimList.innerHTML = "";
+  blockList.innerHTML = "";
   suggestionList.innerHTML = "";
   l3Keywords.innerHTML = "";
 
   if (!state || !state.representation) {
     l2Summary.textContent = "保存后生成摘要";
     setEvolutionStatus(state?.analysis_status === "running" ? "后台分析中" : "等待分析");
-    renderEmpty(claimList, "暂无 claim");
+    renderEmpty(blockList, "暂无 block");
     renderEmpty(suggestionList, "暂无建议");
     return;
   }
@@ -704,25 +704,30 @@ function renderEvolutionState(state) {
     renderEmpty(l3Keywords, "暂无关键词");
   }
 
+  const blocks = state.blocks || [];
   const claims = state.claims || [];
   const suggestions = state.suggestions || [];
+  const claimsByBlock = new Map();
 
-  if (!claims.length) {
-    renderEmpty(claimList, "没有抽取到可合并的知识点");
+  for (const claim of claims) {
+    const blockClaims = claimsByBlock.get(claim.block_id) || [];
+    blockClaims.push(claim);
+    claimsByBlock.set(claim.block_id, blockClaims);
   }
 
-  for (const claim of claims.slice(0, 8)) {
-    const item = document.createElement("article");
-    item.className = "claim-item";
+  if (!blocks.length) {
+    renderEmpty(blockList, "没有提取到 block");
+  }
 
-    const text = document.createElement("p");
-    text.textContent = claim.claim_text;
+  blocks.forEach((block, index) => {
+    blockList.append(createBlockItem(block, claimsByBlock.get(block.id) || [], index === 0));
+    claimsByBlock.delete(block.id);
+  });
 
-    const meta = document.createElement("span");
-    meta.textContent = `${claim.subject || "未知主题"} · ${claim.predicate}`;
+  const orphanClaims = [...claimsByBlock.values()].flat();
 
-    item.append(text, meta);
-    claimList.append(item);
+  if (orphanClaims.length) {
+    blockList.append(createBlockItem({ id: "orphan", heading: "未归属 Block", block_index: blocks.length }, orphanClaims, false));
   }
 
   if (!suggestions.length) {
@@ -732,6 +737,96 @@ function renderEvolutionState(state) {
   for (const suggestion of suggestions) {
     suggestionList.append(createSuggestionItem(suggestion));
   }
+}
+
+function createBlockItem(block, claims, expanded) {
+  const item = document.createElement("article");
+  item.className = "block-item";
+
+  const toggle = document.createElement("button");
+  toggle.className = "block-toggle";
+  toggle.type = "button";
+  toggle.setAttribute("aria-expanded", String(expanded));
+
+  const heading = document.createElement("span");
+  heading.className = "block-heading";
+  heading.textContent = block.heading || `Block ${Number(block.block_index || 0) + 1}`;
+
+  const meta = document.createElement("span");
+  meta.className = "block-meta";
+  meta.textContent = `Block ${Number(block.block_index || 0) + 1} · ${claims.length} 条 claim`;
+
+  const indicator = document.createElement("span");
+  indicator.className = "block-indicator";
+  indicator.setAttribute("aria-hidden", "true");
+  indicator.textContent = expanded ? "−" : "+";
+
+  const title = document.createElement("span");
+  title.className = "block-title";
+  title.append(heading, meta);
+  toggle.append(title, indicator);
+
+  const summary = document.createElement("p");
+  summary.className = "block-summary";
+  summary.textContent = block.l2_summary || "暂无 block 摘要";
+
+  const details = document.createElement("div");
+  details.className = "block-details";
+  details.id = `block-details-${block.id}`;
+  details.hidden = !expanded;
+  toggle.setAttribute("aria-controls", details.id);
+
+  const source = document.createElement("section");
+  source.className = "block-source";
+
+  const sourceLabel = document.createElement("span");
+  sourceLabel.className = "block-detail-label";
+  sourceLabel.textContent = "Block 原文";
+
+  const sourceText = document.createElement("p");
+  sourceText.textContent = block.l1_text || "暂无原文";
+  source.append(sourceLabel, sourceText);
+
+  const claimLabel = document.createElement("span");
+  claimLabel.className = "block-detail-label";
+  claimLabel.textContent = `Claims（${claims.length}）`;
+
+  const claimContainer = document.createElement("div");
+  claimContainer.className = "block-claims";
+
+  if (!claims.length) {
+    renderEmpty(claimContainer, "这个 block 暂未提取到 claim");
+  }
+
+  for (const claim of claims) {
+    claimContainer.append(createClaimItem(claim));
+  }
+
+  details.append(source, claimLabel, claimContainer);
+
+  toggle.addEventListener("click", () => {
+    const nextExpanded = toggle.getAttribute("aria-expanded") !== "true";
+    toggle.setAttribute("aria-expanded", String(nextExpanded));
+    details.hidden = !nextExpanded;
+    indicator.textContent = nextExpanded ? "−" : "+";
+  });
+
+  item.append(toggle, summary, details);
+  return item;
+}
+
+function createClaimItem(claim) {
+  const item = document.createElement("article");
+  item.className = "claim-item";
+
+  const text = document.createElement("p");
+  text.textContent = claim.claim_text;
+
+  const meta = document.createElement("span");
+  meta.textContent = `${claim.subject || "未知主题"} · ${claim.predicate || "知识点"}`;
+
+  item.append(text, meta);
+  return item;
 }
 
 function renderEmpty(container, text) {
