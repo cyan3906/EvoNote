@@ -1,0 +1,146 @@
+{
+  "layer": "layer2_rag_retrieval",
+  "target_level": "note",
+  "input_mode": "live",
+  "queries_path": "backend\\testdata\\408_note_retrieval_queries_fixture.json",
+  "results_path": null,
+  "top_k": 10,
+  "metrics": {
+    "es": {
+      "recall_at_1": 0.0,
+      "precision_at_1": 0.0,
+      "hit_rate_at_1": 0.0,
+      "recall_at_3": 0.0,
+      "precision_at_3": 0.0,
+      "hit_rate_at_3": 0.0,
+      "recall_at_5": 0.0,
+      "precision_at_5": 0.0,
+      "hit_rate_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "precision_at_10": 0.0,
+      "hit_rate_at_10": 0.0,
+      "mrr": 0.0,
+      "ndcg_at_5": 0.0,
+      "ndcg_at_10": 0.0
+    },
+    "milvus": {
+      "recall_at_1": 0.0,
+      "precision_at_1": 0.0,
+      "hit_rate_at_1": 0.0,
+      "recall_at_3": 0.0,
+      "precision_at_3": 0.0,
+      "hit_rate_at_3": 0.0,
+      "recall_at_5": 0.0,
+      "precision_at_5": 0.0,
+      "hit_rate_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "precision_at_10": 0.0,
+      "hit_rate_at_10": 0.0,
+      "mrr": 0.0,
+      "ndcg_at_5": 0.0,
+      "ndcg_at_10": 0.0
+    },
+    "rrf": {
+      "recall_at_1": 0.0,
+      "precision_at_1": 0.0,
+      "hit_rate_at_1": 0.0,
+      "recall_at_3": 0.0,
+      "precision_at_3": 0.0,
+      "hit_rate_at_3": 0.0,
+      "recall_at_5": 0.0,
+      "precision_at_5": 0.0,
+      "hit_rate_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "precision_at_10": 0.0,
+      "hit_rate_at_10": 0.0,
+      "mrr": 0.0,
+      "ndcg_at_5": 0.0,
+      "ndcg_at_10": 0.0
+    }
+  },
+  "channel_comparison": {
+    "es_only_hit_at_10": 0,
+    "milvus_only_hit_at_10": 0,
+    "both_hit_at_10": 0,
+    "neither_hit_at_10": 1,
+    "rrf_improved_over_best_single_mrr_queries": 0,
+    "rrf_degraded_below_best_single_mrr_queries": 0
+  },
+  "counts": {
+    "queries": 1,
+    "gold_relevant_note_refs": 1,
+    "errors": 0
+  },
+  "errors": [],
+  "queries": [
+    {
+      "query_id": "retrieval_001",
+      "query_text": "顺序表和链表在访问和插入删除上的区别是什么？",
+      "gold_relevant_notes": [
+        {
+          "note_id": "note_001",
+          "relevance": 3
+        }
+      ],
+      "channels": {
+        "es": {
+          "retrieved_note_ids": [
+            "eeb2d72d-569a-4075-8392-90a0944258b6",
+            "f85a8672-682f-4796-b313-15e903d39637",
+            "989eecc4-affb-4b9f-81fa-2ebeace2d128",
+            "e045278c-1c2a-477b-b47c-1fd169de5b4c"
+          ],
+          "first_relevant_rank": null,
+          "hit_at_10": false,
+          "missed_relevant_note_ids_at_10": [
+            "note_001"
+          ],
+          "irrelevant_note_ids_at_10": [
+            "eeb2d72d-569a-4075-8392-90a0944258b6",
+            "f85a8672-682f-4796-b313-15e903d39637",
+            "989eecc4-affb-4b9f-81fa-2ebeace2d128",
+            "e045278c-1c2a-477b-b47c-1fd169de5b4c"
+          ]
+        },
+        "milvus": {
+          "retrieved_note_ids": [
+            "eeb2d72d-569a-4075-8392-90a0944258b6",
+            "e045278c-1c2a-477b-b47c-1fd169de5b4c",
+            "989eecc4-affb-4b9f-81fa-2ebeace2d128",
+            "f85a8672-682f-4796-b313-15e903d39637"
+          ],
+          "first_relevant_rank": null,
+          "hit_at_10": false,
+          "missed_relevant_note_ids_at_10": [
+            "note_001"
+          ],
+          "irrelevant_note_ids_at_10": [
+            "eeb2d72d-569a-4075-8392-90a0944258b6",
+            "e045278c-1c2a-477b-b47c-1fd169de5b4c",
+            "989eecc4-affb-4b9f-81fa-2ebeace2d128",
+            "f85a8672-682f-4796-b313-15e903d39637"
+          ]
+        },
+        "rrf": {
+          "retrieved_note_ids": [
+            "eeb2d72d-569a-4075-8392-90a0944258b6",
+            "f85a8672-682f-4796-b313-15e903d39637",
+            "e045278c-1c2a-477b-b47c-1fd169de5b4c",
+            "989eecc4-affb-4b9f-81fa-2ebeace2d128"
+          ],
+          "first_relevant_rank": null,
+          "hit_at_10": false,
+          "missed_relevant_note_ids_at_10": [
+            "note_001"
+          ],
+          "irrelevant_note_ids_at_10": [
+            "eeb2d72d-569a-4075-8392-90a0944258b6",
+            "f85a8672-682f-4796-b313-15e903d39637",
+            "e045278c-1c2a-477b-b47c-1fd169de5b4c",
+            "989eecc4-affb-4b9f-81fa-2ebeace2d128"
+          ]
+        }
+      }
+    }
+  ]
+}

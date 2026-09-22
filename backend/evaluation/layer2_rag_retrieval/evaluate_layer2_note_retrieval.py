@@ -46,8 +46,12 @@ def evaluate_note_retrieval(
     live: bool = False,
     smoke_oracle: bool = False,
     top_k: int = 10,
+    limit: int | None = None,
 ) -> dict[str, Any]:
     queries = load_queries(queries_path)
+
+    if limit is not None:
+        queries = queries[: max(0, limit)]
 
     if live:
         retrieval_results, errors = run_live_retrieval(queries, top_k=top_k)
@@ -432,6 +436,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--results", type=Path, default=None, help="Offline retrieval results JSON.")
     parser.add_argument("--out", type=Path, default=DEFAULT_OUTPUT_PATH, help="Output metrics JSON path.")
     parser.add_argument("--top-k", type=int, default=10, help="Top K to request in live mode and compare channels.")
+    parser.add_argument("--limit", type=int, default=None, help="Optional number of queries to evaluate for a quick live smoke run.")
     parser.add_argument("--live", action="store_true", help="Run live ES/Milvus/RRF retrieval through backend code.")
     parser.add_argument("--smoke-oracle", action="store_true", help="Use gold notes as retrieved results for a metrics smoke test.")
     return parser.parse_args()
@@ -446,6 +451,7 @@ def main() -> None:
         live=args.live,
         smoke_oracle=args.smoke_oracle,
         top_k=args.top_k,
+        limit=args.limit,
     )
     print(
         json.dumps(

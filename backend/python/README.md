@@ -118,6 +118,16 @@ AGENT_MODEL=...
 AGENT_TIMEOUT_SECONDS=30
 ```
 
+Claim 级关系判断可以单独配置更强的模型。默认模型是 `gpt-4o`，用于复核冲突关系和低置信度候选：
+
+```text
+CLAIM_JUDGE_ENABLED=true
+CLAIM_JUDGE_API_BASE_URL=...
+CLAIM_JUDGE_API_KEY=...
+CLAIM_JUDGE_MODEL=gpt-4o
+CLAIM_JUDGE_LOW_CONFIDENCE_THRESHOLD=0.68
+```
+
 ## Hybrid retrieval
 
 After a note is scanned, Evonote embeds L2/L3/claim text, writes claim vectors to Milvus,

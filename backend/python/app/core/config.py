@@ -25,6 +25,14 @@ class Settings(BaseSettings):
     evolution_timeout_seconds: int = 0
     evolution_temperature: float = 0
 
+    claim_judge_enabled: bool = True
+    claim_judge_api_base_url: str = ""
+    claim_judge_api_key: str = ""
+    claim_judge_model: str = "gpt-4o"
+    claim_judge_timeout_seconds: int = 0
+    claim_judge_temperature: float = 0
+    claim_judge_low_confidence_threshold: float = 0.68
+
     embedding_api_key: str = ""
     embedding_base_url: str = ""
     embedding_model: str = "text-embedding-3-large"

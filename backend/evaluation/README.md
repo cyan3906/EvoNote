@@ -10,10 +10,22 @@
 
 第一层指标输出到 `backend/evaluation/results/layer1_l1_l3_claim_metrics.json`。
 
+真实模型预测生成：
+
+```powershell
+python backend\evaluation\layer1_l1_l3_claim\generate_layer1_predictions.py `
+  --gold backend\testdata\408_notes_claims_fixture.json `
+  --out backend\evaluation\results\layer1_l1_l3_claim_predictions.json
+```
+
+快速连通性验证可以加 `--limit 3`，只生成前 3 条样本。
+
+使用真实预测文件评估：
+
 ```powershell
 python backend\evaluation\layer1_l1_l3_claim\evaluate_layer1_l1_l3_claim.py `
   --gold backend\testdata\408_notes_claims_fixture.json `
-  --pred path\to\prediction.json `
+  --pred backend\evaluation\results\layer1_l1_l3_claim_predictions.json `
   --out backend\evaluation\results\layer1_l1_l3_claim_metrics.json `
   --judge heuristic
 ```
@@ -73,6 +85,14 @@ python backend\evaluation\layer2_rag_retrieval\evaluate_layer2_note_retrieval.py
 ```powershell
 python backend\evaluation\layer2_rag_retrieval\evaluate_layer2_note_retrieval.py --live
 ```
+
+快速验证 live 链路可以限制 query 数量：
+
+```powershell
+python backend\evaluation\layer2_rag_retrieval\evaluate_layer2_note_retrieval.py --live --limit 1
+```
+
+真实评测建议优先看 `input_mode=live` 的结果；`oracle_smoke` 只用于验证指标计算器本身，不代表实际检索质量。
 
 如果只是验证评估器本身，可以跑 oracle smoke baseline：
 

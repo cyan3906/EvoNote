@@ -98,8 +98,37 @@ JSON 格式：
 
 ANALYSIS_SYSTEM_PROMPT = BLOCK_ANALYSIS_SYSTEM_PROMPT
 
+CLAIM_RELATION_JUDGE_SYSTEM_PROMPT = """
+你是 Evonote 的 Claim 关系裁判。你需要判断两条原子知识 claim 的关系。
+
+只允许输出四类关系：
+- duplicate：两条 claim 表达的是同一事实或几乎等价的事实。
+- supplement：source claim 能补充 target claim，二者主题相关但信息不完全重复。
+- conflict：两条 claim 在条件、版本、否定关系、数值、结论或适用范围上存在冲突或高风险差异。
+- unrelated：二者不应建立知识合并关系。
+
+要求：
+- 严格依据输入 claim、证据和相似度，不要引入外部事实。
+- 冲突判断要谨慎；只有存在明确矛盾、否定、条件差异或容易误合并的情况才判 conflict。
+- duplicate 需要语义高度一致。
+- supplement 需要主题相关且 source 对 target 有新增信息。
+- 严格输出 JSON，不要 Markdown，不要解释。
+
+JSON 格式：
+{
+  "relation": "duplicate | supplement | conflict | unrelated",
+  "confidence": 0.0,
+  "risk_level": "low | medium | high",
+  "reason": "一句话说明判断依据"
+}
+""".strip()
+
 
 class EvolutionModelError(RuntimeError):
+    pass
+
+
+class ClaimJudgeError(RuntimeError):
     pass
 
 
@@ -585,6 +614,12 @@ def build_merge_suggestions(
         if relation == "unrelated":
             continue
 
+        judged = judge_claim_relation_if_needed(source_claim, target_claim, relation, score)
+        relation = str(judged.get("relation", relation))
+
+        if relation == "unrelated":
+            continue
+
         key = (relation, str(source_claim["claim_text"]), str(target_claim["note_id"]))
 
         if key in seen_keys:
@@ -592,6 +627,13 @@ def build_merge_suggestions(
 
         seen_keys.add(key)
         patch = build_patch(source_note, target_note, source_claim, target_claim, relation)
+        judge_reason = clean_text(judged.get("reason", ""))
+
+        if judge_reason:
+            patch["reason"] = judge_reason
+
+        risk_level = str(judged.get("risk_level") or patch["risk_level"])
+        confidence = normalize_confidence(judged.get("confidence", score))
         suggestions.append(
             {
                 "id": str(uuid4()),
@@ -600,8 +642,8 @@ def build_merge_suggestions(
                 "source_claim_id": source_claim["id"],
                 "target_claim_id": target_claim["id"],
                 "relation": relation,
-                "confidence": round(score, 3),
-                "risk_level": patch["risk_level"],
+                "confidence": round(confidence, 3),
+                "risk_level": risk_level,
                 "reason": patch["reason"],
                 "patch": patch,
             }
@@ -650,6 +692,161 @@ def classify_relation(source_claim: dict[str, object], target_claim: dict[str, o
         return "supplement"
 
     return "unrelated"
+
+
+def judge_claim_relation_if_needed(
+    source_claim: dict[str, object],
+    target_claim: dict[str, object],
+    relation: str,
+    score: float,
+) -> dict[str, object]:
+    fallback = {
+        "relation": relation,
+        "confidence": score,
+        "risk_level": relation_risk_level(relation),
+        "reason": "",
+    }
+
+    if not should_llm_judge_relation(relation, score):
+        return fallback
+
+    try:
+        judged = judge_claim_relation_with_model(source_claim, target_claim, relation, score)
+    except Exception as exc:
+        metrics.record_extra(claim_judge_error=str(exc))
+        return fallback
+
+    judged_relation = str(judged.get("relation", relation)).strip()
+
+    if judged_relation not in {"duplicate", "supplement", "conflict", "unrelated"}:
+        judged_relation = relation
+
+    risk_level = str(judged.get("risk_level", relation_risk_level(judged_relation))).strip()
+
+    if risk_level not in {"low", "medium", "high"}:
+        risk_level = relation_risk_level(judged_relation)
+
+    return {
+        "relation": judged_relation,
+        "confidence": normalize_confidence(judged.get("confidence", score)),
+        "risk_level": risk_level,
+        "reason": clean_text(judged.get("reason", "")),
+    }
+
+
+def should_llm_judge_relation(relation: str, score: float) -> bool:
+    if not settings.claim_judge_enabled:
+        return False
+
+    api_key, _api_base_url = claim_judge_credentials()
+
+    if not api_key:
+        return False
+
+    return relation == "conflict" or score < settings.claim_judge_low_confidence_threshold
+
+
+def judge_claim_relation_with_model(
+    source_claim: dict[str, object],
+    target_claim: dict[str, object],
+    heuristic_relation: str,
+    heuristic_score: float,
+) -> dict[str, Any]:
+    api_key, api_base_url = claim_judge_credentials()
+    model = settings.claim_judge_model.strip() or "gpt-4o"
+    timeout = settings.claim_judge_timeout_seconds or settings.evolution_timeout_seconds or settings.agent_timeout_seconds
+
+    if not api_key:
+        raise ClaimJudgeError("未配置 Claim Judge API Key")
+
+    payload = {
+        "heuristic_relation": heuristic_relation,
+        "heuristic_score": round(float(heuristic_score), 4),
+        "source_claim": {
+            "claim_text": source_claim.get("claim_text", ""),
+            "subject": source_claim.get("subject", ""),
+            "predicate": source_claim.get("predicate", ""),
+            "object_text": source_claim.get("object_text", ""),
+            "source_text": source_claim.get("source_text", ""),
+            "keywords": source_claim.get("keywords", []),
+        },
+        "target_claim": {
+            "claim_text": target_claim.get("claim_text", ""),
+            "subject": target_claim.get("subject", ""),
+            "predicate": target_claim.get("predicate", ""),
+            "object_text": target_claim.get("object_text", ""),
+            "source_text": target_claim.get("source_text", ""),
+            "keywords": target_claim.get("keywords", []),
+        },
+    }
+    request_body = json.dumps(payload, ensure_ascii=False, indent=2)
+    client = OpenAI(api_key=api_key, base_url=api_base_url or None, timeout=timeout)
+
+    with metrics.api_call(
+        operation_name="claim_relation_judge",
+        provider="openai-compatible",
+        model=model,
+        call_group="model_calls",
+        request_size_chars=len(request_body),
+    ) as call:
+        response = retry_call(
+            lambda: client.chat.completions.create(
+                model=model,
+                temperature=settings.claim_judge_temperature,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": CLAIM_RELATION_JUDGE_SYSTEM_PROMPT},
+                    {"role": "user", "content": request_body},
+                ],
+            ),
+            operation_name="Claim relation judge request",
+        )
+        metrics.set_call_usage(call, getattr(response, "usage", None))
+        content = response.choices[0].message.content or "{}"
+        metrics.set_call_response_size(call, content)
+
+    try:
+        data = json.loads(content)
+    except json.JSONDecodeError as exc:
+        raise ClaimJudgeError("Claim Judge 没有返回合法 JSON") from exc
+
+    if not isinstance(data, dict):
+        raise ClaimJudgeError("Claim Judge 返回不是 JSON 对象")
+
+    return data
+
+
+def claim_judge_credentials() -> tuple[str, str]:
+    return (
+        first_configured_value(
+            settings.claim_judge_api_key,
+            settings.evolution_api_key,
+            settings.agent_api_key,
+        ),
+        first_configured_value(
+            settings.claim_judge_api_base_url,
+            settings.evolution_api_base_url,
+            settings.agent_api_base_url,
+        ),
+    )
+
+
+def first_configured_value(*values: str) -> str:
+    for value in values:
+        item = str(value or "").strip()
+
+        if item and item not in {"change-me", "your-agent-api-key", "your-evolution-api-key", "your-claim-judge-api-key"}:
+            return item
+
+    return ""
+
+
+def relation_risk_level(relation: str) -> str:
+    if relation == "conflict":
+        return "high"
+    if relation == "supplement":
+        return "medium"
+    return "low"
 
 
 def build_patch(
