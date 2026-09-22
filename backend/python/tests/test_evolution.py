@@ -1,20 +1,22 @@
 from pathlib import Path
 
-from fastapi.testclient import TestClient
-
-from app.core import database, evolution
-from app.main import app
-
-
-def auth_headers(client: TestClient) -> dict[str, str]:
-    response = client.post("/api/auth/login", json={"password": "evonote2026"})
-
-    assert response.status_code == 200
-    return {"Authorization": f"Bearer {response.json()['access_token']}"}
+from app.core import database, evolution, metrics
 
 
 def use_temp_database(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(database, "DATABASE_PATH", tmp_path / "evonote-test.sqlite3")
+    monkeypatch.setattr(metrics, "metrics_path", lambda: tmp_path / "metrics" / "evolution-runs.jsonl")
+    monkeypatch.setattr(database, "_delete_external_note_indexes", lambda note_id: None)
+    monkeypatch.setattr(evolution, "sync_note_indexes", lambda note, representation, claims: {})
+    monkeypatch.setattr(evolution, "hybrid_retrieve_notes", lambda representation, exclude_note_id=None, top_k=None: [])
+    monkeypatch.setattr(
+        evolution,
+        "embed_texts",
+        lambda texts, fallback_vector=None: (
+            [(fallback_vector or evolution.text_vector)(text) for text in texts],
+            None,
+        ),
+    )
 
 
 def use_fake_evolution_model(monkeypatch) -> None:
@@ -60,35 +62,25 @@ def use_fake_evolution_model(monkeypatch) -> None:
 def test_note_scan_creates_l2_l3_claims_and_suggestions(monkeypatch, tmp_path: Path) -> None:
     use_temp_database(monkeypatch, tmp_path)
     use_fake_evolution_model(monkeypatch)
-    client = TestClient(app)
-    headers = auth_headers(client)
 
-    first = client.post(
-        "/api/notes",
-        json={
-            "title": "Redis RDB",
-            "tags": "redis,rdb",
-            "body": "Redis RDB 是快照持久化方式。RDB 会定期保存数据快照。",
-        },
-        headers=headers,
+    first = database.create_note(
+        title="Redis RDB",
+        tags="redis,rdb",
+        body="Redis RDB 是快照持久化方式。RDB 会定期保存数据快照。",
     )
-    assert first.status_code == 201
-
-    second = client.post(
-        "/api/notes",
-        json={
-            "title": "RDB 复习",
-            "tags": "redis,rdb",
-            "body": "Redis RDB 是快照持久化方式。RDB 适合做备份。",
-        },
-        headers=headers,
+    second = database.create_note(
+        title="RDB 复习",
+        tags="redis,rdb",
+        body="Redis RDB 是快照持久化方式。RDB 适合做备份。",
     )
-    assert second.status_code == 201
 
-    state = client.post(f"/api/evolution/notes/{second.json()['id']}/scan", headers=headers)
+    first_state = evolution.scan_note(first["id"])
+    assert first_state is not None
 
-    assert state.status_code == 200
-    body = state.json()
+    state = evolution.scan_note(second["id"])
+
+    assert state is not None
+    body = state
     assert body["representation"]["l2_summary"]
     assert body["representation"]["keywords"]
     assert body["claims"]
@@ -99,31 +91,25 @@ def test_note_scan_creates_l2_l3_claims_and_suggestions(monkeypatch, tmp_path: P
 def test_merge_suggestion_can_be_applied(monkeypatch, tmp_path: Path) -> None:
     use_temp_database(monkeypatch, tmp_path)
     use_fake_evolution_model(monkeypatch)
-    client = TestClient(app)
-    headers = auth_headers(client)
 
-    client.post(
-        "/api/notes",
-        json={
-            "title": "Redis RDB",
-            "tags": "redis,rdb",
-            "body": "Redis RDB 是快照持久化方式。",
-        },
-        headers=headers,
+    first = database.create_note(
+        title="Redis RDB",
+        tags="redis,rdb",
+        body="Redis RDB 是快照持久化方式。",
     )
-    source = client.post(
-        "/api/notes",
-        json={
-            "title": "RDB 风险",
-            "tags": "redis,rdb",
-            "body": "Redis RDB 是快照持久化方式。RDB 可能丢失最近一次快照后的数据。",
-        },
-        headers=headers,
+    source = database.create_note(
+        title="RDB 风险",
+        tags="redis,rdb",
+        body="Redis RDB 是快照持久化方式。RDB 可能丢失最近一次快照后的数据。",
     )
-    state = client.post(f"/api/evolution/notes/{source.json()['id']}/scan", headers=headers).json()
+    first_state = evolution.scan_note(first["id"])
+    assert first_state is not None
+
+    state = evolution.scan_note(source["id"])
+    assert state is not None
     suggestion_id = state["suggestions"][0]["id"]
 
-    applied = client.post(f"/api/evolution/suggestions/{suggestion_id}/apply", headers=headers)
+    applied = evolution.apply_suggestion(suggestion_id)
 
-    assert applied.status_code == 200
-    assert applied.json()["status"] == "applied"
+    assert applied is not None
+    assert applied["status"] == "applied"

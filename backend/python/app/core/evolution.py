@@ -44,17 +44,27 @@ CONFLICT_PAIRS = (
     ("快", "慢"),
 )
 
-ANALYSIS_SYSTEM_PROMPT = """
-你是 Evonote 的知识结构化智能体。你的任务是从用户的 Markdown 笔记中生成 L2 摘要、L3 检索表达、关键词和 Claims。
+BLOCK_ANALYSIS_SYSTEM_PROMPT = """
+你是 Evonote 的 block 级知识结构化智能体。输入是一篇 Markdown 笔记已经切分后的 blocks，不是完整原文让你重新分段。
+
+你的任务：
+- 汇总所有 blocks，生成 note 级 L2 摘要、L3 检索表达和关键词。
+- 对每一个 block 独立生成该 block 的 L2 摘要、L3 检索表达、关键词和 Claims。
 
 要求：
-- 只根据输入原文生成，不要补充原文没有的事实。
-- L2 summary 用中文，概括核心内容，不能超过 120 字。
-- L3 text 是用于语义检索的精练表达，包含主题、实体、概念、技术名词和问题场景。
-- keywords 输出 4-12 个关键词，优先保留专有名词、英文缩写、版本号、技术概念。
-- claims 是可比较的知识点，不要抽取寒暄、标题本身、纯格式说明。
-- 每个 claim 必须能在 source_text 中找到证据。
+- 只根据输入中的 l1_text 生成，不要补充原文没有的事实。
+- 不要把某个 block 当成整篇文章扩写；每个 block 只能使用自己的 l1_text 抽取 claims。
+- 不要把其他 block 的信息合并进当前 block 的 l2_summary、l3_text 或 claims。
+- note 级信息可以综合所有 blocks，但也必须来自输入原文。
+- L2 summary 用中文，概括对应 note 或 block 的核心内容，note 不超过 180 字，block 不超过 120 字。
+- L3 text 是用于语义检索的精练表达，包含原文中出现的主题、实体、概念、技术名词和问题场景；可以包含同义检索说法，但不能引入新的事实结论。
+- keywords 输出 4-12 个关键词，优先保留专有名词、英文缩写、版本号、技术概念；不足 4 个时按原文实际内容输出。
+- claims 是可比较、可合并、可冲突检测的知识点，不要抽取寒暄、标题本身、纯格式说明。
+- 每个 claim 必须能在同一个 block 的 source_text 中找到证据。
+- source_text 必须摘自当前 block 的 l1_text，尽量使用原文短句，不要使用总结改写句。
+- 如果某个 block 只是标题、目录、过渡句或信息不足，可以输出空 claims。
 - 不确定的 claim 不要输出。
+- block_index 必须和输入保持一致，blocks 数量和顺序必须和输入完全一致。
 - 严格输出 JSON，不要 Markdown，不要解释。
 
 JSON 格式：
@@ -85,6 +95,8 @@ JSON 格式：
   ]
 }
 """.strip()
+
+ANALYSIS_SYSTEM_PROMPT = BLOCK_ANALYSIS_SYSTEM_PROMPT
 
 
 class EvolutionModelError(RuntimeError):
@@ -818,4 +830,3 @@ def claim_similarity_for_text(left: str, right: str) -> float:
 
 def normalize_text(text: str) -> str:
     return re.sub(r"\W+", "", text.lower())
-
