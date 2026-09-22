@@ -1,9 +1,7 @@
-from secrets import compare_digest
-
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
-from app.core.config import settings
+from app.core.security import create_access_token, verify_password
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -19,10 +17,10 @@ class LoginResponse(BaseModel):
 
 @router.post("/login", response_model=LoginResponse)
 def login(request: LoginRequest) -> LoginResponse:
-    if not compare_digest(request.password, settings.auth_password):
+    if not verify_password(request.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="密码不正确",
         )
 
-    return LoginResponse(access_token=settings.auth_token)
+    return LoginResponse(access_token=create_access_token())

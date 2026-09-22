@@ -49,7 +49,14 @@ class Settings(BaseSettings):
     external_retry_max_delay_seconds: float = 4.0
 
     auth_password: str = "evonote2026"
+    auth_password_hash: str = ""
     auth_token: str = "evonote-dev-token"
+    auth_token_ttl_seconds: int = 86400
+    cors_allowed_origins: str = ""
+    enforce_secure_config: bool = False
+
+    evolution_job_max_workers: int = 1
+    evolution_job_max_attempts: int = 3
 
     sqlite_database_path: str = "data/evonote.sqlite3"
 
@@ -64,3 +71,19 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def list_setting(value: str) -> list[str]:
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+def cors_allowed_origins() -> list[str]:
+    origins = list_setting(settings.cors_allowed_origins)
+
+    if origins:
+        return origins
+
+    if settings.app_env.lower() in {"development", "dev", "local", "test"}:
+        return ["*"]
+
+    return []

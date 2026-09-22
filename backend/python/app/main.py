@@ -19,14 +19,16 @@ from app.api.routes.health import router as health_router
 from app.api.routes.knowledge import router as knowledge_router
 from app.api.routes.notes import router as notes_router
 from app.core.database import init_db
-from app.core.config import settings
+from app.core.config import cors_allowed_origins, settings
+from app.core.evolution_jobs import recover_pending_scan_jobs, shutdown_scan_jobs
 from app.core.retrieval import close_retrieval_backends, initialize_retrieval_backends
+from app.core.security import validate_security_settings
 
 app = FastAPI(title=settings.app_name, debug=settings.app_debug)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_allowed_origins(),
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["Content-Disposition"],
@@ -41,12 +43,15 @@ app.include_router(evolution_router, prefix="/api")
 
 @app.on_event("startup")
 def startup() -> None:
+    validate_security_settings()
     init_db()
     initialize_retrieval_backends()
+    recover_pending_scan_jobs()
 
 
 @app.on_event("shutdown")
 def shutdown() -> None:
+    shutdown_scan_jobs()
     close_retrieval_backends()
 
 app.mount("/static", StaticFiles(directory=FRONTEND_ROOT), name="static")
@@ -76,5 +81,3 @@ def markdown_info() -> FileResponse:
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app.main:app", host=settings.host, port=settings.port, reload=True)
-
-

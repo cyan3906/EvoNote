@@ -131,6 +131,25 @@ def init_db() -> None:
             )
             """
         )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS evolution_scan_jobs (
+                id TEXT PRIMARY KEY,
+                note_id TEXT NOT NULL,
+                status TEXT NOT NULL,
+                error TEXT NOT NULL DEFAULT '',
+                attempts INTEGER NOT NULL DEFAULT 0,
+                max_attempts INTEGER NOT NULL DEFAULT 3,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                started_at TEXT NOT NULL DEFAULT '',
+                finished_at TEXT NOT NULL DEFAULT '',
+                FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+            )
+            """
+        )
+        connection.execute("CREATE INDEX IF NOT EXISTS idx_evolution_scan_jobs_note_status ON evolution_scan_jobs(note_id, status)")
+        connection.execute("CREATE INDEX IF NOT EXISTS idx_evolution_scan_jobs_status_updated ON evolution_scan_jobs(status, updated_at)")
 
 
 def row_to_note(row: sqlite3.Row) -> dict[str, str]:
@@ -356,6 +375,21 @@ def row_to_suggestion(row: sqlite3.Row) -> dict[str, object]:
         "status": row["status"],
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
+    }
+
+
+def row_to_scan_job(row: sqlite3.Row) -> dict[str, object]:
+    return {
+        "id": row["id"],
+        "note_id": row["note_id"],
+        "status": row["status"],
+        "error": row["error"],
+        "attempts": row["attempts"],
+        "max_attempts": row["max_attempts"],
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
+        "started_at": row["started_at"],
+        "finished_at": row["finished_at"],
     }
 
 
@@ -661,3 +695,180 @@ def save_note_version(note_id: str, reason: str = "") -> dict[str, str] | None:
         )
 
     return version
+
+
+def create_scan_job(note_id: str, *, max_attempts: int = 3) -> dict[str, object]:
+    init_db()
+    created_at = now_iso()
+    job = {
+        "id": str(uuid4()),
+        "note_id": note_id,
+        "status": "queued",
+        "error": "",
+        "attempts": 0,
+        "max_attempts": max(1, int(max_attempts)),
+        "created_at": created_at,
+        "updated_at": created_at,
+        "started_at": "",
+        "finished_at": "",
+    }
+
+    with connect() as connection:
+        connection.execute(
+            """
+            INSERT INTO evolution_scan_jobs (
+                id, note_id, status, error, attempts, max_attempts,
+                created_at, updated_at, started_at, finished_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                job["id"],
+                job["note_id"],
+                job["status"],
+                job["error"],
+                job["attempts"],
+                job["max_attempts"],
+                job["created_at"],
+                job["updated_at"],
+                job["started_at"],
+                job["finished_at"],
+            ),
+        )
+
+    return job
+
+
+def get_scan_job(job_id: str) -> dict[str, object] | None:
+    init_db()
+
+    with connect() as connection:
+        row = connection.execute(
+            """
+            SELECT id, note_id, status, error, attempts, max_attempts,
+                   created_at, updated_at, started_at, finished_at
+            FROM evolution_scan_jobs
+            WHERE id = ?
+            """,
+            (job_id,),
+        ).fetchone()
+
+    return row_to_scan_job(row) if row else None
+
+
+def get_latest_scan_job(note_id: str) -> dict[str, object] | None:
+    init_db()
+
+    with connect() as connection:
+        row = connection.execute(
+            """
+            SELECT id, note_id, status, error, attempts, max_attempts,
+                   created_at, updated_at, started_at, finished_at
+            FROM evolution_scan_jobs
+            WHERE note_id = ?
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            (note_id,),
+        ).fetchone()
+
+    return row_to_scan_job(row) if row else None
+
+
+def get_active_scan_job(note_id: str) -> dict[str, object] | None:
+    init_db()
+
+    with connect() as connection:
+        row = connection.execute(
+            """
+            SELECT id, note_id, status, error, attempts, max_attempts,
+                   created_at, updated_at, started_at, finished_at
+            FROM evolution_scan_jobs
+            WHERE note_id = ? AND status IN ('queued', 'running')
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            (note_id,),
+        ).fetchone()
+
+    return row_to_scan_job(row) if row else None
+
+
+def list_resumable_scan_jobs() -> list[dict[str, object]]:
+    init_db()
+
+    with connect() as connection:
+        rows = connection.execute(
+            """
+            SELECT id, note_id, status, error, attempts, max_attempts,
+                   created_at, updated_at, started_at, finished_at
+            FROM evolution_scan_jobs
+            WHERE status IN ('queued', 'running') AND attempts < max_attempts
+            ORDER BY created_at ASC
+            """
+        ).fetchall()
+
+    return [row_to_scan_job(row) for row in rows]
+
+
+def mark_scan_job_running(job_id: str) -> dict[str, object] | None:
+    init_db()
+    updated_at = now_iso()
+
+    with connect() as connection:
+        connection.execute(
+            """
+            UPDATE evolution_scan_jobs
+            SET status = 'running',
+                attempts = attempts + 1,
+                error = '',
+                updated_at = ?,
+                started_at = ?
+            WHERE id = ? AND status IN ('queued', 'running')
+            """,
+            (updated_at, updated_at, job_id),
+        )
+
+    return get_scan_job(job_id)
+
+
+def mark_scan_job_queued(job_id: str, *, error: str = "") -> dict[str, object] | None:
+    init_db()
+    updated_at = now_iso()
+
+    with connect() as connection:
+        connection.execute(
+            """
+            UPDATE evolution_scan_jobs
+            SET status = 'queued',
+                error = ?,
+                updated_at = ?
+            WHERE id = ?
+            """,
+            (error, updated_at, job_id),
+        )
+
+    return get_scan_job(job_id)
+
+
+def finish_scan_job(job_id: str, *, status: str, error: str = "") -> dict[str, object] | None:
+    if status not in {"succeeded", "failed", "cancelled"}:
+        raise ValueError(f"Unsupported scan job status: {status}")
+
+    init_db()
+    updated_at = now_iso()
+
+    with connect() as connection:
+        connection.execute(
+            """
+            UPDATE evolution_scan_jobs
+            SET status = ?,
+                error = ?,
+                updated_at = ?,
+                finished_at = ?
+            WHERE id = ?
+            """,
+            (status, error, updated_at, updated_at, job_id),
+        )
+
+    return get_scan_job(job_id)

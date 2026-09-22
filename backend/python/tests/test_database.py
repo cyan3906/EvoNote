@@ -56,3 +56,27 @@ def test_delete_note_cleans_external_indexes_for_analyzed_note(monkeypatch, tmp_
 
     assert database.delete_note(note["id"]) is True
     assert calls == [note["id"]]
+
+
+def test_scan_job_state_is_persisted(monkeypatch, tmp_path: Path) -> None:
+    use_temp_database(monkeypatch, tmp_path)
+    note = database.create_note(title="job", tags="", body="body")
+
+    job = database.create_scan_job(note["id"], max_attempts=2)
+    running = database.mark_scan_job_running(str(job["id"]))
+
+    assert running is not None
+    assert running["status"] == "running"
+    assert running["attempts"] == 1
+
+    queued = database.mark_scan_job_queued(str(job["id"]), error="temporary failure")
+
+    assert queued is not None
+    assert queued["status"] == "queued"
+    assert queued["error"] == "temporary failure"
+
+    finished = database.finish_scan_job(str(job["id"]), status="succeeded")
+
+    assert finished is not None
+    assert finished["status"] == "succeeded"
+    assert database.get_latest_scan_job(note["id"])["id"] == job["id"]
