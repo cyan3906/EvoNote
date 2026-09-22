@@ -148,6 +148,10 @@ def init_db() -> None:
             )
             """
         )
+        connection.execute("CREATE INDEX IF NOT EXISTS idx_knowledge_claims_note_id ON knowledge_claims(note_id)")
+        connection.execute("CREATE INDEX IF NOT EXISTS idx_merge_suggestions_status ON merge_suggestions(status)")
+        connection.execute("CREATE INDEX IF NOT EXISTS idx_merge_suggestions_source_status ON merge_suggestions(source_note_id, status)")
+        connection.execute("CREATE INDEX IF NOT EXISTS idx_merge_suggestions_target_status ON merge_suggestions(target_note_id, status)")
         connection.execute("CREATE INDEX IF NOT EXISTS idx_evolution_scan_jobs_note_status ON evolution_scan_jobs(note_id, status)")
         connection.execute("CREATE INDEX IF NOT EXISTS idx_evolution_scan_jobs_status_updated ON evolution_scan_jobs(status, updated_at)")
 

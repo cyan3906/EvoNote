@@ -80,3 +80,26 @@ def test_scan_job_state_is_persisted(monkeypatch, tmp_path: Path) -> None:
     assert finished is not None
     assert finished["status"] == "succeeded"
     assert database.get_latest_scan_job(note["id"])["id"] == job["id"]
+
+
+def test_evolution_lookup_indexes_are_created(monkeypatch, tmp_path: Path) -> None:
+    use_temp_database(monkeypatch, tmp_path)
+    database.init_db()
+
+    with database.connect() as connection:
+        rows = connection.execute(
+            """
+            SELECT name
+            FROM sqlite_master
+            WHERE type = 'index'
+            """
+        ).fetchall()
+
+    index_names = {row["name"] for row in rows}
+
+    assert {
+        "idx_knowledge_claims_note_id",
+        "idx_merge_suggestions_status",
+        "idx_merge_suggestions_source_status",
+        "idx_merge_suggestions_target_status",
+    }.issubset(index_names)
