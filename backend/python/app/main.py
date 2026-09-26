@@ -4,6 +4,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 APP_ROOT = PROJECT_ROOT.parent.parent
 FRONTEND_ROOT = APP_ROOT / "frontend"
+EVORAG_FRONTEND_ROOT = PROJECT_ROOT / "app" / "EvoRAG" / "frontend"
 # print(PROJECT_ROOT)
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.append(str(PROJECT_ROOT))
@@ -14,6 +15,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.routes.auth import router as auth_router
+from app.api.routes.evorag import router as evorag_router
 from app.api.routes.evolution import router as evolution_router
 from app.api.routes.health import router as health_router
 from app.api.routes.knowledge import router as knowledge_router
@@ -39,6 +41,7 @@ app.include_router(health_router, prefix="/api")
 app.include_router(knowledge_router, prefix="/api")
 app.include_router(notes_router, prefix="/api")
 app.include_router(evolution_router, prefix="/api")
+app.include_router(evorag_router, prefix="/api")
 
 
 @app.on_event("startup")
@@ -55,6 +58,7 @@ def shutdown() -> None:
     close_retrieval_backends()
 
 app.mount("/static", StaticFiles(directory=FRONTEND_ROOT), name="static")
+app.mount("/evorag", StaticFiles(directory=EVORAG_FRONTEND_ROOT, html=True), name="evorag")
 
 
 @app.get("/")

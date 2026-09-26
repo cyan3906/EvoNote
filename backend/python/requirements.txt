@@ -7,4 +7,5 @@ openai>=1.40.0
 redis>=5.0.0
 pymilvus>=2.4.8
 elasticsearch>=8.14.0,<9.0.0
+pymysql>=1.1.1
 
