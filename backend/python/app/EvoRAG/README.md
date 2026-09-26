@@ -70,8 +70,41 @@ Or:
 python -m app.EvoRAG.cli --file .\sample.txt
 ```
 
+The commands above only preprocess and print the extracted blocks/entities.
+To persist extracted entities into MySQL and update the ES/Milvus indexes, add
+`--ingest`:
+
+```powershell
+python -m app.EvoRAG.cli --file .\sample.txt --ingest
+```
+
 Query an ingested entity and generate structured content:
 
 ```powershell
 python -m app.EvoRAG.cli --query "Transformer" --top-k 5
+```
+
+Test block splitting and entity extraction without persistence:
+
+```http
+POST /api/evorag/extract
+{
+  "text": "死锁的必要条件包括互斥、持有并等待、不可剥夺、循环等待。"
+}
+```
+
+Inspect raw Elasticsearch, Milvus, and fused retrieval results through the API:
+
+```http
+POST /api/evorag/index-search
+{
+  "entity": "Transformer",
+  "top_k": 5,
+  "scope": {
+    "workspace_id": "local",
+    "project_id": "evorag",
+    "collection_id": "default",
+    "domain": "general"
+  }
+}
 ```

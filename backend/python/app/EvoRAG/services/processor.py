@@ -1,4 +1,5 @@
 import asyncio
+from time import perf_counter
 from typing import Any
 
 from app.EvoRAG.config import EvoRAGSettings, settings
@@ -26,19 +27,32 @@ class EvoRAGProcessor:
         self.entity_extractor = entity_extractor or EntityExtractor(self.llm)
 
     async def preprocess(self, text: str) -> EvoRAGPreprocessResult:
+        total_started_at = perf_counter()
+        timings: dict[str, float] = {}
         normalized_text = str(text or "").strip()
         if not normalized_text:
             raise EvoRAGProcessorError("input text is empty")
 
         try:
-            blocks = await self.block_splitter.split(normalized_text)
+            before_block_split_at = perf_counter()
+            timings["startup_to_first_block_split_ms"] = elapsed_ms(total_started_at)
+            if hasattr(self.block_splitter, "split_with_timings"):
+                blocks, split_timings = await self.block_splitter.split_with_timings(normalized_text)
+                timings.update(split_timings)
+            else:
+                blocks = await self.block_splitter.split(normalized_text)
+                timings["entity_anchor_split_ms"] = elapsed_ms(before_block_split_at)
+                timings["physical_chunk_split_ms"] = 0.0
+            entity_extraction_started_at = perf_counter()
             extractions = await self.entity_extractor.extract_many(blocks)
+            timings["entity_extraction_ms"] = elapsed_ms(entity_extraction_started_at)
         except Exception as exc:
             if isinstance(exc, EvoRAGProcessorError):
                 raise
             raise EvoRAGProcessorError(str(exc)) from exc
 
-        return EvoRAGPreprocessResult(input_text=normalized_text, blocks=extractions)
+        timings["total_ms"] = elapsed_ms(total_started_at)
+        return EvoRAGPreprocessResult(input_text=normalized_text, blocks=extractions, timings=timings)
 
 
 async def preprocess_text_async(text: str, *, config: EvoRAGSettings = settings) -> EvoRAGPreprocessResult:
@@ -52,3 +66,7 @@ def preprocess_text(text: str, *, config: EvoRAGSettings = settings) -> EvoRAGPr
 
 def result_to_dict(result: EvoRAGPreprocessResult) -> dict[str, Any]:
     return result.model_dump()
+
+
+def elapsed_ms(started_at: float) -> float:
+    return round((perf_counter() - started_at) * 1000, 2)

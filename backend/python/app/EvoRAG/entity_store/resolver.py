@@ -78,19 +78,19 @@ class EntityResolver:
         if best.score >= self.config.entity_resolution_llm_threshold:
             return await self._judge_with_llm(incoming, candidates[: self.config.entity_resolution_top_k])
 
-        if best.score < self.config.entity_resolution_manual_threshold:
+        if best.score >= self.config.entity_resolution_manual_threshold:
             return EntityResolutionDecision(
                 incoming=incoming,
                 decision="ambiguous",
                 score=best.score,
-                reason="candidate score below manual threshold",
+                reason="candidate score between manual and llm thresholds; manual review required",
             )
 
         return EntityResolutionDecision(
             incoming=incoming,
-            decision="new",
+            decision="ambiguous",
             score=best.score,
-            reason="candidate score between manual and llm thresholds",
+            reason="candidate score below manual threshold; manual review required",
         )
 
     def _exact_name_match(self, incoming: IncomingEntity) -> StoredEntity | None:

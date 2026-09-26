@@ -8,6 +8,16 @@ from app.EvoRAG.models import BlockEntityExtraction, BlockExtractionResult, Text
 from app.EvoRAG.prompts import ENTITY_EXTRACTION_SYSTEM_PROMPT
 
 
+ENTITY_ADMISSION_THRESHOLD = 0.7
+ENTITY_ADMISSION_DIMENSIONS = [
+    "definable",
+    "query_entry",
+    "independent_scope",
+    "stable_relations",
+    "key_sentence",
+]
+
+
 class EntityExtractor:
     def __init__(self, llm_client: EvoRAGLLMClient) -> None:
         self.llm = llm_client
@@ -36,7 +46,11 @@ class EntityExtractor:
             system_prompt=ENTITY_EXTRACTION_SYSTEM_PROMPT,
             user_payload={
                 "block": block.model_dump(),
+                "anchor_entity": block.anchor_entity,
+                "candidate_entities": block.candidate_entities,
                 "attribute_schema": list(ATTRIBUTE_TYPES),
+                "entity_admission_threshold": ENTITY_ADMISSION_THRESHOLD,
+                "entity_admission_dimensions": ENTITY_ADMISSION_DIMENSIONS,
             },
             operation_name=f"EvoRAG entity extraction block {block.block_index}",
         )
@@ -46,4 +60,16 @@ class EntityExtractor:
         except ValidationError as exc:
             raise ValueError(f"block {block.block_index} extraction schema validation failed: {exc}") from exc
 
-        return BlockEntityExtraction(block=block, entities=result.entities, warnings=result.warnings)
+        accepted_entities = []
+        warnings = list(result.warnings)
+        for entity in result.entities:
+            score = entity.admission_score.aggregate_score
+            if score >= ENTITY_ADMISSION_THRESHOLD:
+                accepted_entities.append(entity)
+                continue
+            warnings.append(
+                f"dropped non-entity candidate: {entity.name} "
+                f"(admission_score={score:.3f} < {ENTITY_ADMISSION_THRESHOLD:.2f})"
+            )
+
+        return BlockEntityExtraction(block=block, entities=accepted_entities, warnings=warnings)

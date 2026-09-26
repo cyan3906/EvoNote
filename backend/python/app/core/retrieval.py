@@ -667,6 +667,40 @@ def initialize_retrieval_backends() -> None:
         _backends_initialized = True
 
 
+def retrieval_backends_status() -> dict[str, object]:
+    status: dict[str, object] = {
+        "initialized": _backends_initialized,
+        "elasticsearch": {
+            "available": False,
+            "url": settings.es_url,
+            "index": settings.es_index,
+            "error": "",
+        },
+        "milvus": {
+            "available": False,
+            "host": settings.milvus_host,
+            "port": settings.milvus_port,
+            "collection": settings.milvus_collection,
+            "error": "",
+        },
+    }
+
+    try:
+        client = elasticsearch_client()
+        ping = getattr(client, "ping", None)
+        status["elasticsearch"]["available"] = bool(ping()) if callable(ping) else bool(client.indices.exists(index=settings.es_index))
+    except Exception as exc:
+        status["elasticsearch"]["error"] = str(exc)
+
+    try:
+        client = milvus_client()
+        status["milvus"]["available"] = bool(client.has_collection(settings.milvus_collection))
+    except Exception as exc:
+        status["milvus"]["error"] = str(exc)
+
+    return status
+
+
 def ensure_retrieval_backends_initialized() -> None:
     if not _backends_initialized:
         initialize_retrieval_backends()

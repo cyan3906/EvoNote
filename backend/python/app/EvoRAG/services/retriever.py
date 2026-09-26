@@ -1,9 +1,12 @@
+from time import perf_counter
+
 from app.EvoRAG.config import EvoRAGSettings, settings
 from app.EvoRAG.entity_store.models import CandidateEntity, EntityScope, IncomingEntity, StoredEntity
 from app.EvoRAG.entity_store.normalizer import normalize_name
 from app.EvoRAG.entity_store.repository import MySQLEntityRepository
 from app.EvoRAG.indexes import EntityHybridIndex, EvoRAGEmbeddingClient
-from app.EvoRAG.models import RetrievedEntity, StoredAttribute
+from app.EvoRAG.indexes.entity_hybrid import reciprocal_rank_fusion_entities
+from app.EvoRAG.models import EvoRAGIndexSearchResult, RetrievedEntity, StoredAttribute
 
 
 class EvoRAGRetriever:
@@ -63,6 +66,134 @@ class EvoRAGRetriever:
         if not entities:
             warnings.append("no matching entity found")
         return entities, warnings
+
+    async def search_indexes(self, query: str, *, top_k: int | None = None) -> EvoRAGIndexSearchResult:
+        total_started_at = perf_counter()
+        timings: dict[str, float] = {}
+        normalized_query = normalize_name(query)
+        if not normalized_query:
+            timings["total_ms"] = elapsed_ms(total_started_at)
+            return EvoRAGIndexSearchResult(query=query, timings=timings, warnings=["query is empty"])
+
+        limit = top_k or self.config.entity_resolution_top_k
+        warnings: list[str] = []
+        stage_started_at = perf_counter()
+        backend_status = self.backend_status(warnings)
+        timings["backend_status_ms"] = elapsed_ms(stage_started_at)
+        incoming = IncomingEntity(
+            name=query.strip(),
+            normalized_name=normalized_query,
+            entity_type="",
+            scope=self.scope,
+            identity_description=query.strip(),
+            description_for_match=query.strip(),
+        )
+
+        try:
+            stage_started_at = perf_counter()
+            incoming.embedding = await self.embedding_client.embed_text(query)
+            timings["embedding_ms"] = elapsed_ms(stage_started_at)
+        except Exception as exc:
+            timings["embedding_ms"] = elapsed_ms(stage_started_at)
+            warnings.append(f"embedding skipped: {exc}")
+
+        es_candidates: list[CandidateEntity] = []
+        try:
+            stage_started_at = perf_counter()
+            self.hybrid_index.ensure_elasticsearch_index()
+            timings["elasticsearch_ensure_ms"] = elapsed_ms(stage_started_at)
+            stage_started_at = perf_counter()
+            es_candidates = self.hybrid_index.search_elasticsearch(incoming, top_k=limit)
+            timings["elasticsearch_search_ms"] = elapsed_ms(stage_started_at)
+        except Exception as exc:
+            timings.setdefault("elasticsearch_ensure_ms", elapsed_ms(stage_started_at))
+            warnings.append(f"elasticsearch search skipped: {exc}")
+
+        milvus_candidates: list[CandidateEntity] = []
+        try:
+            stage_started_at = perf_counter()
+            self.hybrid_index.ensure_milvus_collection()
+            timings["milvus_ensure_ms"] = elapsed_ms(stage_started_at)
+            stage_started_at = perf_counter()
+            milvus_candidates = self.hybrid_index.search_milvus(incoming.embedding, top_k=limit, scope=self.scope)
+            timings["milvus_search_ms"] = elapsed_ms(stage_started_at)
+        except Exception as exc:
+            timings.setdefault("milvus_ensure_ms", elapsed_ms(stage_started_at))
+            warnings.append(f"milvus search skipped: {exc}")
+
+        stage_started_at = perf_counter()
+        fused_candidates = reciprocal_rank_fusion_entities(
+            [es_candidates, milvus_candidates],
+            rrf_k=self.config.entity_resolution_rrf_k,
+            top_k=limit,
+        )
+        timings["fusion_ms"] = elapsed_ms(stage_started_at)
+
+        stage_started_at = perf_counter()
+        entity_by_id, attributes_by_entity = self.safe_hydrate_candidate_data(
+            [*es_candidates, *milvus_candidates, *fused_candidates],
+            warnings=warnings,
+        )
+        elasticsearch_results = hydrate_candidates_from_maps(es_candidates, entity_by_id, attributes_by_entity)
+        milvus_results = hydrate_candidates_from_maps(milvus_candidates, entity_by_id, attributes_by_entity)
+        fused_results = hydrate_candidates_from_maps(fused_candidates, entity_by_id, attributes_by_entity)
+        timings["mysql_hydration_ms"] = elapsed_ms(stage_started_at)
+        timings["total_ms"] = elapsed_ms(total_started_at)
+
+        return EvoRAGIndexSearchResult(
+            query=query,
+            backend_status=backend_status,
+            timings=timings,
+            elasticsearch_results=elasticsearch_results,
+            milvus_results=milvus_results,
+            fused_results=fused_results,
+            warnings=warnings,
+        )
+
+    def backend_status(self, warnings: list[str] | None = None) -> dict[str, object]:
+        try:
+            return self.hybrid_index.backend_status()
+        except Exception as exc:
+            if warnings is not None:
+                warnings.append(f"backend health check skipped: {exc}")
+            return {}
+
+    def safe_hydrate_candidate_data(
+        self,
+        candidates: list[CandidateEntity],
+        *,
+        warnings: list[str],
+    ) -> tuple[dict[int, StoredEntity], dict[int, list[StoredAttribute]]]:
+        entity_ids = [candidate.entity.id for candidate in candidates if candidate.entity.id]
+        if not entity_ids:
+            return {}, {}
+        try:
+            return self.repository.hydrate_entities_for_candidates(entity_ids)
+        except Exception as exc:
+            warnings.append(f"mysql hydration skipped: {exc}")
+            return {}, {}
+
+    def safe_hydrate_candidates(
+        self,
+        candidates: list[CandidateEntity],
+        *,
+        warnings: list[str],
+        label: str,
+    ) -> list[RetrievedEntity]:
+        try:
+            return self.hydrate_candidates(candidates)
+        except Exception as exc:
+            warnings.append(f"{label} mysql hydration skipped: {exc}")
+            return [
+                stored_entity_to_retrieved(
+                    candidate.entity,
+                    attributes=[],
+                    score=candidate.score,
+                    rank=candidate.rank,
+                    source=candidate.source,
+                )
+                for candidate in candidates
+            ]
 
     def fallback_candidates(self, normalized_query: str, *, limit: int) -> list[CandidateEntity]:
         candidates: list[CandidateEntity] = []
@@ -163,3 +294,27 @@ def stored_entity_to_retrieved(
         source=source,
         attributes=attributes,
     )
+
+
+def hydrate_candidates_from_maps(
+    candidates: list[CandidateEntity],
+    entity_by_id: dict[int, StoredEntity],
+    attributes_by_entity: dict[int, list[StoredAttribute]],
+) -> list[RetrievedEntity]:
+    retrieved: list[RetrievedEntity] = []
+    for rank, candidate in enumerate(candidates, start=1):
+        entity = entity_by_id.get(candidate.entity.id, candidate.entity)
+        retrieved.append(
+            stored_entity_to_retrieved(
+                entity,
+                attributes=attributes_by_entity.get(entity.id, []),
+                score=candidate.score,
+                rank=rank,
+                source=candidate.source,
+            )
+        )
+    return retrieved
+
+
+def elapsed_ms(started_at: float) -> float:
+    return round((perf_counter() - started_at) * 1000, 2)

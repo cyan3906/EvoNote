@@ -53,6 +53,49 @@ class AttributeBucket(BaseModel):
         return items
 
 
+class EntityAdmissionScore(BaseModel):
+    definable: float = Field(default=1.0, ge=0.0, le=1.0)
+    query_entry: float = Field(default=1.0, ge=0.0, le=1.0)
+    independent_scope: float = Field(default=1.0, ge=0.0, le=1.0)
+    stable_relations: float = Field(default=1.0, ge=0.0, le=1.0)
+    key_sentence: float = Field(default=1.0, ge=0.0, le=1.0)
+    aggregate_score: float = Field(default=1.0, ge=0.0, le=1.0)
+    rationale: str = ""
+
+    @model_validator(mode="before")
+    @classmethod
+    def fill_missing_dimensions_from_aggregate(cls, data: Any) -> Any:
+        if not isinstance(data, dict) or "aggregate_score" not in data:
+            return data
+
+        aggregate_score = data.get("aggregate_score")
+        return {
+            "definable": aggregate_score,
+            "query_entry": aggregate_score,
+            "independent_scope": aggregate_score,
+            "stable_relations": aggregate_score,
+            "key_sentence": aggregate_score,
+            **data,
+        }
+
+    @field_validator("rationale")
+    @classmethod
+    def clean_rationale(cls, value: str) -> str:
+        return " ".join(str(value or "").split())
+
+    @model_validator(mode="after")
+    def recompute_aggregate_score(self) -> "EntityAdmissionScore":
+        scores = [
+            self.definable,
+            self.query_entry,
+            self.independent_scope,
+            self.stable_relations,
+            self.key_sentence,
+        ]
+        self.aggregate_score = round(sum(scores) / len(scores), 4)
+        return self
+
+
 class ExtractedEntity(BaseModel):
     name: str
     entity_type: str = Field(default="concept")
@@ -61,6 +104,7 @@ class ExtractedEntity(BaseModel):
         default="",
         description="Short model-generated description used only for entity identity resolution.",
     )
+    admission_score: EntityAdmissionScore = Field(default_factory=EntityAdmissionScore)
     attributes: AttributeBucket = Field(default_factory=AttributeBucket)
 
     @field_validator("name", "entity_type", "identity_description")
@@ -84,12 +128,33 @@ class ExtractedEntity(BaseModel):
 class TextBlock(BaseModel):
     block_index: int = Field(ge=0)
     heading: str = ""
+    anchor_entity: str = ""
+    candidate_entities: list[str] = Field(default_factory=list)
     l1_text: str
+    split_reason: str = ""
+    anchor_confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+    parent_block_index: int | None = None
+    chunk_index: int = Field(default=0, ge=0)
+    chunk_count: int = Field(default=1, ge=1)
+    char_start: int = Field(default=-1)
+    char_end: int = Field(default=-1)
 
-    @field_validator("heading", "l1_text")
+    @field_validator("heading", "anchor_entity", "l1_text", "split_reason")
     @classmethod
     def clean_block_text(cls, value: str) -> str:
         return str(value or "").strip()
+
+    @field_validator("candidate_entities")
+    @classmethod
+    def clean_candidate_entities(cls, values: list[str]) -> list[str]:
+        cleaned: list[str] = []
+        seen: set[str] = set()
+        for item in values:
+            candidate = " ".join(str(item or "").split())
+            if candidate and candidate not in seen:
+                seen.add(candidate)
+                cleaned.append(candidate)
+        return cleaned
 
 
 class BlockSplitResult(BaseModel):
@@ -110,6 +175,7 @@ class BlockExtractionResult(BaseModel):
 class EvoRAGPreprocessResult(BaseModel):
     input_text: str
     blocks: list[BlockEntityExtraction] = Field(default_factory=list)
+    timings: dict[str, float] = Field(default_factory=dict)
 
     @property
     def entity_count(self) -> int:
@@ -173,4 +239,14 @@ class EvoRAGQueryResult(BaseModel):
     retrieved_entities: list[RetrievedEntity] = Field(default_factory=list)
     graph: DependencyGraph | None = None
     answer: str = ""
+    warnings: list[str] = Field(default_factory=list)
+
+
+class EvoRAGIndexSearchResult(BaseModel):
+    query: str
+    backend_status: dict[str, Any] = Field(default_factory=dict)
+    timings: dict[str, float] = Field(default_factory=dict)
+    elasticsearch_results: list[RetrievedEntity] = Field(default_factory=list)
+    milvus_results: list[RetrievedEntity] = Field(default_factory=list)
+    fused_results: list[RetrievedEntity] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)

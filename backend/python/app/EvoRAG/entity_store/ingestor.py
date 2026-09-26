@@ -42,12 +42,24 @@ class EntityIngestor:
 
     async def apply_decisions(self, decisions: list[EntityResolutionDecision]) -> list[EntityUpsertResult]:
         semaphore = asyncio.Semaphore(max(1, self.config.entity_merge_max_concurrency))
-        tasks = [self._apply_one(decision, semaphore) for decision in decisions if decision.decision != "ambiguous"]
-        return await asyncio.gather(*tasks)
+        tasks = [self._apply_one(decision, semaphore) for decision in decisions]
+        results = await asyncio.gather(*tasks)
+        return [result for result in results if result is not None]
 
-    async def _apply_one(self, decision: EntityResolutionDecision, semaphore: asyncio.Semaphore) -> EntityUpsertResult:
+    async def _apply_one(self, decision: EntityResolutionDecision, semaphore: asyncio.Semaphore) -> EntityUpsertResult | None:
         async with semaphore:
             matched_id = decision.matched_entity.id if decision.matched_entity else None
+            if decision.decision == "ambiguous":
+                await asyncio.to_thread(
+                    self.repository.record_resolution_audit,
+                    decision.incoming,
+                    decision.decision,
+                    matched_id,
+                    decision.score,
+                    decision.reason,
+                )
+                return None
+
             if decision.matched_entity:
                 decision.incoming.aliases = merge_unique(
                     [

@@ -22,6 +22,7 @@ from app.api.routes.knowledge import router as knowledge_router
 from app.api.routes.notes import router as notes_router
 from app.core.database import init_db
 from app.core.config import cors_allowed_origins, settings
+from app.core.evorag_database import initialize_evorag_database
 from app.core.evolution_jobs import recover_pending_scan_jobs, shutdown_scan_jobs
 from app.core.retrieval import close_retrieval_backends, initialize_retrieval_backends
 from app.core.security import validate_security_settings
@@ -48,6 +49,7 @@ app.include_router(evorag_router, prefix="/api")
 def startup() -> None:
     validate_security_settings()
     init_db()
+    initialize_evorag_database()
     initialize_retrieval_backends()
     recover_pending_scan_jobs()
 

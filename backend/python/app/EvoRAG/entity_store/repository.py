@@ -6,6 +6,7 @@ from app.EvoRAG.config import EvoRAGSettings, settings
 from app.EvoRAG.entity_store.models import EntityAttributeInput, EntityScope, EntityUpsertResult, IncomingEntity, StoredEntity
 from app.EvoRAG.entity_store.normalizer import normalize_name, text_fingerprint
 from app.EvoRAG.models import StoredAttribute, StoredAttributeEvidence
+from app.core.evorag_database import connect_evorag_mysql
 
 
 class MySQLEntityRepository:
@@ -82,6 +83,48 @@ class MySQLEntityRepository:
                 )
                 row = cursor.fetchone()
         return row_to_entity(row) if row else None
+
+    def hydrate_entities_for_candidates(
+        self,
+        entity_ids: list[int],
+    ) -> tuple[dict[int, StoredEntity], dict[int, list[StoredAttribute]]]:
+        unique_ids = unique_ints(entity_ids)
+        if not unique_ids:
+            return {}, {}
+
+        placeholders = ", ".join(["%s"] * len(unique_ids))
+        entity_sql = f"""
+            SELECT id, workspace_id, project_id, collection_id, domain,
+                   canonical_name, normalized_name, entity_type, aliases_json,
+                   identity_description, summary, description_for_match, embedding_json
+            FROM evorag_entities
+            WHERE id IN ({placeholders}) AND status = 'active'
+        """
+        attribute_sql = f"""
+            SELECT
+                a.id AS attribute_id,
+                a.entity_id,
+                a.attr_type,
+                a.value_text,
+                a.confidence,
+                e.evidence_text,
+                e.note_id,
+                e.block_id,
+                e.block_index
+            FROM evorag_entity_attributes a
+            LEFT JOIN evorag_entity_attribute_evidence e ON e.attribute_id = a.id
+            WHERE a.entity_id IN ({placeholders}) AND a.status = 'active'
+            ORDER BY a.entity_id, a.attr_type, a.id, e.id
+        """
+        with self.connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(entity_sql, tuple(unique_ids))
+                entity_rows = cursor.fetchall()
+                cursor.execute(attribute_sql, tuple(unique_ids))
+                attribute_rows = cursor.fetchall()
+
+        entities = {entity.id: entity for entity in (row_to_entity(row) for row in entity_rows)}
+        return entities, group_attribute_rows(attribute_rows)
 
     def list_attributes_for_entities(self, entity_ids: list[int]) -> dict[int, list[StoredAttribute]]:
         if not entity_ids:
@@ -259,21 +302,7 @@ class MySQLEntityRepository:
         return attribute_count, evidence_count
 
     def connect(self):
-        try:
-            import pymysql  # type: ignore
-        except Exception as exc:
-            raise RuntimeError("pymysql is required for MySQL storage. Install pymysql>=1.1.0.") from exc
-
-        return pymysql.connect(
-            host=self.config.mysql_host,
-            port=self.config.mysql_port,
-            user=self.config.mysql_user,
-            password=self.config.mysql_password,
-            database=self.config.mysql_database,
-            charset=self.config.mysql_charset,
-            autocommit=False,
-            cursorclass=pymysql.cursors.DictCursor,
-        )
+        return connect_evorag_mysql(self.config)
 
 
 def row_to_entity(row: dict[str, Any]) -> StoredEntity:
@@ -391,3 +420,14 @@ def build_scope_where(scope: EntityScope) -> tuple[str, tuple[str, str, str, str
         "AND workspace_id = %s AND project_id = %s AND collection_id = %s AND domain = %s",
         (scope.workspace_id, scope.project_id, scope.collection_id, scope.domain),
     )
+
+
+def unique_ints(values: list[int]) -> list[int]:
+    result: list[int] = []
+    seen: set[int] = set()
+    for value in values:
+        item = int(value)
+        if item not in seen:
+            seen.add(item)
+            result.append(item)
+    return result

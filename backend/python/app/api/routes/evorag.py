@@ -5,8 +5,8 @@ from pydantic import BaseModel, Field
 
 from app.EvoRAG.entity_store.ingestor import EntityIngestor
 from app.EvoRAG.entity_store.models import EntityScope
-from app.EvoRAG.models import EvoRAGPreprocessResult, EvoRAGQueryResult
-from app.EvoRAG.services import EvoRAGProcessor, EvoRAGQueryService
+from app.EvoRAG.models import EvoRAGIndexSearchResult, EvoRAGPreprocessResult, EvoRAGQueryResult
+from app.EvoRAG.services import EvoRAGProcessor, EvoRAGQueryService, EvoRAGRetriever
 from app.core.security import require_auth
 
 
@@ -37,6 +37,14 @@ class EvoRAGIngestResponse(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+@router.post("/extract", response_model=EvoRAGPreprocessResult)
+async def extract_text(request: EvoRAGIngestRequest) -> EvoRAGPreprocessResult:
+    try:
+        return await EvoRAGProcessor().preprocess(request.text)
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+
+
 @router.post("/ingest", response_model=EvoRAGIngestResponse)
 async def ingest_text(request: EvoRAGIngestRequest) -> EvoRAGIngestResponse:
     scope = to_scope(request.scope)
@@ -56,6 +64,14 @@ async def ingest_text(request: EvoRAGIngestRequest) -> EvoRAGIngestResponse:
 async def query_entity(request: EvoRAGQueryRequest) -> EvoRAGQueryResult:
     try:
         return await EvoRAGQueryService(scope=to_scope(request.scope)).query(request.entity, top_k=request.top_k)
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+
+
+@router.post("/index-search", response_model=EvoRAGIndexSearchResult)
+async def search_entity_indexes(request: EvoRAGQueryRequest) -> EvoRAGIndexSearchResult:
+    try:
+        return await EvoRAGRetriever(scope=to_scope(request.scope)).search_indexes(request.entity, top_k=request.top_k)
     except Exception as exc:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
 

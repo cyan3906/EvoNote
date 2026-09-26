@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>EvoRAG 工作台</title>
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=20260926-preprocess-timings" />
   </head>
   <body>
     <main class="shell">
@@ -48,7 +48,10 @@
                 <p class="eyebrow">Step 1</p>
                 <h2>提交知识文本</h2>
               </div>
-              <button id="ingest-btn" type="button">提交并入库</button>
+              <div class="action-buttons">
+                <button id="extract-btn" class="secondary-button" type="button">抽取预览</button>
+                <button id="ingest-btn" type="button">提交并入库</button>
+              </div>
             </div>
             <textarea
               id="knowledge-text"
@@ -57,6 +60,7 @@
             ></textarea>
             <div class="status-line" id="ingest-status">等待输入</div>
             <div class="entity-strip" id="extracted-entities"></div>
+            <div class="preprocess-details" id="preprocess-details"></div>
           </section>
 
           <section class="panel query-panel">
@@ -65,7 +69,10 @@
                 <p class="eyebrow">Step 2</p>
                 <h2>检索实体并生成长文本</h2>
               </div>
-              <button id="query-btn" type="button">生成</button>
+              <div class="action-buttons">
+                <button id="index-search-btn" class="secondary-button" type="button">检索诊断</button>
+                <button id="query-btn" type="button">生成</button>
+              </div>
             </div>
             <div class="query-row">
               <input id="entity-query" placeholder="输入实体名，例如 Transformer" />
@@ -107,9 +114,36 @@
             </div>
             <div id="warnings" class="warnings"></div>
           </section>
+
+          <section class="panel index-panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Index Search</p>
+                <h2>ES / Milvus / 融合结果</h2>
+              </div>
+            </div>
+            <div class="status-line" id="index-search-status">等待检索诊断</div>
+            <div id="backend-status" class="backend-status"></div>
+            <div id="index-timings" class="timing-grid"></div>
+            <div class="index-columns">
+              <div>
+                <h3>Elasticsearch</h3>
+                <div id="es-results" class="index-list"></div>
+              </div>
+              <div>
+                <h3>Milvus</h3>
+                <div id="milvus-results" class="index-list"></div>
+              </div>
+              <div>
+                <h3>融合结果</h3>
+                <div id="fused-results" class="index-list"></div>
+              </div>
+            </div>
+            <div id="index-warnings" class="warnings"></div>
+          </section>
         </section>
       </section>
     </main>
-    <script src="./app.js"></script>
+    <script src="./app.js?v=20260926-preprocess-timings"></script>
   </body>
 </html>

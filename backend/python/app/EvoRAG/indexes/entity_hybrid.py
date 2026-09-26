@@ -2,6 +2,9 @@ from typing import Any
 from app.EvoRAG.config import EvoRAGSettings, settings
 from app.EvoRAG.entity_store.models import CandidateEntity, EntityScope, IncomingEntity, StoredEntity
 from app.EvoRAG.entity_store.normalizer import normalize_name
+from app.core.evorag_database import evorag_database_status
+from app.core import retrieval as core_retrieval
+from app.core.config import settings as core_settings
 
 
 class EntityHybridIndex:
@@ -18,15 +21,20 @@ class EntityHybridIndex:
         self.upsert_milvus_entity(entity)
 
     def search(self, incoming: IncomingEntity, *, top_k: int | None = None) -> list[CandidateEntity]:
-        self.ensure_indexes()
         limit = top_k or self.config.entity_resolution_top_k
-        es_hits = self.search_elasticsearch(incoming, top_k=limit)
-        milvus_hits = self.search_milvus(incoming.embedding, top_k=limit, scope=incoming.scope)
+        es_hits, milvus_hits = self.search_components(incoming, top_k=limit)
         return reciprocal_rank_fusion_entities(
             [es_hits, milvus_hits],
             rrf_k=self.config.entity_resolution_rrf_k,
             top_k=limit,
         )
+
+    def search_components(self, incoming: IncomingEntity, *, top_k: int | None = None) -> tuple[list[CandidateEntity], list[CandidateEntity]]:
+        self.ensure_indexes()
+        limit = top_k or self.config.entity_resolution_top_k
+        es_hits = self.search_elasticsearch(incoming, top_k=limit)
+        milvus_hits = self.search_milvus(incoming.embedding, top_k=limit, scope=incoming.scope)
+        return es_hits, milvus_hits
 
     def ensure_elasticsearch_index(self) -> None:
         client = self.elasticsearch_client()
@@ -225,15 +233,51 @@ class EntityHybridIndex:
         return hits
 
     def elasticsearch_client(self):
+        if self.can_use_core_elasticsearch_client():
+            return core_retrieval.elasticsearch_client()
+
         from elasticsearch import Elasticsearch
 
         return Elasticsearch(self.config.es_url)
 
     def milvus_client(self):
+        if self.can_use_core_milvus_client():
+            return core_retrieval.milvus_client()
+
         from pymilvus import MilvusClient
 
         token = self.config.milvus_token.strip() or None
         return MilvusClient(uri=f"http://{self.config.milvus_host}:{self.config.milvus_port}", token=token)
+
+    def can_use_core_elasticsearch_client(self) -> bool:
+        return normalize_url(self.config.es_url) == normalize_url(core_settings.es_url)
+
+    def can_use_core_milvus_client(self) -> bool:
+        return (
+            str(self.config.milvus_host).strip().lower() == str(core_settings.milvus_host).strip().lower()
+            and int(self.config.milvus_port) == int(core_settings.milvus_port)
+            and str(self.config.milvus_token or "").strip() == str(core_settings.milvus_token or "").strip()
+        )
+
+    def backend_status(self) -> dict[str, Any]:
+        core_status = core_retrieval.retrieval_backends_status()
+        return {
+            "core": core_status,
+            "evorag": {
+                "mysql": evorag_database_status(),
+                "elasticsearch": {
+                    "uses_core_client": self.can_use_core_elasticsearch_client(),
+                    "url": self.config.es_url,
+                    "index": self.config.es_entity_index,
+                },
+                "milvus": {
+                    "uses_core_client": self.can_use_core_milvus_client(),
+                    "host": self.config.milvus_host,
+                    "port": self.config.milvus_port,
+                    "collection": self.config.milvus_entity_collection,
+                },
+            },
+        }
 
     def ensure_milvus_scope_fields(self, client: Any) -> None:
         existing = extract_milvus_field_names(client.describe_collection(collection_name=self.config.milvus_entity_collection))
@@ -363,3 +407,7 @@ def extract_milvus_field_names(description: Any) -> set[str]:
                 result.add(str(field.name))
         return result
     return set()
+
+
+def normalize_url(value: str) -> str:
+    return str(value or "").strip().rstrip("/").lower()
