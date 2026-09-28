@@ -1,17 +1,20 @@
 import json
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
 from app.EvoRAG.config import EvoRAGSettings, settings
-from app.EvoRAG.entity_store.models import EntityAttributeInput, EntityScope, EntityUpsertResult, IncomingEntity, StoredEntity
+from app.EvoRAG.entity_store.alias_cache import EntityAliasCache, scope_hash
+from app.EvoRAG.entity_store.models import CandidateEntity, EntityAttributeInput, EntityIngestQueueResult, EntityScope, EntityUpsertResult, IncomingEntity, IncomingEntityTask, StoredEntity
 from app.EvoRAG.entity_store.normalizer import normalize_name, text_fingerprint
-from app.EvoRAG.models import StoredAttribute, StoredAttributeEvidence
+from app.EvoRAG.models import EvoRAGPreprocessResult, StoredAttribute, StoredAttributeEvidence
 from app.core.evorag_database import connect_evorag_mysql
 
 
 class MySQLEntityRepository:
-    def __init__(self, config: EvoRAGSettings = settings) -> None:
+    def __init__(self, config: EvoRAGSettings = settings, alias_cache: EntityAliasCache | None = None) -> None:
         self.config = config
+        self.alias_cache = alias_cache or EntityAliasCache()
 
     def init_schema(self) -> None:
         sql_path = Path(__file__).resolve().parents[1] / "sql" / "entity_schema.sql"
@@ -22,6 +25,8 @@ class MySQLEntityRepository:
                     cursor.execute(statement)
                 ensure_entity_table_columns(cursor)
             connection.commit()
+        if not self.alias_table_has_rows():
+            self.backfill_entity_aliases()
 
     def list_entities(self, scope: EntityScope | None = None) -> list[StoredEntity]:
         scope = scope or scope_from_config(self.config)
@@ -37,6 +42,21 @@ class MySQLEntityRepository:
                     WHERE status = 'active' {where_sql}
                     """,
                     values,
+                )
+                rows = cursor.fetchall()
+        return [row_to_entity(row) for row in rows]
+
+    def list_all_entities(self) -> list[StoredEntity]:
+        with self.connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, workspace_id, project_id, collection_id, domain,
+                           canonical_name, normalized_name, entity_type, aliases_json,
+                           identity_description, summary, description_for_match, embedding_json
+                    FROM evorag_entities
+                    WHERE status = 'active'
+                    """
                 )
                 rows = cursor.fetchall()
         return [row_to_entity(row) for row in rows]
@@ -84,6 +104,131 @@ class MySQLEntityRepository:
                 row = cursor.fetchone()
         return row_to_entity(row) if row else None
 
+    def find_by_alias(self, alias: str, scope: EntityScope | None = None) -> StoredEntity | None:
+        normalized_alias = normalize_name(alias)
+        if not normalized_alias:
+            return None
+
+        entity_scope = scope or scope_from_config(self.config)
+        cached_entity_id = self.alias_cache.get_entity_id(entity_scope, normalized_alias)
+        if cached_entity_id:
+            cached = self.get_entity(cached_entity_id)
+            if cached is not None:
+                return cached
+
+        entity_id = self.find_alias_entity_id(normalized_alias, entity_scope)
+        if not entity_id:
+            return None
+        self.alias_cache.set_entity_id(entity_scope, normalized_alias, entity_id)
+        return self.get_entity(entity_id)
+
+    def find_alias_for_incoming(self, incoming: IncomingEntity) -> StoredEntity | None:
+        aliases = [incoming.name, incoming.normalized_name, *incoming.aliases]
+        for alias in aliases:
+            entity = self.find_by_alias(alias, incoming.scope)
+            if entity is None:
+                continue
+            if incoming.entity_type and entity.entity_type and incoming.entity_type != entity.entity_type:
+                continue
+            return entity
+        return None
+
+    def find_alias_entity_id(self, normalized_alias: str, scope: EntityScope | None = None) -> int | None:
+        entity_scope = scope or scope_from_config(self.config)
+        with self.connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT entity_id
+                    FROM evorag_entity_aliases
+                    WHERE normalized_alias = %s
+                      AND scope_hash = %s
+                      AND status = 'active'
+                    LIMIT 1
+                    """,
+                    (normalized_alias, scope_hash(entity_scope)),
+                )
+                row = cursor.fetchone()
+        return int(row["entity_id"]) if row else None
+
+    def upsert_entity_alias(
+        self,
+        *,
+        entity_id: int,
+        alias_text: str,
+        scope: EntityScope,
+        alias_type: str = "alias",
+        confidence: float = 1.0,
+        source: str = "system",
+    ) -> None:
+        normalized_alias = normalize_name(alias_text)
+        clean_alias = " ".join(str(alias_text or "").split())
+        if not normalized_alias or not clean_alias or not entity_id:
+            return
+
+        with self.connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO evorag_entity_aliases (
+                        workspace_id, project_id, collection_id, domain, scope_hash,
+                        entity_id, alias_text, normalized_alias, alias_type, confidence, source, status
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'active')
+                    ON DUPLICATE KEY UPDATE
+                        entity_id = VALUES(entity_id),
+                        alias_text = VALUES(alias_text),
+                        alias_type = VALUES(alias_type),
+                        confidence = GREATEST(confidence, VALUES(confidence)),
+                        source = VALUES(source),
+                        updated_at = CURRENT_TIMESTAMP
+                    """,
+                    (
+                        scope.workspace_id,
+                        scope.project_id,
+                        scope.collection_id,
+                        scope.domain,
+                        scope_hash(scope),
+                        entity_id,
+                        clean_alias,
+                        normalized_alias,
+                        alias_type,
+                        max(0.0, min(1.0, float(confidence))),
+                        source,
+                    ),
+                )
+            connection.commit()
+        self.alias_cache.set_entity_id(scope, normalized_alias, entity_id)
+
+    def upsert_aliases_for_entity(self, entity: StoredEntity, *, source: str = "system", confidence: float = 1.0) -> None:
+        self.upsert_entity_alias(
+            entity_id=entity.id,
+            alias_text=entity.canonical_name,
+            scope=entity.scope,
+            alias_type="canonical",
+            confidence=confidence,
+            source=source,
+        )
+        for alias in entity.aliases:
+            self.upsert_entity_alias(
+                entity_id=entity.id,
+                alias_text=alias,
+                scope=entity.scope,
+                alias_type="alias",
+                confidence=confidence,
+                source=source,
+            )
+
+    def backfill_entity_aliases(self) -> None:
+        for entity in self.list_all_entities():
+            self.upsert_aliases_for_entity(entity, source="schema_backfill", confidence=1.0)
+
+    def alias_table_has_rows(self) -> bool:
+        with self.connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1 FROM evorag_entity_aliases WHERE status = 'active' LIMIT 1")
+                return cursor.fetchone() is not None
+
     def hydrate_entities_for_candidates(
         self,
         entity_ids: list[int],
@@ -126,6 +271,174 @@ class MySQLEntityRepository:
         entities = {entity.id: entity for entity in (row_to_entity(row) for row in entity_rows)}
         return entities, group_attribute_rows(attribute_rows)
 
+    def create_ingest_job(
+        self,
+        *,
+        input_text: str,
+        preprocess: EvoRAGPreprocessResult,
+        scope: EntityScope,
+        incoming_entities: list[IncomingEntity],
+        source_blocks_by_key: dict[str, list[dict[str, Any]]],
+        source_note_id: str = "",
+        task_name: str = "",
+    ) -> EntityIngestQueueResult:
+        with self.connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO evorag_ingest_jobs (
+                        workspace_id, project_id, collection_id, domain,
+                        source_note_id, task_name,
+                        input_fingerprint, input_text, preprocess_json,
+                        block_count, entity_count, queued_count, status
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'queued')
+                    """,
+                    (
+                        scope.workspace_id,
+                        scope.project_id,
+                        scope.collection_id,
+                        scope.domain,
+                        str(source_note_id or ""),
+                        str(task_name or "")[:255],
+                        text_fingerprint(input_text),
+                        input_text,
+                        preprocess.model_dump_json(),
+                        len(preprocess.blocks),
+                        preprocess.entity_count,
+                        len(incoming_entities),
+                    ),
+                )
+                job_id = int(cursor.lastrowid)
+                incoming_ids = self._insert_incoming_entities(cursor, job_id, incoming_entities, source_blocks_by_key)
+            connection.commit()
+        return EntityIngestQueueResult(
+            job_id=job_id,
+            status="queued",
+            queued_count=len(incoming_ids),
+            incoming_entity_ids=incoming_ids,
+        )
+
+    def list_ingest_jobs(self, *, limit: int = 20) -> list[dict[str, Any]]:
+        with self.connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT id
+                    FROM evorag_ingest_jobs
+                    ORDER BY id DESC
+                    LIMIT %s
+                    """,
+                    (max(1, min(100, int(limit))),),
+                )
+                rows = cursor.fetchall()
+        return [
+            job
+            for row in rows
+            if (job := self.get_ingest_job_status(int(row["id"]))) is not None
+        ]
+
+    def get_ingest_job_status(self, job_id: int) -> dict[str, Any] | None:
+        with self.connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, workspace_id, project_id, collection_id, domain,
+                           source_note_id, task_name,
+                           block_count, entity_count, queued_count, status,
+                           created_at, updated_at
+                    FROM evorag_ingest_jobs
+                    WHERE id = %s
+                    LIMIT 1
+                    """,
+                    (int(job_id),),
+                )
+                job = cursor.fetchone()
+                if not job:
+                    return None
+
+                cursor.execute(
+                    """
+                    SELECT status, COUNT(*) AS count
+                    FROM evorag_incoming_entities
+                    WHERE job_id = %s
+                    GROUP BY status
+                    """,
+                    (int(job_id),),
+                )
+                status_rows = cursor.fetchall()
+                cursor.execute(
+                    """
+                    SELECT
+                        i.id,
+                        i.name,
+                        i.normalized_name,
+                        i.entity_type,
+                        i.status,
+                        i.attempt_count,
+                        i.matched_entity_id,
+                        i.decision,
+                        i.decision_score,
+                        i.decision_reason,
+                        i.last_error,
+                        i.locked_by,
+                        i.locked_until,
+                        i.created_at,
+                        i.updated_at,
+                        r.id AS review_task_id,
+                        r.status AS review_status
+                    FROM evorag_incoming_entities i
+                    LEFT JOIN evorag_entity_review_tasks r
+                      ON r.incoming_entity_id = i.id AND r.status = 'pending'
+                    WHERE i.job_id = %s
+                    ORDER BY i.id
+                    """,
+                    (int(job_id),),
+                )
+                incoming_rows = cursor.fetchall()
+
+        item = job_row_to_dict(job)
+        item["status_counts"] = {str(row["status"]): int(row["count"]) for row in status_rows}
+        item["incoming_entities"] = [incoming_status_row_to_dict(row) for row in incoming_rows]
+        item["progress"] = build_job_progress(item["status_counts"], len(incoming_rows))
+        return item
+
+    def ingest_observability_summary(self) -> dict[str, Any]:
+        with self.connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT status, COUNT(*) AS count
+                    FROM evorag_incoming_entities
+                    GROUP BY status
+                    """
+                )
+                status_rows = cursor.fetchall()
+                cursor.execute(
+                    """
+                    SELECT
+                        COALESCE(AVG(TIMESTAMPDIFF(MICROSECOND, created_at, updated_at)) / 1000, 0) AS avg_ms
+                    FROM evorag_incoming_entities
+                    WHERE status IN ('auto_merged', 'manual_merged', 'new_created', 'completed')
+                    """
+                )
+                avg_row = cursor.fetchone() or {}
+                cursor.execute(
+                    """
+                    SELECT
+                        COALESCE(SUM(GREATEST(attempt_count - 1, 0)), 0) AS retry_count,
+                        COALESCE(SUM(CASE WHEN status IN ('failed', 'dead_letter') THEN 1 ELSE 0 END), 0) AS failed_count
+                    FROM evorag_incoming_entities
+                    """
+                )
+                error_row = cursor.fetchone() or {}
+        return {
+            "status_counts": {str(row["status"]): int(row["count"]) for row in status_rows},
+            "average_completed_ms": float(avg_row.get("avg_ms") or 0),
+            "retry_count": int(error_row.get("retry_count") or 0),
+            "failed_count": int(error_row.get("failed_count") or 0),
+        }
+
     def list_attributes_for_entities(self, entity_ids: list[int]) -> dict[int, list[StoredAttribute]]:
         if not entity_ids:
             return {}
@@ -152,6 +465,386 @@ class MySQLEntityRepository:
                 cursor.execute(sql, tuple(entity_ids))
                 rows = cursor.fetchall()
         return group_attribute_rows(rows)
+
+    def _insert_incoming_entities(
+        self,
+        cursor: Any,
+        job_id: int,
+        incoming_entities: list[IncomingEntity],
+        source_blocks_by_key: dict[str, list[dict[str, Any]]],
+    ) -> list[int]:
+        incoming_ids: list[int] = []
+        for incoming in incoming_entities:
+            key = incoming_entity_key(incoming)
+            dedupe_key = text_fingerprint(f"{job_id}:{key}")
+            cursor.execute(
+                """
+                INSERT INTO evorag_incoming_entities (
+                    job_id, workspace_id, project_id, collection_id, domain,
+                    dedupe_key, name, normalized_name, entity_type, aliases_json,
+                    identity_description, description_for_match, attributes_json,
+                    source_blocks_json, source_count, status, decision_reason, last_error
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'pending', '', '')
+                ON DUPLICATE KEY UPDATE
+                    updated_at = CURRENT_TIMESTAMP,
+                    id = LAST_INSERT_ID(id)
+                """,
+                (
+                    job_id,
+                    incoming.scope.workspace_id,
+                    incoming.scope.project_id,
+                    incoming.scope.collection_id,
+                    incoming.scope.domain,
+                    dedupe_key,
+                    incoming.name,
+                    incoming.normalized_name or normalize_name(incoming.name),
+                    incoming.entity_type or "concept",
+                    json.dumps(incoming.aliases, ensure_ascii=False),
+                    incoming.identity_description,
+                    incoming.description_for_match,
+                    json.dumps([asdict(attribute) for attribute in incoming.attributes], ensure_ascii=False),
+                    json.dumps(source_blocks_by_key.get(key, []), ensure_ascii=False),
+                    incoming.source_count,
+                ),
+            )
+            incoming_ids.append(int(cursor.lastrowid))
+        return incoming_ids
+
+    def list_resumable_incoming_entity_ids(self, *, limit: int = 200) -> list[int]:
+        with self.connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT id
+                    FROM evorag_incoming_entities
+                    WHERE status = 'pending'
+                       OR (status = 'processing' AND (locked_until IS NULL OR locked_until < CURRENT_TIMESTAMP))
+                    ORDER BY id
+                    LIMIT %s
+                    """,
+                    (max(1, int(limit)),),
+                )
+                rows = cursor.fetchall()
+        return [int(row["id"]) for row in rows]
+
+    def get_incoming_entity_task(self, incoming_entity_id: int) -> IncomingEntityTask | None:
+        with self.connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, job_id, workspace_id, project_id, collection_id, domain,
+                           name, normalized_name, entity_type, aliases_json,
+                           identity_description, description_for_match, attributes_json,
+                           source_count, status, attempt_count
+                    FROM evorag_incoming_entities
+                    WHERE id = %s
+                    LIMIT 1
+                    """,
+                    (incoming_entity_id,),
+                )
+                row = cursor.fetchone()
+        return row_to_incoming_task(row) if row else None
+
+    def claim_incoming_entity(self, incoming_entity_id: int, *, worker_id: str, lock_seconds: int) -> IncomingEntityTask | None:
+        lock_seconds = max(1, int(lock_seconds))
+        with self.connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"""
+                    UPDATE evorag_incoming_entities
+                    SET status = 'processing',
+                        attempt_count = attempt_count + 1,
+                        locked_by = %s,
+                        locked_until = DATE_ADD(CURRENT_TIMESTAMP, INTERVAL {lock_seconds} SECOND),
+                        last_error = ''
+                    WHERE id = %s
+                      AND (
+                        status = 'pending'
+                        OR (status = 'processing' AND (locked_until IS NULL OR locked_until < CURRENT_TIMESTAMP))
+                      )
+                    """,
+                    (worker_id, incoming_entity_id),
+                )
+                changed = cursor.rowcount
+            connection.commit()
+        if not changed:
+            return None
+        return self.get_incoming_entity_task(incoming_entity_id)
+
+    def finish_incoming_entity(
+        self,
+        incoming_entity_id: int,
+        *,
+        status: str,
+        decision: str = "",
+        matched_entity_id: int | None = None,
+        score: float = 0.0,
+        reason: str = "",
+        error: str = "",
+    ) -> None:
+        with self.connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    UPDATE evorag_incoming_entities
+                    SET status = %s,
+                        matched_entity_id = %s,
+                        decision = %s,
+                        decision_score = %s,
+                        decision_reason = %s,
+                        last_error = %s,
+                        locked_by = '',
+                        locked_until = NULL
+                    WHERE id = %s
+                    """,
+                    (
+                        status,
+                        matched_entity_id,
+                        decision,
+                        score,
+                        reason,
+                        error,
+                        incoming_entity_id,
+                    ),
+                )
+                cursor.execute("SELECT job_id FROM evorag_incoming_entities WHERE id = %s", (incoming_entity_id,))
+                row = cursor.fetchone()
+                job_id = int(row["job_id"]) if row else 0
+                if job_id:
+                    update_ingest_job_status(cursor, job_id)
+            connection.commit()
+
+    def mark_incoming_failure(self, incoming_entity_id: int, *, error: str, max_attempts: int) -> str:
+        task = self.get_incoming_entity_task(incoming_entity_id)
+        if task is None:
+            return "missing"
+        status = "pending" if task.attempt_count < max(1, int(max_attempts)) else "dead_letter"
+        with self.connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    UPDATE evorag_incoming_entities
+                    SET status = %s,
+                        last_error = %s,
+                        locked_by = '',
+                        locked_until = NULL
+                    WHERE id = %s
+                    """,
+                    (status, error, incoming_entity_id),
+                )
+                update_ingest_job_status(cursor, task.job_id)
+            connection.commit()
+        return status
+
+    def rejected_candidate_ids(self, incoming: IncomingEntity) -> set[int]:
+        normalized_name = incoming.normalized_name or normalize_name(incoming.name)
+        with self.connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT candidate_entity_id
+                    FROM evorag_entity_resolution_rejections
+                    WHERE scope_hash = %s
+                      AND incoming_normalized_name = %s
+                      AND incoming_type = %s
+                      AND status = 'active'
+                    """,
+                    (scope_hash(incoming.scope), normalized_name, incoming.entity_type or ""),
+                )
+                rows = cursor.fetchall()
+        return {int(row["candidate_entity_id"]) for row in rows}
+
+    def create_review_task(
+        self,
+        *,
+        incoming_entity_id: int,
+        task: IncomingEntityTask,
+        candidates: list[CandidateEntity],
+        reason: str,
+    ) -> int:
+        incoming_json = json.dumps(incoming_snapshot(task.incoming), ensure_ascii=False)
+        candidates_json = json.dumps([candidate_snapshot(candidate) for candidate in candidates], ensure_ascii=False)
+        with self.connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT id
+                    FROM evorag_entity_review_tasks
+                    WHERE incoming_entity_id = %s AND status = 'pending'
+                    LIMIT 1
+                    """,
+                    (incoming_entity_id,),
+                )
+                existing = cursor.fetchone()
+                if existing:
+                    review_id = int(existing["id"])
+                    cursor.execute(
+                        """
+                        UPDATE evorag_entity_review_tasks
+                        SET incoming_snapshot_json = %s,
+                            candidates_json = %s,
+                            reason = %s,
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE id = %s
+                        """,
+                        (incoming_json, candidates_json, reason, review_id),
+                    )
+                    connection.commit()
+                    return review_id
+
+                cursor.execute(
+                    """
+                    INSERT INTO evorag_entity_review_tasks (
+                        incoming_entity_id, job_id,
+                        workspace_id, project_id, collection_id, domain,
+                        incoming_snapshot_json, candidates_json, status, reason
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'pending', %s)
+                    """,
+                    (
+                        incoming_entity_id,
+                        task.job_id,
+                        task.incoming.scope.workspace_id,
+                        task.incoming.scope.project_id,
+                        task.incoming.scope.collection_id,
+                        task.incoming.scope.domain,
+                        incoming_json,
+                        candidates_json,
+                        reason,
+                    ),
+                )
+                review_id = int(cursor.lastrowid)
+            connection.commit()
+        return review_id
+
+    def list_review_tasks(self, *, status: str = "pending", limit: int = 50) -> list[dict[str, Any]]:
+        with self.connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, incoming_entity_id, job_id,
+                           workspace_id, project_id, collection_id, domain,
+                           incoming_snapshot_json, candidates_json, status,
+                           decision, decided_entity_id, decided_by, reason,
+                           created_at, updated_at
+                    FROM evorag_entity_review_tasks
+                    WHERE status = %s
+                    ORDER BY id DESC
+                    LIMIT %s
+                    """,
+                    (status, max(1, int(limit))),
+                )
+                rows = cursor.fetchall()
+        return [review_row_to_dict(row) for row in rows]
+
+    def get_review_task(self, review_task_id: int) -> dict[str, Any] | None:
+        with self.connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, incoming_entity_id, job_id,
+                           workspace_id, project_id, collection_id, domain,
+                           incoming_snapshot_json, candidates_json, status,
+                           decision, decided_entity_id, decided_by, reason,
+                           created_at, updated_at
+                    FROM evorag_entity_review_tasks
+                    WHERE id = %s
+                    LIMIT 1
+                    """,
+                    (review_task_id,),
+                )
+                row = cursor.fetchone()
+        return review_row_to_dict(row) if row else None
+
+    def complete_review_task(
+        self,
+        review_task_id: int,
+        *,
+        status: str,
+        decision: str,
+        decided_entity_id: int | None = None,
+        decided_by: str = "manual",
+        reason: str = "",
+    ) -> None:
+        with self.connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    UPDATE evorag_entity_review_tasks
+                    SET status = %s,
+                        decision = %s,
+                        decided_entity_id = %s,
+                        decided_by = %s,
+                        reason = %s,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = %s
+                    """,
+                    (status, decision, decided_entity_id, decided_by, reason, review_task_id),
+                )
+            connection.commit()
+
+    def record_rejections(
+        self,
+        *,
+        incoming: IncomingEntity,
+        candidate_entity_ids: list[int],
+        reason: str,
+        decided_by: str = "manual",
+    ) -> None:
+        if not candidate_entity_ids:
+            return
+        normalized_name = incoming.normalized_name or normalize_name(incoming.name)
+        with self.connect() as connection:
+            with connection.cursor() as cursor:
+                for candidate_id in candidate_entity_ids:
+                    cursor.execute(
+                        """
+                        INSERT INTO evorag_entity_resolution_rejections (
+                            workspace_id, project_id, collection_id, domain, scope_hash,
+                            incoming_normalized_name, incoming_type, candidate_entity_id,
+                            reason, decided_by, status
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'active')
+                        ON DUPLICATE KEY UPDATE
+                            reason = VALUES(reason),
+                            decided_by = VALUES(decided_by),
+                            updated_at = CURRENT_TIMESTAMP
+                        """,
+                        (
+                            incoming.scope.workspace_id,
+                            incoming.scope.project_id,
+                            incoming.scope.collection_id,
+                            incoming.scope.domain,
+                            scope_hash(incoming.scope),
+                            normalized_name,
+                            incoming.entity_type or "",
+                            int(candidate_id),
+                            reason,
+                            decided_by,
+                        ),
+                    )
+            connection.commit()
+
+    def reset_incoming_for_retry(self, incoming_entity_id: int) -> None:
+        with self.connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    UPDATE evorag_incoming_entities
+                    SET status = 'pending',
+                        locked_by = '',
+                        locked_until = NULL,
+                        last_error = ''
+                    WHERE id = %s
+                    """,
+                    (incoming_entity_id,),
+                )
+                cursor.execute("SELECT job_id FROM evorag_incoming_entities WHERE id = %s", (incoming_entity_id,))
+                row = cursor.fetchone()
+                if row:
+                    update_ingest_job_status(cursor, int(row["job_id"]))
+            connection.commit()
 
     def upsert_entity(self, incoming: IncomingEntity, *, matched_entity_id: int | None = None) -> EntityUpsertResult:
         with self.connect() as connection:
@@ -325,6 +1018,126 @@ def row_to_entity(row: dict[str, Any]) -> StoredEntity:
     )
 
 
+def row_to_incoming_task(row: dict[str, Any]) -> IncomingEntityTask:
+    attributes = [
+        EntityAttributeInput(
+            attr_type=str(item.get("attr_type") or ""),
+            value_text=str(item.get("value_text") or ""),
+            evidence=str(item.get("evidence") or ""),
+            confidence=float(item.get("confidence") or 0.7),
+            note_id=str(item.get("note_id") or ""),
+            block_id=str(item.get("block_id") or ""),
+            block_index=int(item.get("block_index") if item.get("block_index") is not None else -1),
+        )
+        for item in json.loads(row.get("attributes_json") or "[]")
+        if isinstance(item, dict)
+    ]
+    incoming = IncomingEntity(
+        name=str(row["name"]),
+        normalized_name=str(row["normalized_name"]),
+        entity_type=str(row["entity_type"] or "concept"),
+        scope=EntityScope(
+            workspace_id=str(row.get("workspace_id") or "local"),
+            project_id=str(row.get("project_id") or "evorag"),
+            collection_id=str(row.get("collection_id") or "default"),
+            domain=str(row.get("domain") or "general"),
+        ),
+        aliases=json.loads(row.get("aliases_json") or "[]"),
+        identity_description=str(row.get("identity_description") or ""),
+        attributes=attributes,
+        description_for_match=str(row.get("description_for_match") or ""),
+        source_count=int(row.get("source_count") or 1),
+    )
+    return IncomingEntityTask(
+        id=int(row["id"]),
+        job_id=int(row["job_id"]),
+        incoming=incoming,
+        status=str(row.get("status") or ""),
+        attempt_count=int(row.get("attempt_count") or 0),
+    )
+
+
+def incoming_snapshot(incoming: IncomingEntity) -> dict[str, Any]:
+    return {
+        "name": incoming.name,
+        "normalized_name": incoming.normalized_name,
+        "entity_type": incoming.entity_type,
+        "aliases": incoming.aliases,
+        "identity_description": incoming.identity_description,
+        "description_for_match": incoming.description_for_match,
+        "source_count": incoming.source_count,
+        "attributes": [asdict(attribute) for attribute in incoming.attributes],
+        "scope": incoming.scope.as_dict(),
+    }
+
+
+def candidate_snapshot(candidate: CandidateEntity) -> dict[str, Any]:
+    entity = candidate.entity
+    return {
+        "id": entity.id,
+        "canonical_name": entity.canonical_name,
+        "normalized_name": entity.normalized_name,
+        "entity_type": entity.entity_type,
+        "aliases": entity.aliases,
+        "identity_description": entity.identity_description,
+        "summary": entity.summary,
+        "description_for_match": entity.description_for_match,
+        "score": candidate.score,
+        "rank": candidate.rank,
+        "source": candidate.source,
+        "vector_score": candidate.vector_score,
+        "es_score": candidate.es_score,
+    }
+
+
+def review_row_to_dict(row: dict[str, Any]) -> dict[str, Any]:
+    item = dict(row)
+    item["incoming_snapshot"] = json.loads(item.pop("incoming_snapshot_json") or "{}")
+    item["candidates"] = json.loads(item.pop("candidates_json") or "[]")
+    for key in ("created_at", "updated_at"):
+        if item.get(key) is not None:
+            item[key] = str(item[key])
+    return item
+
+
+def job_row_to_dict(row: dict[str, Any]) -> dict[str, Any]:
+    item = dict(row)
+    for key in ("created_at", "updated_at"):
+        if item.get(key) is not None:
+            item[key] = str(item[key])
+    return item
+
+
+def incoming_status_row_to_dict(row: dict[str, Any]) -> dict[str, Any]:
+    item = dict(row)
+    for key in ("created_at", "updated_at", "locked_until"):
+        if item.get(key) is not None:
+            item[key] = str(item[key])
+    if item.get("review_task_id") is not None:
+        item["review_task_id"] = int(item["review_task_id"])
+    return item
+
+
+def build_job_progress(status_counts: dict[str, int], total: int) -> dict[str, Any]:
+    finished = sum(
+        status_counts.get(status, 0)
+        for status in ("auto_merged", "manual_merged", "new_created", "completed")
+    )
+    needs_review = status_counts.get("needs_review", 0)
+    failed = status_counts.get("failed", 0) + status_counts.get("dead_letter", 0)
+    active = status_counts.get("pending", 0) + status_counts.get("processing", 0)
+    done = finished + needs_review + failed
+    return {
+        "total": total,
+        "active": active,
+        "finished": finished,
+        "needs_review": needs_review,
+        "failed": failed,
+        "done": done,
+        "percent": round((done / total) * 100, 1) if total else 100.0,
+    }
+
+
 def group_attribute_rows(rows: list[dict[str, Any]]) -> dict[int, list[StoredAttribute]]:
     grouped: dict[int, dict[int, StoredAttribute]] = {}
     for row in rows:
@@ -383,6 +1196,9 @@ def ensure_entity_table_columns(cursor: Any) -> None:
     ensure_index(cursor, "evorag_entities", "idx_evorag_entities_scope", "workspace_id, project_id, collection_id, domain")
     ensure_index(cursor, "evorag_entities", "idx_evorag_entities_scope_name", "workspace_id, project_id, collection_id, domain, normalized_name")
     ensure_resolution_audit_scope_columns(cursor)
+    ensure_ingest_job_columns(cursor)
+    ensure_incoming_entity_columns(cursor)
+    ensure_review_table_indexes(cursor)
 
 
 def ensure_resolution_audit_scope_columns(cursor: Any) -> None:
@@ -400,10 +1216,82 @@ def ensure_resolution_audit_scope_columns(cursor: Any) -> None:
     ensure_index(cursor, "evorag_entity_resolution_audit", "idx_evorag_resolution_audit_scope", "workspace_id, project_id, collection_id, domain")
 
 
+def ensure_ingest_job_columns(cursor: Any) -> None:
+    cursor.execute("SHOW TABLES LIKE 'evorag_ingest_jobs'")
+    if not cursor.fetchone():
+        return
+    cursor.execute("SHOW COLUMNS FROM evorag_ingest_jobs")
+    existing_columns = {str(row["Field"]) for row in cursor.fetchall()}
+    columns = {
+        "source_note_id": "ALTER TABLE evorag_ingest_jobs ADD COLUMN source_note_id VARCHAR(128) NOT NULL DEFAULT '' AFTER domain",
+        "task_name": "ALTER TABLE evorag_ingest_jobs ADD COLUMN task_name VARCHAR(255) NOT NULL DEFAULT '' AFTER source_note_id",
+    }
+    for column, statement in columns.items():
+        if column not in existing_columns:
+            cursor.execute(statement)
+
+
 def ensure_index(cursor: Any, table_name: str, index_name: str, columns_sql: str) -> None:
     cursor.execute("SHOW INDEX FROM {table_name} WHERE Key_name = %s".format(table_name=table_name), (index_name,))
     if not cursor.fetchone():
         cursor.execute(f"ALTER TABLE {table_name} ADD INDEX {index_name} ({columns_sql})")
+
+
+def ensure_incoming_entity_columns(cursor: Any) -> None:
+    cursor.execute("SHOW TABLES LIKE 'evorag_incoming_entities'")
+    if not cursor.fetchone():
+        return
+    cursor.execute("SHOW COLUMNS FROM evorag_incoming_entities")
+    existing_columns = {str(row["Field"]) for row in cursor.fetchall()}
+    columns = {
+        "matched_entity_id": "ALTER TABLE evorag_incoming_entities ADD COLUMN matched_entity_id BIGINT NULL AFTER attempt_count",
+        "decision": "ALTER TABLE evorag_incoming_entities ADD COLUMN decision VARCHAR(32) NOT NULL DEFAULT '' AFTER matched_entity_id",
+        "decision_score": "ALTER TABLE evorag_incoming_entities ADD COLUMN decision_score DOUBLE NOT NULL DEFAULT 0 AFTER decision",
+        "decision_reason": "ALTER TABLE evorag_incoming_entities ADD COLUMN decision_reason TEXT NOT NULL AFTER decision_score",
+    }
+    for column, statement in columns.items():
+        if column not in existing_columns:
+            cursor.execute(statement)
+
+
+def ensure_review_table_indexes(cursor: Any) -> None:
+    cursor.execute("SHOW TABLES LIKE 'evorag_entity_review_tasks'")
+    if not cursor.fetchone():
+        return
+    cursor.execute("SHOW INDEX FROM evorag_entity_review_tasks WHERE Key_name = 'uk_evorag_review_incoming_active'")
+    if cursor.fetchone():
+        cursor.execute("ALTER TABLE evorag_entity_review_tasks DROP INDEX uk_evorag_review_incoming_active")
+    ensure_index(cursor, "evorag_entity_review_tasks", "idx_evorag_review_incoming_status", "incoming_entity_id, status")
+
+
+def update_ingest_job_status(cursor: Any, job_id: int) -> None:
+    cursor.execute(
+        """
+        SELECT status, COUNT(*) AS count
+        FROM evorag_incoming_entities
+        WHERE job_id = %s
+        GROUP BY status
+        """,
+        (job_id,),
+    )
+    counts = {str(row["status"]): int(row["count"]) for row in cursor.fetchall()}
+    if counts.get("pending", 0) or counts.get("processing", 0):
+        status = "processing"
+    elif counts.get("dead_letter", 0) or counts.get("failed", 0):
+        status = "failed"
+    elif counts.get("needs_review", 0):
+        status = "needs_review"
+    else:
+        status = "completed"
+    cursor.execute(
+        """
+        UPDATE evorag_ingest_jobs
+        SET status = %s,
+            queued_count = %s
+        WHERE id = %s
+        """,
+        (status, sum(counts.values()), job_id),
+    )
 
 
 def scope_from_config(config: EvoRAGSettings) -> EntityScope:
@@ -431,3 +1319,7 @@ def unique_ints(values: list[int]) -> list[int]:
             seen.add(item)
             result.append(item)
     return result
+
+
+def incoming_entity_key(incoming: IncomingEntity) -> str:
+    return f"{normalize_name(incoming.name)}::{normalize_name(incoming.entity_type)}"

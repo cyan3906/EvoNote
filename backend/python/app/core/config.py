@@ -71,7 +71,7 @@ class Settings(BaseSettings):
     redis_host: str = "127.0.0.1"
     redis_port: int = 6379
     redis_db: int = 0
-    redis_password: str | None = None
+    redis_password: str | None = "Evonote@2026"
     redis_url: str = "redis://127.0.0.1:6379/0"
     redis_cache_ttl_seconds: int = 3600
 

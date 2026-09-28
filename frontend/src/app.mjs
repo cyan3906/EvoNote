@@ -28,7 +28,6 @@ const editorWorkbench = document.querySelector("#editor-workbench");
 const markdownPreview = document.querySelector("#markdown-preview");
 const exportFormat = document.querySelector("#export-format");
 const exportButton = document.querySelector("#export-button");
-const openEvolutionButton = document.querySelector("#open-evolution-button");
 const backToEditorButton = document.querySelector("#back-to-editor-button");
 const scanNoteButton = document.querySelector("#scan-note-button");
 const evolutionStatus = document.querySelector("#evolution-status");
@@ -38,6 +37,27 @@ const blockList = document.querySelector("#block-list");
 const suggestionList = document.querySelector("#suggestion-list");
 const formatButtons = document.querySelectorAll("[data-format]");
 const modeButtons = document.querySelectorAll("[data-mode]");
+const appViews = document.querySelectorAll("[data-app-view]");
+const appTargetButtons = document.querySelectorAll("[data-app-target]");
+const dashboardNewNoteButton = document.querySelector("#dashboard-new-note-button");
+const dashboardTaskList = document.querySelector("#dashboard-task-list");
+const uploadPlaceholderButton = document.querySelector("#upload-placeholder-button");
+const mergeTaskTitle = document.querySelector("#merge-task-title");
+const mergeTaskStatus = document.querySelector("#merge-task-status");
+const mergeTaskId = document.querySelector("#merge-task-id");
+const mergeTaskStarted = document.querySelector("#merge-task-started");
+const mergeTaskElapsed = document.querySelector("#merge-task-elapsed");
+const mergeStageTrack = document.querySelector("#merge-stage-track");
+const mergeDetailList = document.querySelector("#merge-detail-list");
+const mergeBlockCount = document.querySelector("#merge-block-count");
+const mergeBlockList = document.querySelector("#merge-block-list");
+const mergeLiveStatus = document.querySelector("#merge-live-status");
+const downloadMergeResultButton = document.querySelector("#download-merge-result-button");
+const generateLongTextButton = document.querySelector("#generate-long-text-button");
+const reviewTotalCount = document.querySelector("#review-total-count");
+const reviewSubtitle = document.querySelector("#review-subtitle");
+const reviewTaskList = document.querySelector("#review-task-list");
+const reviewDetail = document.querySelector("#review-detail");
 
 let authToken = "";
 let notes = [];
@@ -47,7 +67,50 @@ let mergingNoteIds = new Set();
 let mergePendingNoteIds = new Set();
 let evolutionPollTimers = new Map();
 let activeWorkspace = "editor";
+let activeAppView = getInitialAppView();
 let initialWorkspace = window.location.pathname === "/evolution" ? "evolution" : "editor";
+let mergePollTimer = null;
+let currentMergeTask = createEmptyMergeTask();
+let expandedMergeDetailKeys = new Set(["entity"]);
+let mergeJobs = [];
+let reviewTasks = [];
+let activeReviewJobId = 0;
+let activeReviewTaskId = 0;
+
+const MERGE_STAGES = [
+  { key: "resource", label: "资源准备" },
+  { key: "split", label: "Block 切分" },
+  { key: "entity", label: "实体抽取" },
+  { key: "normalize", label: "规范去重" },
+  { key: "resolve", label: "候选消歧" },
+  { key: "mysql", label: "写入 MySQL" },
+  { key: "index", label: "索引更新" },
+  { key: "done", label: "完成" },
+];
+
+function getInitialAppView() {
+  if (window.location.pathname === "/notes" || window.location.pathname === "/evolution") {
+    return "notes";
+  }
+
+  const hashView = window.location.hash.replace("#", "");
+  const knownViews = new Set(["home", "merge", "entities", "graph", "history", "settings"]);
+  return knownViews.has(hashView) ? hashView : "home";
+}
+
+function createEmptyMergeTask() {
+  return {
+    noteId: "",
+    title: "合并生成",
+    status: "idle",
+    jobId: 0,
+    startedAt: null,
+    preprocess: null,
+    job: null,
+    workerStatus: null,
+    error: "",
+  };
+}
 
 function createSampleNotePayload() {
   return {
@@ -74,10 +137,17 @@ function showApp(isLoggedIn) {
   page.classList.toggle("is-authenticated", isLoggedIn);
 
   if (isLoggedIn) {
-    setWorkspaceView(initialWorkspace);
+    setAppView(activeAppView);
+    if (activeAppView === "notes") {
+      setWorkspaceView(initialWorkspace);
+    } else {
+      activeWorkspace = initialWorkspace;
+      editorPane.hidden = activeWorkspace !== "editor";
+      evolutionPane.hidden = activeWorkspace !== "evolution";
+    }
     loadNotes()
       .then(() => {
-        if (activeWorkspace === "editor") {
+        if (activeAppView === "notes" && activeWorkspace === "editor") {
           noteTitle.focus();
         }
       })
@@ -101,6 +171,23 @@ function showError(error) {
   setSaveStatus(error.message || "操作失败");
 }
 
+function setAppView(view, shouldPushUrl = false) {
+  activeAppView = view;
+
+  for (const section of appViews) {
+    section.hidden = section.dataset.appView !== view;
+  }
+
+  for (const button of appTargetButtons) {
+    button.classList.toggle("is-active", button.dataset.appTarget === view);
+  }
+
+  if (shouldPushUrl) {
+    const nextUrl = view === "home" ? "/" : view === "notes" ? "/notes" : `/#${view}`;
+    window.history.pushState({ appView: view }, "", nextUrl);
+  }
+}
+
 function setEvolutionStatus(text) {
   evolutionStatus.textContent = text;
 }
@@ -118,6 +205,7 @@ function setNoteMerging(noteId, isMerging) {
   }
 
   renderNotes();
+  renderDashboard();
 }
 
 function setNoteMergePending(noteId, isPending) {
@@ -132,6 +220,7 @@ function setNoteMergePending(noteId, isPending) {
   }
 
   renderNotes();
+  renderDashboard();
 }
 
 function hasPendingMergeSuggestions(state) {
@@ -155,8 +244,10 @@ async function refreshPendingMergeNotes() {
         .map((suggestion) => suggestion.source_note_id)
     );
     renderNotes();
+    renderDashboard();
   } catch {
     mergePendingNoteIds = new Set();
+    renderDashboard();
   }
 }
 
@@ -182,10 +273,10 @@ function setMergeButtonsDisabled(isDisabled) {
 }
 
 function setWorkspaceView(view, shouldPushUrl = false) {
+  setAppView("notes");
   activeWorkspace = view;
   editorPane.hidden = view !== "editor";
   evolutionPane.hidden = view !== "evolution";
-  openEvolutionButton.classList.toggle("is-active", view === "evolution");
 
   if (shouldPushUrl) {
     window.history.pushState({ workspace: view }, "", view === "evolution" ? "/evolution" : "/notes");
@@ -248,7 +339,11 @@ async function loadNotes() {
   setSaveStatus("正在加载");
   mergingNoteIds = new Set();
   mergePendingNoteIds = new Set();
-  notes = await apiRequest("/notes");
+  const [loadedNotes] = await Promise.all([
+    apiRequest("/notes"),
+    loadMergeJobs(),
+  ]);
+  notes = loadedNotes;
 
   if (notes.length === 0) {
     const firstNote = await apiRequest("/notes", {
@@ -262,7 +357,19 @@ async function loadNotes() {
   renderNotes();
   openNote(activeNoteId);
   await refreshPendingMergeNotes();
+  renderDashboard();
   setSaveStatus("已保存");
+}
+
+async function loadMergeJobs() {
+  try {
+    const result = await apiRequest("/evorag/ingest-jobs?limit=20");
+    mergeJobs = result.jobs || [];
+    renderDashboard();
+  } catch {
+    mergeJobs = [];
+    renderDashboard();
+  }
 }
 
 function getActiveNote() {
@@ -344,7 +451,7 @@ function renderNotes() {
       badge.className = "note-item-status is-actionable";
       badge.role = "button";
       badge.tabIndex = 0;
-      badge.title = "打开智能整理确认合并建议";
+      badge.title = "打开合并确认";
       badge.textContent = "合并待确认";
       badge.addEventListener("click", (event) => {
         event.stopPropagation();
@@ -375,6 +482,662 @@ function renderNotes() {
   }
 }
 
+function renderDashboard() {
+  if (!dashboardTaskList) {
+    return;
+  }
+
+  dashboardTaskList.innerHTML = "";
+
+  if (mergeJobs.length === 0) {
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.className = "task-empty";
+    cell.colSpan = 7;
+    cell.textContent = "暂无任务";
+    row.append(cell);
+    dashboardTaskList.append(row);
+    return;
+  }
+
+  for (const job of mergeJobs.slice(0, 5)) {
+    dashboardTaskList.append(createDashboardTaskRow(job));
+  }
+}
+
+function createDashboardTaskRow(job) {
+  const row = document.createElement("tr");
+  const progress = job.progress || {};
+  const reviewCount = progress.needs_review || 0;
+  const status = mergeStatusLabel(job.status, job.status);
+  const progressValue = Math.round(progress.percent || 0);
+  const progressText = `${progress.done || 0}/${progress.total || job.queued_count || 0}`;
+  const taskName = job.task_name || `合并任务 ${job.id}`;
+  const createdAt = job.created_at ? formatDate(job.created_at) : "-";
+
+  row.innerHTML = `
+    <td>
+      <strong>${escapeText(taskName)}</strong>
+      <span>${job.source_note_id ? `笔记ID: ${escapeText(job.source_note_id)}` : "合并生成"} · ${createdAt}</span>
+    </td>
+    <td><span class="task-status ${statusClass(status)}">${status}</span></td>
+    <td>
+      <div class="task-progress">
+        <span><i style="width: ${progressValue}%"></i></span>
+        <em>${progressText}</em>
+      </div>
+    </td>
+    <td><strong>--</strong><span>${createdAt}</span></td>
+    <td>${job.entity_count || 0}</td>
+    <td>${reviewCount ? `<button class="review-count-button" type="button">${reviewCount}</button>` : "-"}</td>
+    <td><button class="table-action" type="button">${job.status === "processing" || job.status === "queued" ? "查看进度" : "查看结果"}</button></td>
+  `;
+
+  row.querySelector(".table-action").addEventListener("click", () => {
+    openMergeJob(job.id).catch(showError);
+  });
+
+  row.querySelector(".review-count-button")?.addEventListener("click", () => {
+    openReviewForJob(job.id).catch(showError);
+  });
+
+  return row;
+}
+
+function escapeText(value) {
+  const element = document.createElement("span");
+  element.textContent = value;
+  return element.innerHTML;
+}
+
+function statusClass(status) {
+  if (status === "处理中") {
+    return "is-running";
+  }
+
+  if (status === "待确认" || status === "需人工确认") {
+    return "is-review";
+  }
+
+  return "is-done";
+}
+
+function renderMergeTask() {
+  if (!mergeStageTrack) {
+    return;
+  }
+
+  const task = currentMergeTask;
+  const job = task.job;
+  const preprocess = task.preprocess;
+  const progress = job?.progress || {};
+  const statusLabel = mergeStatusLabel(task.status, job?.status);
+
+  mergeTaskTitle.textContent = task.title || "合并生成";
+  mergeTaskStatus.textContent = statusLabel;
+  mergeTaskStatus.className = `merge-status ${mergeStatusClass(task.status, job?.status)}`;
+  mergeTaskId.textContent = `任务ID: ${task.jobId ? `task_${String(task.jobId).padStart(8, "0")}` : "-"}`;
+  mergeTaskStarted.textContent = `开始时间: ${task.startedAt ? formatDateTime(task.startedAt) : "-"}`;
+  mergeTaskElapsed.textContent = `已用时: ${task.startedAt ? elapsedText(task.startedAt) : "-"}`;
+  mergeLiveStatus.textContent = task.status === "idle" ? "实时状态：等待任务" : `实时状态：${statusLabel}`;
+  downloadMergeResultButton.disabled = true;
+  generateLongTextButton.disabled = !isMergeTerminal(task);
+
+  renderMergeStages(task);
+  renderMergeDetails(task, progress);
+  renderMergeBlocks(preprocess, task);
+}
+
+function renderMergeStages(task) {
+  mergeStageTrack.innerHTML = "";
+  const stageStates = getMergeStageStates(task);
+
+  for (const stage of MERGE_STAGES) {
+    const item = document.createElement("div");
+    item.className = `merge-stage is-${stageStates[stage.key]?.state || "pending"}`;
+
+    const dot = document.createElement("span");
+    dot.className = "merge-stage-dot";
+
+    const label = document.createElement("strong");
+    label.textContent = stage.label;
+
+    const time = document.createElement("em");
+    time.textContent = stageStates[stage.key]?.time || "-";
+
+    item.append(dot, label, time);
+    mergeStageTrack.append(item);
+  }
+}
+
+function getMergeStageStates(task) {
+  const preprocess = task.preprocess;
+  const job = task.job;
+  const status = job?.status || task.status;
+  const terminal = isMergeTerminal(task);
+  const processing = status === "queued" || status === "processing" || task.status === "submitting";
+  const progress = job?.progress || {};
+  const hasWritten = (progress.finished || 0) + (progress.needs_review || 0) > 0;
+  const timings = preprocess?.timings || {};
+
+  return {
+    resource: {
+      state: task.status === "idle" ? "pending" : task.workerStatus || preprocess ? "done" : "active",
+      time: task.workerStatus || preprocess ? "ok" : task.status === "idle" ? "-" : "检查中",
+    },
+    split: {
+      state: preprocess ? "done" : task.status === "submitting" ? "active" : "pending",
+      time: timingText((timings.entity_anchor_split_ms || 0) + (timings.physical_chunk_split_ms || 0)),
+    },
+    entity: {
+      state: preprocess ? "done" : task.status === "submitting" ? "active" : "pending",
+      time: timingText(timings.entity_extraction_ms),
+    },
+    normalize: {
+      state: job ? "done" : preprocess ? "active" : "pending",
+      time: job ? `${job.queued_count || 0} 项` : "-",
+    },
+    resolve: {
+      state: terminal ? "done" : processing && job ? "active" : "pending",
+      time: job ? `${progress.done || 0}/${progress.total || job.queued_count || 0}` : "-",
+    },
+    mysql: {
+      state: terminal ? "done" : hasWritten ? "active" : "pending",
+      time: hasWritten ? `${progress.finished || 0} 写入` : "-",
+    },
+    index: {
+      state: terminal ? "done" : hasWritten ? "active" : "pending",
+      time: hasWritten ? "同步中" : "-",
+    },
+    done: {
+      state: status === "failed" ? "error" : terminal ? "done" : "pending",
+      time: terminal ? "完成" : "-",
+    },
+  };
+}
+
+function renderMergeDetails(task, progress) {
+  mergeDetailList.innerHTML = "";
+  for (const row of buildMergeDetailRows(task, progress)) {
+    mergeDetailList.append(createMergeDetailRow(row));
+  }
+}
+
+function buildMergeDetailRows(task, progress) {
+  const preprocess = task.preprocess;
+  const job = task.job;
+  const timings = preprocess?.timings || {};
+  const blocks = preprocess?.blocks || [];
+  const entityCount = countPreprocessEntities(preprocess);
+  const statusCounts = job?.status_counts || {};
+  const worker = task.workerStatus || {};
+  const resourceWarnings = worker.warnings || [];
+
+  return [
+    {
+      key: "resource",
+      index: 1,
+      title: "资源准备",
+      state: task.workerStatus || preprocess ? "done" : task.status === "idle" ? "pending" : "active",
+      summary: resourceWarnings.length ? `资源检查有 ${resourceWarnings.length} 条警告` : "MySQL / Redis / Worker 状态已检查",
+      time: task.workerStatus || preprocess ? "ok" : "-",
+      details: [
+        `Worker: ${worker.worker?.started ? "已启动" : worker.worker?.enabled === false ? "未启用" : "检查中"}`,
+        `Redis 队列: ${worker.queue?.available ? "可用" : "等待检查"}`,
+        `MySQL: ${worker.mysql ? "可访问" : "等待检查"}`,
+        ...resourceWarnings,
+      ],
+    },
+    {
+      key: "split",
+      index: 2,
+      title: "Block 切分",
+      state: preprocess ? "done" : task.status === "submitting" ? "active" : "pending",
+      summary: preprocess ? `语义切分 ${blocks.length} 个 block，物理二切 ${countPhysicalChunks(blocks)} 个长 block` : "等待文本切分",
+      time: timingText((timings.entity_anchor_split_ms || 0) + (timings.physical_chunk_split_ms || 0)),
+      details: [
+        `启动到切分: ${timingText(timings.startup_to_first_block_split_ms)}`,
+        `实体锚点预切分: ${timingText(timings.entity_anchor_split_ms)}`,
+        `物理二切: ${timingText(timings.physical_chunk_split_ms)}`,
+      ],
+    },
+    {
+      key: "entity",
+      index: 3,
+      title: "实体抽取",
+      state: preprocess ? "done" : task.status === "submitting" ? "active" : "pending",
+      summary: preprocess ? `抽取实体 ${entityCount} 个，属性与 evidence 同步抽取` : "并发处理 block 中",
+      time: timingText(timings.entity_extraction_ms),
+      progress: preprocess ? 100 : task.status === "submitting" ? 42 : 0,
+      details: [
+        `Block 数: ${blocks.length || "-"}`,
+        `抽取实体: ${entityCount || "-"}`,
+        "属性与 evidence: 同步抽取",
+        `失败重试: ${countBlockWarnings(blocks)}`,
+      ],
+    },
+    {
+      key: "normalize",
+      index: 4,
+      title: "规范去重",
+      state: job ? "done" : preprocess ? "active" : "pending",
+      summary: job ? `同批实体去重后入队 ${job.queued_count || 0} 项` : "等待实体抽取完成",
+      time: job ? `${job.queued_count || 0} 项` : "-",
+      details: [`原始实体: ${entityCount || "-"}`, `入队实体: ${job?.queued_count ?? "-"}`],
+    },
+    {
+      key: "resolve",
+      index: 5,
+      title: "候选消歧",
+      state: isMergeTerminal(task) ? "done" : job ? "active" : "pending",
+      summary: job ? `别名缓存、ES、Milvus 与 RRF 融合，已处理 ${progress.done || 0}/${progress.total || job.queued_count || 0}` : "等待规范去重",
+      time: job ? `${Math.round(progress.percent || 0)}%` : "-",
+      progress: progress.percent || 0,
+      details: [
+        `待处理: ${statusCounts.pending || 0}`,
+        `处理中: ${statusCounts.processing || 0}`,
+        `自动合并: ${statusCounts.auto_merged || 0}`,
+        `新建实体: ${statusCounts.new_created || 0}`,
+        `需人工确认: ${statusCounts.needs_review || 0}`,
+      ],
+    },
+    {
+      key: "mysql",
+      index: 6,
+      title: "写入 MySQL",
+      state: isMergeTerminal(task) ? "done" : progress.finished ? "active" : "pending",
+      summary: job ? `已完成写入/合并 ${progress.finished || 0} 项` : "等待候选消歧",
+      time: job ? `${progress.finished || 0}` : "-",
+      details: ["实体、属性、evidence、resolution audit 会在这一阶段落库"],
+    },
+    {
+      key: "index",
+      index: 7,
+      title: "索引更新",
+      state: isMergeTerminal(task) ? "done" : progress.finished ? "active" : "pending",
+      summary: job ? "实体写入后同步更新 ES / Milvus / alias cache" : "等待 MySQL 写入",
+      time: isMergeTerminal(task) ? "完成" : "-",
+      details: ["当前后端按实体处理结果逐项更新索引"],
+    },
+  ];
+}
+
+function createMergeDetailRow(row) {
+  const item = document.createElement("article");
+  item.className = `merge-detail-row is-${row.state}`;
+
+  const button = document.createElement("button");
+  button.className = "merge-detail-toggle";
+  button.type = "button";
+  button.setAttribute("aria-expanded", String(expandedMergeDetailKeys.has(row.key)));
+
+  const icon = document.createElement("span");
+  icon.className = "merge-row-icon";
+
+  const body = document.createElement("span");
+  body.className = "merge-row-body";
+
+  const title = document.createElement("strong");
+  title.textContent = `${row.index}. ${row.title}`;
+
+  const summary = document.createElement("span");
+  summary.textContent = row.summary;
+
+  body.append(title, summary);
+
+  const time = document.createElement("em");
+  time.textContent = row.time || "-";
+
+  const arrow = document.createElement("span");
+  arrow.className = "merge-row-arrow";
+  arrow.textContent = "⌄";
+
+  button.append(icon, body, time, arrow);
+
+  const details = document.createElement("div");
+  details.className = "merge-detail-extra";
+  details.hidden = !expandedMergeDetailKeys.has(row.key);
+
+  if (row.progress !== undefined) {
+    const progressBar = document.createElement("div");
+    progressBar.className = "merge-inline-progress";
+    progressBar.innerHTML = `<span><i style="width: ${Math.max(0, Math.min(100, row.progress))}%"></i></span><em>${Math.round(row.progress)}%</em>`;
+    details.append(progressBar);
+  }
+
+  const list = document.createElement("div");
+  list.className = "merge-detail-metrics";
+  for (const detail of row.details || []) {
+    const metric = document.createElement("span");
+    metric.textContent = detail;
+    list.append(metric);
+  }
+  details.append(list);
+
+  button.addEventListener("click", () => {
+    if (expandedMergeDetailKeys.has(row.key)) {
+      expandedMergeDetailKeys.delete(row.key);
+    } else {
+      expandedMergeDetailKeys.add(row.key);
+    }
+    renderMergeTask();
+  });
+
+  item.append(button, details);
+  return item;
+}
+
+function renderMergeBlocks(preprocess, task) {
+  const blocks = preprocess?.blocks || [];
+  mergeBlockCount.textContent = `共 ${blocks.length} 个 block`;
+  mergeBlockList.innerHTML = "";
+
+  if (!blocks.length) {
+    const empty = document.createElement("p");
+    empty.className = "merge-empty";
+    empty.textContent = task.status === "submitting" ? "正在切分和抽取 block..." : "暂无 block 任务";
+    mergeBlockList.append(empty);
+    return;
+  }
+
+  blocks.forEach((blockResult, index) => {
+    const item = document.createElement("div");
+    const warningCount = (blockResult.warnings || []).length;
+    item.className = `merge-block-row ${warningCount ? "is-warning" : "is-done"}`;
+
+    const label = document.createElement("span");
+    label.textContent = `Block ${index + 1}`;
+
+    const entityCount = document.createElement("strong");
+    entityCount.textContent = `${(blockResult.entities || []).length} 实体`;
+
+    const time = document.createElement("em");
+    time.textContent = warningCount ? `${warningCount} 警告` : "已完成";
+
+    item.append(label, entityCount, time);
+    mergeBlockList.append(item);
+  });
+}
+
+async function startMergePolling(jobId) {
+  clearMergePoll();
+  await refreshMergeTask(jobId);
+}
+
+async function refreshMergeTask(jobId) {
+  const [job, workerStatus] = await Promise.all([
+    apiRequest(`/evorag/ingest-jobs/${jobId}`),
+    apiRequest("/evorag/worker-status").catch((error) => ({ warnings: [error.message] })),
+  ]);
+  currentMergeTask.job = job;
+  currentMergeTask.workerStatus = workerStatus;
+  currentMergeTask.status = job.status || "processing";
+  currentMergeTask.jobId = job.id || jobId;
+  currentMergeTask.noteId = job.source_note_id || currentMergeTask.noteId;
+  currentMergeTask.title = job.task_name || currentMergeTask.title || `合并任务 ${jobId}`;
+  currentMergeTask.startedAt = job.created_at ? new Date(job.created_at) : currentMergeTask.startedAt;
+  mergeJobs = mergeJobs.map((item) => (Number(item.id) === Number(job.id) ? job : item));
+  if (!mergeJobs.some((item) => Number(item.id) === Number(job.id))) {
+    mergeJobs.unshift(job);
+  }
+  renderMergeTask();
+  renderDashboard();
+
+  if (!isMergeTerminal(currentMergeTask)) {
+    mergePollTimer = window.setTimeout(() => {
+      refreshMergeTask(jobId).catch((error) => {
+        currentMergeTask.error = error.message;
+        currentMergeTask.status = "failed";
+        if (currentMergeTask.noteId) {
+          setNoteMerging(currentMergeTask.noteId, false);
+        }
+        renderMergeTask();
+      });
+    }, 1500);
+  } else {
+    if (currentMergeTask.noteId) {
+      setNoteMerging(currentMergeTask.noteId, false);
+    }
+    setSaveStatus(mergeStatusLabel(currentMergeTask.status, job.status));
+    await refreshPendingMergeNotes();
+    await loadMergeJobs();
+  }
+}
+
+function clearMergePoll() {
+  if (mergePollTimer) {
+    window.clearTimeout(mergePollTimer);
+    mergePollTimer = null;
+  }
+}
+
+function isMergeTerminal(task) {
+  const status = task.job?.status || task.status;
+  return status === "completed" || status === "needs_review" || status === "failed";
+}
+
+function mergeStatusLabel(taskStatus, jobStatus) {
+  const status = jobStatus || taskStatus;
+  if (status === "submitting") return "处理中";
+  if (status === "queued") return "排队中";
+  if (status === "processing") return "处理中";
+  if (status === "completed") return "已完成";
+  if (status === "needs_review") return "需人工确认";
+  if (status === "failed") return "失败";
+  return "等待任务";
+}
+
+function mergeStatusClass(taskStatus, jobStatus) {
+  const status = jobStatus || taskStatus;
+  if (status === "completed") return "is-done";
+  if (status === "needs_review") return "is-review";
+  if (status === "failed") return "is-error";
+  if (status === "queued" || status === "processing" || status === "submitting") return "is-running";
+  return "is-idle";
+}
+
+function timingText(value) {
+  const ms = Number(value || 0);
+  if (!ms) return "-";
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  return `${(ms / 1000).toFixed(ms >= 10000 ? 0 : 1)}s`;
+}
+
+function formatDateTime(value) {
+  return new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function elapsedText(startedAt) {
+  const seconds = Math.max(0, Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000));
+  if (seconds < 60) return `${seconds} 秒`;
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+  return `${minutes} 分 ${rest} 秒`;
+}
+
+function countPreprocessEntities(preprocess) {
+  return (preprocess?.blocks || []).reduce((total, block) => total + (block.entities || []).length, 0);
+}
+
+function countPhysicalChunks(blocks) {
+  return blocks.filter((item) => (item.block?.chunk_count || 1) > 1).length;
+}
+
+function countBlockWarnings(blocks) {
+  return blocks.reduce((total, block) => total + (block.warnings || []).length, 0);
+}
+
+async function openReviewForJob(jobId) {
+  activeReviewJobId = Number(jobId);
+  activeReviewTaskId = 0;
+  setAppView("entities", true);
+  await loadReviewTasksForJob(activeReviewJobId);
+}
+
+async function loadReviewTasksForJob(jobId) {
+  reviewSubtitle.textContent = jobId
+    ? `任务 task_${String(jobId).padStart(8, "0")} 的待确认实体。`
+    : "全部待确认实体。";
+  reviewTaskList.innerHTML = "";
+  reviewDetail.innerHTML = '<p class="review-empty">正在加载待确认内容...</p>';
+
+  const result = await apiRequest("/evorag/review-tasks?status=pending&limit=100");
+  reviewTasks = (result.tasks || []).filter((task) => !jobId || Number(task.job_id) === Number(jobId));
+  if (!activeReviewTaskId && reviewTasks.length) {
+    activeReviewTaskId = Number(reviewTasks[0].id);
+  }
+  renderReviewTasks();
+}
+
+function renderReviewTasks() {
+  reviewTotalCount.textContent = `(${reviewTasks.length})`;
+  reviewTaskList.innerHTML = "";
+
+  if (!reviewTasks.length) {
+    reviewTaskList.innerHTML = '<p class="review-empty">这个任务暂无需要人工确认的实体。</p>';
+    reviewDetail.innerHTML = '<p class="review-empty">暂无需要确认的实体。</p>';
+    return;
+  }
+
+  if (!reviewTasks.some((task) => Number(task.id) === Number(activeReviewTaskId))) {
+    activeReviewTaskId = Number(reviewTasks[0].id);
+  }
+
+  for (const task of reviewTasks) {
+    const incoming = task.incoming_snapshot || {};
+    const candidate = (task.candidates || [])[0] || {};
+    const button = document.createElement("button");
+    button.className = `review-task-item${Number(task.id) === Number(activeReviewTaskId) ? " is-active" : ""}`;
+    button.type = "button";
+    button.innerHTML = `
+      <strong>${escapeText(incoming.name || "未命名实体")}</strong>
+      <span>置信度: ${formatScore(candidate.score)}</span>
+      <em>待确认</em>
+    `;
+    button.addEventListener("click", () => {
+      activeReviewTaskId = Number(task.id);
+      renderReviewTasks();
+    });
+    reviewTaskList.append(button);
+  }
+
+  const activeTask = reviewTasks.find((task) => Number(task.id) === Number(activeReviewTaskId)) || reviewTasks[0];
+  renderReviewDetail(activeTask);
+}
+
+function renderReviewDetail(task) {
+  const incoming = task.incoming_snapshot || {};
+  const candidates = task.candidates || [];
+  const candidate = candidates[0] || {};
+
+  const defaultAction = candidate.id ? "merge" : "new";
+  reviewDetail.innerHTML = `
+    <div class="review-detail-head">
+      <div>
+        <p class="section-kicker">实体合并判断</p>
+        <h2>${escapeText(incoming.name || "未命名实体")} ${candidate.canonical_name ? `与 ${escapeText(candidate.canonical_name)}` : ""}</h2>
+      </div>
+      <span>置信度 ${formatScore(candidate.score)}</span>
+    </div>
+
+    <div class="entity-compare-grid">
+      <article class="entity-summary-card">
+        <span>系统提取的内容</span>
+        <h3>${escapeText(incoming.name || "未命名实体")}</h3>
+        <p>${escapeText(summarizeIncomingEntity(incoming))}</p>
+      </article>
+      <article class="entity-summary-card">
+        <span>候选已有实体</span>
+        <h3>${escapeText(candidate.canonical_name || "暂无候选实体")}</h3>
+        <p>${escapeText(summarizeCandidateEntity(candidate))}</p>
+      </article>
+    </div>
+
+    <div class="review-actions-panel">
+      <span>可选操作</span>
+      <button class="review-choice ${defaultAction === "merge" ? "is-primary" : ""}" type="button" data-review-action="merge" ${candidate.id ? "" : "disabled"}>
+        合并到：${escapeText(candidate.canonical_name || "候选实体")}
+      </button>
+      <button class="review-choice ${defaultAction === "new" ? "is-primary" : ""}" type="button" data-review-action="new">创建为新实体</button>
+      <button class="review-choice" type="button" data-review-action="reject" ${candidate.id ? "" : "disabled"}>拒绝当前候选</button>
+      <textarea id="review-reason" placeholder="补充说明，可选"></textarea>
+      <div class="review-action-row">
+        <button class="ghost-button" type="button" data-review-action="refresh">刷新</button>
+        <button class="primary-button" type="button" data-review-action="confirm">确认</button>
+      </div>
+    </div>
+  `;
+
+  let selectedAction = defaultAction;
+  const reasonInput = reviewDetail.querySelector("#review-reason");
+
+  for (const button of reviewDetail.querySelectorAll("[data-review-action]")) {
+    button.addEventListener("click", async () => {
+      const action = button.dataset.reviewAction;
+      if (action === "refresh") {
+        await loadReviewTasksForJob(activeReviewJobId);
+        return;
+      }
+      if (action === "confirm") {
+        await submitReviewDecision(task, selectedAction, reasonInput.value, candidate);
+        return;
+      }
+      selectedAction = action;
+      for (const choice of reviewDetail.querySelectorAll(".review-choice")) {
+        choice.classList.toggle("is-primary", choice.dataset.reviewAction === selectedAction);
+      }
+    });
+  }
+}
+
+async function submitReviewDecision(task, action, reason, candidate) {
+  const reviewTaskId = Number(task.id);
+  if (action === "merge") {
+    await apiRequest(`/evorag/review-tasks/${reviewTaskId}/merge`, {
+      method: "POST",
+      body: JSON.stringify({ entity_id: Number(candidate.id), reason, decided_by: "manual" }),
+    });
+  } else if (action === "new") {
+    await apiRequest(`/evorag/review-tasks/${reviewTaskId}/new`, {
+      method: "POST",
+      body: JSON.stringify({ reason, decided_by: "manual" }),
+    });
+  } else {
+    await apiRequest(`/evorag/review-tasks/${reviewTaskId}/reject`, {
+      method: "POST",
+      body: JSON.stringify({ candidate_entity_ids: [Number(candidate.id)], reason, decided_by: "manual" }),
+    });
+  }
+
+  setSaveStatus("已提交人工确认");
+  await loadReviewTasksForJob(activeReviewJobId);
+  if (currentMergeTask.jobId === activeReviewJobId) {
+    await refreshMergeTask(activeReviewJobId);
+  }
+  await loadMergeJobs();
+}
+
+function summarizeIncomingEntity(entity) {
+  const attrs = entity.attributes || [];
+  const definition = attrs.find((item) => item.attr_type === "definition")?.value_text;
+  return entity.identity_description || definition || entity.description_for_match || "暂无概述";
+}
+
+function summarizeCandidateEntity(entity) {
+  return entity.identity_description || entity.summary || entity.description_for_match || "暂无概述";
+}
+
+function formatScore(value) {
+  const score = Number(value || 0);
+  return score ? score.toFixed(2) : "-";
+}
+
 function openNote(noteId) {
   window.clearTimeout(saveTimer);
   const note = notes.find((item) => item.id === noteId) || notes[0];
@@ -391,6 +1154,7 @@ function openNote(noteId) {
   setSaveStatus("已保存");
   updatePreview();
   renderNotes();
+  renderDashboard();
 
   if (activeWorkspace === "evolution") {
     renderEvolutionState(null);
@@ -436,6 +1200,7 @@ async function saveActiveNote() {
   setSaveStatus("已保存");
   updatePreview();
   renderNotes();
+  renderDashboard();
 
   if (activeWorkspace === "evolution") {
     loadEvolutionState(updated.id).catch(showError);
@@ -462,7 +1227,9 @@ async function addNewNote() {
   notes.unshift(note);
   noteSearch.value = "";
   renderNotes();
+  renderDashboard();
   openNote(note.id);
+  setWorkspaceView("editor", true);
 }
 
 async function deleteActiveNote() {
@@ -491,6 +1258,7 @@ async function deleteActiveNote() {
 
   activeNoteId = notes[0].id;
   renderNotes();
+  renderDashboard();
   openNote(activeNoteId);
 }
 
@@ -580,6 +1348,7 @@ function pollEvolutionScan(noteId, options = {}) {
       const state = await apiRequest(`/evolution/notes/${noteId}`);
       const pendingCount = countPendingMergeSuggestions(state);
       syncMergePendingFromState(noteId, state);
+      renderDashboard();
 
       if (noteId === activeNoteId) {
         if (pendingCount > 0 && options.openReviewWhenPending) {
@@ -636,6 +1405,7 @@ async function submitActiveNote() {
 
 async function mergeActiveNote() {
   setMergeButtonsDisabled(true);
+  let mergeNoteId = "";
 
   try {
     const note = await saveActiveNote();
@@ -643,13 +1413,86 @@ async function mergeActiveNote() {
     if (!note) {
       return;
     }
+    mergeNoteId = note.id;
 
-    setSaveStatus("已保存，正在合并");
+    if (!note.body.trim()) {
+      setSaveStatus("当前笔记为空，无法合并");
+      return;
+    }
+
+    clearMergePoll();
+    setSaveStatus("已保存，正在提交合并任务");
     setNoteMerging(note.id, true);
-    await startEvolutionScan(note.id, { updateSaveStatus: true, openReviewWhenPending: true });
+    currentMergeTask = {
+      ...createEmptyMergeTask(),
+      noteId: note.id,
+      title: `${getNoteTitle(note)} 知识合并`,
+      status: "submitting",
+      startedAt: new Date(),
+    };
+    setAppView("merge", true);
+    renderMergeTask();
+
+    const response = await apiRequest("/evorag/ingest", {
+      method: "POST",
+      body: JSON.stringify({
+        text: note.body,
+        note_id: note.id,
+        task_name: `${getNoteTitle(note)} 知识合并`,
+      }),
+    });
+
+    currentMergeTask.preprocess = response.preprocess;
+    currentMergeTask.jobId = response.job_id;
+    currentMergeTask.status = response.status || "queued";
+    currentMergeTask.job = {
+      id: response.job_id,
+      status: response.status || "queued",
+      block_count: response.preprocess?.blocks?.length || 0,
+      entity_count: countPreprocessEntities(response.preprocess),
+      queued_count: response.queued_count,
+      progress: {
+        total: response.queued_count,
+        active: response.queued_count,
+        finished: 0,
+        needs_review: 0,
+        failed: 0,
+        done: 0,
+        percent: response.queued_count ? 0 : 100,
+      },
+      status_counts: response.queued_count ? { pending: response.queued_count } : {},
+    };
+    renderMergeTask();
+
+    if (response.job_id) {
+      await startMergePolling(response.job_id);
+      await loadMergeJobs();
+    }
+  } catch (error) {
+    if (mergeNoteId) {
+      setNoteMerging(mergeNoteId, false);
+    }
+    currentMergeTask.status = "failed";
+    currentMergeTask.error = error.message || "合并任务失败";
+    renderMergeTask();
+    throw error;
   } finally {
     setMergeButtonsDisabled(false);
   }
+}
+
+async function openMergeJob(jobId) {
+  clearMergePoll();
+  setAppView("merge", true);
+  currentMergeTask = {
+    ...createEmptyMergeTask(),
+    status: "processing",
+    jobId: Number(jobId),
+    title: `合并任务 ${jobId}`,
+    startedAt: new Date(),
+  };
+  renderMergeTask();
+  await refreshMergeTask(Number(jobId));
 }
 
 async function openPendingMergeReview(noteId) {
@@ -1081,7 +1924,33 @@ logoutButton.addEventListener("click", () => {
   mergingNoteIds = new Set();
   mergePendingNoteIds = new Set();
   clearEvolutionPolls();
+  clearMergePoll();
+  currentMergeTask = createEmptyMergeTask();
+  renderMergeTask();
   showApp(false);
+});
+
+for (const button of appTargetButtons) {
+  button.addEventListener("click", () => {
+    const target = button.dataset.appTarget;
+
+    if (target === "notes") {
+      setWorkspaceView("editor", true);
+      return;
+    }
+
+    setAppView(target, true);
+    if (target === "merge") {
+      renderMergeTask();
+    } else if (target === "entities") {
+      openReviewForJob(0).catch(showError);
+    }
+  });
+}
+
+dashboardNewNoteButton.addEventListener("click", () => addNewNote().catch(showError));
+uploadPlaceholderButton.addEventListener("click", () => {
+  setSaveStatus("文件上传功能稍后接入");
 });
 
 newNoteButton.addEventListener("click", () => addNewNote().catch(showError));
@@ -1089,7 +1958,6 @@ manualSaveButton.addEventListener("click", () => saveActiveNote().catch(showErro
 mergeNoteButton.addEventListener("click", () => mergeActiveNote().catch(showError));
 deleteNoteButton.addEventListener("click", () => deleteActiveNote().catch(showError));
 exportButton.addEventListener("click", () => exportActiveNote().catch(showError));
-openEvolutionButton.addEventListener("click", () => openEvolutionView().catch(showError));
 backToEditorButton.addEventListener("click", () => openEditorView().catch(showError));
 scanNoteButton.addEventListener("click", () => scanActiveNote().catch(showError));
 noteSearch.addEventListener("input", renderNotes);
@@ -1128,10 +1996,15 @@ for (const button of modeButtons) {
 }
 
 window.addEventListener("popstate", () => {
+  activeAppView = getInitialAppView();
   initialWorkspace = window.location.pathname === "/evolution" ? "evolution" : "editor";
-  setWorkspaceView(initialWorkspace);
+  setAppView(activeAppView);
 
-  if (authToken && activeWorkspace === "evolution") {
+  if (activeAppView === "notes") {
+    setWorkspaceView(initialWorkspace);
+  }
+
+  if (authToken && activeAppView === "notes" && activeWorkspace === "evolution") {
     loadEvolutionState(activeNoteId).catch(showError);
   }
 });

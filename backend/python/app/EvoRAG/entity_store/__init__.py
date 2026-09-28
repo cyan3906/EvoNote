@@ -1,6 +1,7 @@
 from app.EvoRAG.entity_store.models import (
     CandidateEntity,
     EntityAttributeInput,
+    EntityIngestQueueResult,
     EntityResolutionDecision,
     EntityScope,
     EntityUpsertResult,
@@ -12,6 +13,7 @@ from app.EvoRAG.entity_store.normalizer import dedupe_extracted_entities
 __all__ = [
     "CandidateEntity",
     "EntityAttributeInput",
+    "EntityIngestQueueResult",
     "EntityResolutionDecision",
     "EntityScope",
     "EntityUpsertResult",

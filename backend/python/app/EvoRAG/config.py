@@ -46,6 +46,16 @@ class EvoRAGSettings(BaseSettings):
     entity_resolution_rrf_k: int = 60
     entity_merge_max_concurrency: int = 4
     entity_vector_dimensions: int = 3072
+    entity_worker_enabled: bool = True
+    entity_worker_count: int = 2
+    entity_worker_batch_size: int = 4
+    entity_worker_block_ms: int = 3000
+    entity_worker_lock_seconds: int = 120
+    entity_worker_max_attempts: int = 3
+    entity_worker_recover_limit: int = 200
+    entity_worker_stream: str = "evorag:entity_merge:stream"
+    entity_worker_group: str = "evorag:entity_merge_workers"
+    entity_worker_dead_letter_stream: str = "evorag:entity_merge:dead_letter"
 
     es_url: str = "http://127.0.0.1:9200"
     es_entity_index: str = "evorag_entities"

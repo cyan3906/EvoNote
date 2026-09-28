@@ -77,6 +77,7 @@ class EntityResolutionDecision:
     matched_entity: StoredEntity | None = None
     score: float = 0.0
     reason: str = ""
+    candidates: list[CandidateEntity] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -86,3 +87,20 @@ class EntityUpsertResult:
     created: bool
     attribute_count: int
     evidence_count: int
+
+
+@dataclass(slots=True)
+class EntityIngestQueueResult:
+    job_id: int
+    status: str
+    queued_count: int
+    incoming_entity_ids: list[int] = field(default_factory=list)
+
+
+@dataclass(slots=True)
+class IncomingEntityTask:
+    id: int
+    job_id: int
+    incoming: IncomingEntity
+    status: str
+    attempt_count: int

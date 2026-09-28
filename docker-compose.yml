@@ -19,6 +19,10 @@ services:
       ES_URL: http://elasticsearch:9200
       ES_INDEX: evonote_claims
       SQLITE_DATABASE_PATH: data/evonote.sqlite3
+      # ========== 新增Redis环境变量 ==========
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: "Evonote@2026"
     ports:
       - "8000:8000"
     volumes:
@@ -28,6 +32,8 @@ services:
         condition: service_healthy
       elasticsearch:
         condition: service_healthy
+      redis:
+        condition: service_healthy  # 等待redis健康再启动app
     healthcheck:
       test:
         [
@@ -93,7 +99,25 @@ services:
       start_period: 60s
     restart: unless-stopped
 
+  # ========== 新增Redis服务 ==========
+  redis:
+    image: redis:7-alpine
+    container_name: evonote-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      # 持久化数据，和你其他组件统一放到data目录
+      - ./backend/python/data/redis:/data
+    # 启动redis并设置密码，关闭保护模式（compose内网安全）
+    command: redis-server --requirepass Evonote@2026 --protected-mode no
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "Evonote@2026", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
 networks:
   default:
     name: evonote
-

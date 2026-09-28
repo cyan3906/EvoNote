@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from threading import Lock
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from app.EvoRAG.config import EvoRAGSettings, settings as evorag_settings
+if TYPE_CHECKING:
+    from app.EvoRAG.config import EvoRAGSettings
 
 
 _lock = Lock()
@@ -29,13 +30,13 @@ def initialize_evorag_database() -> None:
             _last_error = str(exc)
 
 
-def connect_evorag_mysql(config: EvoRAGSettings | None = None):
+def connect_evorag_mysql(config: "EvoRAGSettings | None" = None):
     try:
         import pymysql  # type: ignore
     except Exception as exc:
         raise RuntimeError("pymysql is required for EvoRAG MySQL storage. Install pymysql>=1.1.0.") from exc
 
-    active_config = config or evorag_settings
+    active_config = config or get_evorag_settings()
     return pymysql.connect(
         host=active_config.mysql_host,
         port=active_config.mysql_port,
@@ -49,6 +50,7 @@ def connect_evorag_mysql(config: EvoRAGSettings | None = None):
 
 
 def evorag_database_status() -> dict[str, Any]:
+    evorag_settings = get_evorag_settings()
     status = {
         "initialized": _initialized,
         "available": False,
@@ -74,3 +76,9 @@ def evorag_database_status() -> dict[str, Any]:
 
 def now_iso() -> str:
     return datetime.now(UTC).isoformat()
+
+
+def get_evorag_settings():
+    from app.EvoRAG.config import settings as evorag_settings
+
+    return evorag_settings

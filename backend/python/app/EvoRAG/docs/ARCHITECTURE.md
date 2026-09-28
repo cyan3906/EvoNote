@@ -115,7 +115,7 @@ app/api/routes/evorag.py
 | 接口 | 作用 |
 | --- | --- |
 | `POST /api/evorag/extract` | 只执行 Block 切分和实体抽取，不写入 MySQL/ES/Milvus |
-| `POST /api/evorag/ingest` | 执行切分、抽取、实体合并、MySQL 入库、ES/Milvus 索引写入 |
+| `POST /api/evorag/ingest` | 执行切分、抽取，创建入库 job 和 incoming entity 任务，并投递后台合并队列 |
 | `POST /api/evorag/query` | 根据实体检索、构建依赖图、生成回答 |
 | `POST /api/evorag/index-search` | 调试 ES、Milvus、融合结果，并返回各阶段耗时 |
 
@@ -274,21 +274,24 @@ app/EvoRAG/entity_store/ingestor.py
 核心流程：
 
 ```text
-EntityIngestor.ingest(preprocess_result)
+EntityIngestor.queue(preprocess_result)
   |
   +-- dedupe_extracted_entities()
-  +-- 为每个 incoming entity 生成 embedding
-  +-- repository.list_entities(scope)
-  +-- EntityResolver.resolve_many()
-  +-- apply_decisions()
-       |
-       +-- ambiguous：只写审计，不入库
-       +-- matched：合并到已有实体
-       +-- new：创建新实体
-       |
-       +-- repository.upsert_entity()
-       +-- hybrid_index.upsert_entity()
-       +-- repository.record_resolution_audit()
+  +-- 创建 evorag_ingest_jobs
+  +-- 创建 evorag_incoming_entities
+  +-- 投递 Redis Stream
+  |
+  v
+Entity merge worker
+  |
+  +-- 从 Redis Stream 消费 incoming entity id
+  +-- MySQL 抢锁，状态改为 processing
+  +-- 生成 embedding
+  +-- alias / ES / Milvus / resolver 判断
+  +-- matched：合并到已有实体
+  +-- new：创建新实体
+  +-- ambiguous：进入 needs_review
+  +-- 失败可重试，超过次数进入 dead_letter
 ```
 
 ### 6.1 实体去重与属性合并
@@ -337,6 +340,7 @@ MySQL 存储完整数据：
 
 - 实体基础信息。
 - aliases。
+- alias 映射表：`normalized_alias -> entity_id`，作为实体合并前的快速规范化层。
 - identity_description。
 - summary。
 - description_for_match。
@@ -344,6 +348,60 @@ MySQL 存储完整数据：
 - 属性。
 - evidence。
 - 实体消歧审计记录。
+
+## 6.4 Alias 映射和 Redis 缓存
+
+阶段 1 已加入实体别名映射层：
+
+```text
+incoming entity
+  |
+  v
+Redis alias cache
+  |
+  +-- 命中：直接得到 entity_id，跳过 ES/Milvus
+  |
+  v
+MySQL evorag_entity_aliases
+  |
+  +-- 命中：回填 Redis，然后直接合并
+  |
+  v
+ES / Milvus / LLM resolver
+```
+
+MySQL 表：
+
+```text
+evorag_entity_aliases
+```
+
+核心字段：
+
+```text
+workspace_id / project_id / collection_id / domain
+entity_id
+alias_text
+normalized_alias
+alias_type
+confidence
+source
+status
+```
+
+Redis key：
+
+```text
+evorag:alias:{scope_hash}:{normalized_alias}
+```
+
+Redis TTL 使用主项目配置：
+
+```text
+app.core.config.settings.redis_cache_ttl_seconds
+```
+
+Redis 只是缓存，MySQL alias 表是权威存储。Redis 不可用时会自动降级到 MySQL，不影响主流程。
 
 ## 7. ES / Milvus 索引
 

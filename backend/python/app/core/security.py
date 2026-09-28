@@ -5,13 +5,15 @@ import secrets
 import time
 from secrets import compare_digest
 
-from fastapi import Header, HTTPException, status
+from fastapi import HTTPException, Security, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.config import settings
 
 DEFAULT_AUTH_PASSWORD = "evonote2026"
 DEFAULT_AUTH_TOKEN = "evonote-dev-token"
 TOKEN_VERSION = "v1"
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
 class SecurityConfigError(RuntimeError):
@@ -105,14 +107,14 @@ def _sign(payload: str) -> str:
     return base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
 
 
-def require_auth(authorization: str | None = Header(default=None)) -> None:
-    if not authorization or not authorization.startswith("Bearer "):
+def require_auth(credentials: HTTPAuthorizationCredentials | None = Security(bearer_scheme)) -> None:
+    if credentials is None or credentials.scheme.lower() != "bearer":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="请先登录",
         )
 
-    token = authorization.removeprefix("Bearer ").strip()
+    token = credentials.credentials.strip()
 
     if not verify_access_token(token):
         raise HTTPException(

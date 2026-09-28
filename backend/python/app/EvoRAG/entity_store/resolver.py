@@ -1,5 +1,6 @@
 import asyncio
 import json
+from collections.abc import Callable
 
 from app.EvoRAG.config import EvoRAGSettings, settings
 from app.EvoRAG.entity_store.models import CandidateEntity, EntityResolutionDecision, IncomingEntity, StoredEntity
@@ -39,17 +40,32 @@ class EntityResolver:
         config: EvoRAGSettings = settings,
         llm_client: EvoRAGLLMClient | None = None,
         hybrid_index: EntityHybridIndex | None = None,
+        alias_lookup: Callable[[IncomingEntity], StoredEntity | None] | None = None,
+        rejection_lookup: Callable[[IncomingEntity], set[int]] | None = None,
     ) -> None:
         self.config = config
         self.existing_entities = existing_entities
         self.existing_by_id = {entity.id: entity for entity in existing_entities}
         self.hybrid_index = hybrid_index or EntityHybridIndex(config)
-        self.llm = llm_client or EvoRAGLLMClient(config)
+        self.llm = llm_client
+        self.alias_lookup = alias_lookup
+        self.rejection_lookup = rejection_lookup
 
     async def resolve_many(self, incoming_entities: list[IncomingEntity]) -> list[EntityResolutionDecision]:
         return await asyncio.gather(*(self.resolve_one(incoming) for incoming in incoming_entities))
 
     async def resolve_one(self, incoming: IncomingEntity) -> EntityResolutionDecision:
+        alias_match = self.alias_lookup(incoming) if self.alias_lookup else None
+        if alias_match is not None:
+            return EntityResolutionDecision(
+                incoming=incoming,
+                decision="matched",
+                matched_entity=alias_match,
+                score=1.0,
+                reason="alias map matched",
+                candidates=[],
+            )
+
         exact = self._exact_name_match(incoming)
         if exact is not None:
             return EntityResolutionDecision(
@@ -58,12 +74,16 @@ class EntityResolver:
                 matched_entity=exact,
                 score=1.0,
                 reason="normalized name and entity type matched",
+                candidates=[],
             )
 
         candidates = self.hybrid_index.search(incoming, top_k=self.config.entity_resolution_top_k)
         candidates = self._hydrate_candidates(candidates)
+        rejected_ids = self.rejection_lookup(incoming) if self.rejection_lookup else set()
+        if rejected_ids:
+            candidates = [candidate for candidate in candidates if candidate.entity.id not in rejected_ids]
         if not candidates:
-            return EntityResolutionDecision(incoming=incoming, decision="new", reason="no candidates")
+            return EntityResolutionDecision(incoming=incoming, decision="new", reason="no candidates", candidates=[])
 
         best = candidates[0]
         if best.score >= self.config.entity_resolution_auto_match_threshold and descriptions_compatible(incoming, best.entity):
@@ -73,24 +93,24 @@ class EntityResolver:
                 matched_entity=best.entity,
                 score=best.score,
                 reason="high vector score and compatible descriptions",
+                candidates=candidates,
             )
-
-        if best.score >= self.config.entity_resolution_llm_threshold:
-            return await self._judge_with_llm(incoming, candidates[: self.config.entity_resolution_top_k])
 
         if best.score >= self.config.entity_resolution_manual_threshold:
             return EntityResolutionDecision(
                 incoming=incoming,
                 decision="ambiguous",
                 score=best.score,
-                reason="candidate score between manual and llm thresholds; manual review required",
+                reason="candidate score below auto-match threshold; manual review required",
+                candidates=candidates,
             )
 
         return EntityResolutionDecision(
             incoming=incoming,
-            decision="ambiguous",
+            decision="new",
             score=best.score,
-            reason="candidate score below manual threshold; manual review required",
+            reason="candidate score below manual threshold; create new entity",
+            candidates=candidates,
         )
 
     def _exact_name_match(self, incoming: IncomingEntity) -> StoredEntity | None:
@@ -142,7 +162,8 @@ class EntityResolver:
                 for candidate in candidates
             ],
         }
-        data = await self.llm.chat_json(
+        llm = self.llm or EvoRAGLLMClient(self.config)
+        data = await llm.chat_json(
             system_prompt=ENTITY_RESOLUTION_SYSTEM_PROMPT,
             user_payload=payload,
             operation_name=f"EvoRAG entity resolution {incoming.name}",
@@ -154,10 +175,16 @@ class EntityResolver:
         matched_entity = next((candidate.entity for candidate in candidates if candidate.entity.id == matched_id), None)
 
         if decision == "matched" and matched_entity is not None:
-            return EntityResolutionDecision(incoming=incoming, decision="matched", matched_entity=matched_entity, score=score, reason=reason)
+            return EntityResolutionDecision(incoming=incoming, decision="matched", matched_entity=matched_entity, score=score, reason=reason, candidates=candidates)
         if decision == "new":
-            return EntityResolutionDecision(incoming=incoming, decision="new", score=score, reason=reason)
-        return EntityResolutionDecision(incoming=incoming, decision="ambiguous", score=score, reason=reason or json.dumps(data, ensure_ascii=False))
+            return EntityResolutionDecision(incoming=incoming, decision="new", score=score, reason=reason, candidates=candidates)
+        return EntityResolutionDecision(
+            incoming=incoming,
+            decision="ambiguous",
+            score=score,
+            reason=reason or json.dumps(data, ensure_ascii=False),
+            candidates=candidates,
+        )
 def descriptions_compatible(incoming: IncomingEntity, existing: StoredEntity) -> bool:
     if incoming.entity_type != existing.entity_type:
         return False

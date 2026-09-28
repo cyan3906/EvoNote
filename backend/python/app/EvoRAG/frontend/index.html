@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>EvoRAG 工作台</title>
-    <link rel="stylesheet" href="./styles.css?v=20260926-preprocess-timings" />
+    <link rel="stylesheet" href="./styles.css?v=20260927-observability" />
   </head>
   <body>
     <main class="shell">
@@ -84,6 +84,20 @@
             <div class="status-line" id="query-status">等待检索</div>
           </section>
 
+          <section class="panel job-panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Jobs</p>
+                <h2>入库任务进度</h2>
+              </div>
+              <button id="jobs-refresh-btn" class="secondary-button" type="button">刷新任务</button>
+            </div>
+            <div class="status-line" id="jobs-status">等待入库任务</div>
+            <div id="worker-summary" class="worker-summary"></div>
+            <div id="job-progress" class="job-progress"></div>
+            <div id="job-list" class="job-list"></div>
+          </section>
+
           <section class="panel output-panel">
             <div class="panel-head">
               <div>
@@ -141,9 +155,21 @@
             </div>
             <div id="index-warnings" class="warnings"></div>
           </section>
+
+          <section class="panel review-panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Review</p>
+                <h2>实体合并人工审核</h2>
+              </div>
+              <button id="review-refresh-btn" class="secondary-button" type="button">刷新审核</button>
+            </div>
+            <div class="status-line" id="review-status">等待加载审核任务</div>
+            <div id="review-tasks" class="review-list"></div>
+          </section>
         </section>
       </section>
     </main>
-    <script src="./app.js?v=20260926-preprocess-timings"></script>
+    <script src="./app.js?v=20260927-observability"></script>
   </body>
 </html>

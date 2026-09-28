@@ -1,6 +1,8 @@
 const state = {
   token: localStorage.getItem("evorag_token") || "",
   lastAnswer: "",
+  activeJobId: 0,
+  jobPollTimer: 0,
 };
 
 const dom = {
@@ -11,6 +13,8 @@ const dom = {
   ingestBtn: document.querySelector("#ingest-btn"),
   queryBtn: document.querySelector("#query-btn"),
   indexSearchBtn: document.querySelector("#index-search-btn"),
+  jobsRefreshBtn: document.querySelector("#jobs-refresh-btn"),
+  reviewRefreshBtn: document.querySelector("#review-refresh-btn"),
   copyAnswerBtn: document.querySelector("#copy-answer-btn"),
   knowledgeText: document.querySelector("#knowledge-text"),
   entityQuery: document.querySelector("#entity-query"),
@@ -30,6 +34,12 @@ const dom = {
   backendStatus: document.querySelector("#backend-status"),
   indexTimings: document.querySelector("#index-timings"),
   indexWarnings: document.querySelector("#index-warnings"),
+  jobsStatus: document.querySelector("#jobs-status"),
+  workerSummary: document.querySelector("#worker-summary"),
+  jobProgress: document.querySelector("#job-progress"),
+  jobList: document.querySelector("#job-list"),
+  reviewStatus: document.querySelector("#review-status"),
+  reviewTasks: document.querySelector("#review-tasks"),
   workspaceId: document.querySelector("#workspace-id"),
   projectId: document.querySelector("#project-id"),
   collectionId: document.querySelector("#collection-id"),
@@ -37,6 +47,9 @@ const dom = {
 };
 
 updateAuthState();
+if (state.token) {
+  loadWorkerStatus();
+}
 
 function ensurePreprocessDetails() {
   const existing = document.querySelector("#preprocess-details");
@@ -72,6 +85,7 @@ dom.authForm.addEventListener("submit", async (event) => {
     dom.password.value = "";
     updateAuthState();
     setStatus(dom.ingestStatus, "登录成功，可以提交文本。", "ok");
+    await loadWorkerStatus();
   } catch (error) {
     setStatus(dom.ingestStatus, error.message, "error");
   } finally {
@@ -120,15 +134,19 @@ dom.ingestBtn.addEventListener("click", async () => {
       text,
       scope: readScope(),
     });
-    renderExtractedEntities(data.preprocess, data.ingest_results || []);
+    renderExtractedEntities(data.preprocess, data.ingest_results || [], data);
     const blockCount = data.preprocess.blocks?.length || 0;
     const entityCount = data.preprocess.blocks?.reduce((total, block) => total + (block.entities?.length || 0), 0) || 0;
-    const upsertCount = data.ingest_results?.length || 0;
     setStatus(
       dom.ingestStatus,
-      `完成：${blockCount} 个 Block，${entityCount} 个实体，${upsertCount} 个实体写入或合并。耗时 ${formatDuration(startedAt)}。`,
+      `完成：${blockCount} 个 Block，${entityCount} 个实体，已创建入库任务 #${data.job_id || "-"}，排队 ${data.queued_count || 0} 个实体。耗时 ${formatDuration(startedAt)}。`,
       "ok",
     );
+    if (data.job_id) {
+      state.activeJobId = data.job_id;
+      await loadJobStatus(data.job_id);
+      startJobPolling(data.job_id);
+    }
   } catch (error) {
     setStatus(dom.ingestStatus, `${error.message}（耗时 ${formatDuration(startedAt)}）`, "error");
   } finally {
@@ -193,6 +211,19 @@ dom.indexSearchBtn.addEventListener("click", async () => {
   }
 });
 
+dom.reviewRefreshBtn.addEventListener("click", () => {
+  loadReviewTasks();
+});
+
+dom.jobsRefreshBtn.addEventListener("click", async () => {
+  await loadWorkerStatus();
+  if (state.activeJobId) {
+    await loadJobStatus(state.activeJobId);
+  } else {
+    await loadIngestJobs();
+  }
+});
+
 dom.copyAnswerBtn.addEventListener("click", async () => {
   if (!state.lastAnswer) {
     setStatus(dom.queryStatus, "还没有可复制的生成内容。", "error");
@@ -203,16 +234,27 @@ dom.copyAnswerBtn.addEventListener("click", async () => {
 });
 
 async function apiFetch(url, payload) {
+  return apiRequest(url, { method: "POST", payload });
+}
+
+async function apiGet(url) {
+  return apiRequest(url, { method: "GET" });
+}
+
+async function apiRequest(url, options = {}) {
   if (!state.token) {
     throw new Error("请先登录。");
   }
+  const headers = {
+    Authorization: `Bearer ${state.token}`,
+  };
+  if (options.payload !== undefined) {
+    headers["Content-Type"] = "application/json";
+  }
   const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${state.token}`,
-    },
-    body: JSON.stringify(payload),
+    method: options.method || "GET",
+    headers,
+    body: options.payload === undefined ? undefined : JSON.stringify(options.payload),
   });
   return parseResponse(response);
 }
@@ -242,7 +284,7 @@ function readScope() {
   };
 }
 
-function renderExtractedEntities(preprocess, ingestResults = []) {
+function renderExtractedEntities(preprocess, ingestResults = [], ingestJob = null) {
   const entities = [];
   for (const block of preprocess.blocks || []) {
     for (const entity of block.entities || []) {
@@ -267,10 +309,10 @@ function renderExtractedEntities(preprocess, ingestResults = []) {
     dom.extractedEntities.append(button);
   }
 
-  renderPreprocessDetails(preprocess, ingestResults);
+  renderPreprocessDetails(preprocess, ingestResults, ingestJob);
 }
 
-function renderPreprocessDetails(preprocess, ingestResults = []) {
+function renderPreprocessDetails(preprocess, ingestResults = [], ingestJob = null) {
   const blocks = preprocess.blocks || [];
   if (!blocks.length) {
     dom.preprocessDetails.append(emptyState("暂无 Block 切分结果"));
@@ -292,6 +334,7 @@ function renderPreprocessDetails(preprocess, ingestResults = []) {
     dom.preprocessDetails.append(blockCard(blockResult));
   }
 
+  renderIngestJob(ingestJob);
   renderIngestResults(ingestResults);
 }
 
@@ -349,6 +392,34 @@ function renderIngestResults(results) {
     section.append(item);
   }
 
+  dom.preprocessDetails.append(section);
+}
+
+function renderIngestJob(job) {
+  if (!job?.job_id) {
+    return;
+  }
+
+  const section = document.createElement("section");
+  section.className = "ingest-result-list";
+  const title = document.createElement("h3");
+  title.textContent = "入库任务";
+  section.append(title);
+
+  const item = document.createElement("div");
+  item.className = "ingest-result-item";
+  const name = document.createElement("strong");
+  name.textContent = `Job #${job.job_id}`;
+  const meta = document.createElement("span");
+  meta.textContent = [
+    `状态 ${job.status || "queued"}`,
+    `${job.queued_count || 0} 个实体排队`,
+    job.incoming_entity_ids?.length ? `任务实体 ID ${job.incoming_entity_ids.slice(0, 8).join("、")}` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  item.append(name, meta);
+  section.append(item);
   dom.preprocessDetails.append(section);
 }
 
@@ -632,6 +703,376 @@ function renderIndexSearchResult(data) {
   renderIndexWarnings(data.warnings || []);
 }
 
+async function loadReviewTasks() {
+  const startedAt = performance.now();
+  try {
+    setBusy(dom.reviewRefreshBtn, true, "加载中");
+    setStatus(dom.reviewStatus, "正在加载待审核实体...", "");
+    const data = await apiGet("/api/evorag/review-tasks?status=pending&limit=50");
+    renderReviewTasks(data.tasks || []);
+    setStatus(dom.reviewStatus, `待审核 ${data.tasks?.length || 0} 个。耗时 ${formatDuration(startedAt)}。`, "ok");
+  } catch (error) {
+    setStatus(dom.reviewStatus, `${error.message}（耗时 ${formatDuration(startedAt)}）`, "error");
+  } finally {
+    setBusy(dom.reviewRefreshBtn, false, "刷新审核");
+  }
+}
+
+function startJobPolling(jobId) {
+  stopJobPolling();
+  state.jobPollTimer = window.setInterval(() => {
+    loadJobStatus(jobId, { silent: true });
+  }, 2000);
+}
+
+function stopJobPolling() {
+  if (state.jobPollTimer) {
+    window.clearInterval(state.jobPollTimer);
+    state.jobPollTimer = 0;
+  }
+}
+
+async function loadWorkerStatus() {
+  try {
+    const data = await apiGet("/api/evorag/worker-status");
+    renderWorkerSummary(data);
+  } catch (error) {
+    setStatus(dom.jobsStatus, `Worker 状态读取失败：${error.message}`, "error");
+  }
+}
+
+async function loadIngestJobs() {
+  const startedAt = performance.now();
+  try {
+    setBusy(dom.jobsRefreshBtn, true, "加载中");
+    setStatus(dom.jobsStatus, "正在加载最近入库任务...", "");
+    await loadWorkerStatus();
+    const data = await apiGet("/api/evorag/ingest-jobs?limit=12");
+    renderJobList(data.jobs || []);
+    setStatus(dom.jobsStatus, `最近任务 ${data.jobs?.length || 0} 个。耗时 ${formatDuration(startedAt)}。`, "ok");
+  } catch (error) {
+    setStatus(dom.jobsStatus, `${error.message}（耗时 ${formatDuration(startedAt)}）`, "error");
+  } finally {
+    setBusy(dom.jobsRefreshBtn, false, "刷新任务");
+  }
+}
+
+async function loadJobStatus(jobId, options = {}) {
+  const startedAt = performance.now();
+  try {
+    if (!options.silent) {
+      setBusy(dom.jobsRefreshBtn, true, "刷新中");
+      setStatus(dom.jobsStatus, `正在刷新 Job #${jobId}...`, "");
+    }
+    await loadWorkerStatus();
+    const data = await apiGet(`/api/evorag/ingest-jobs/${jobId}`);
+    renderJobProgress(data);
+    const progress = data.progress || {};
+    const terminal = isJobTerminal(data);
+    setStatus(
+      dom.jobsStatus,
+      `Job #${jobId}：${statusTitle(data.status)}，${progress.done || 0}/${progress.total || 0} 已完成或待处理，${formatPercent(progress.percent)}。耗时 ${formatDuration(startedAt)}。`,
+      data.status === "failed" ? "error" : "ok",
+    );
+    if (terminal) {
+      stopJobPolling();
+      await loadReviewTasks();
+    }
+  } catch (error) {
+    setStatus(dom.jobsStatus, `${error.message}（耗时 ${formatDuration(startedAt)}）`, "error");
+    stopJobPolling();
+  } finally {
+    if (!options.silent) {
+      setBusy(dom.jobsRefreshBtn, false, "刷新任务");
+    }
+  }
+}
+
+function renderWorkerSummary(data) {
+  const worker = data.worker || {};
+  const queue = data.queue || {};
+  const mysql = data.mysql || {};
+  const items = [
+    ["Worker 启用", worker.enabled ? "是" : "否"],
+    ["Worker 已启动", worker.started ? "是" : "否"],
+    ["Worker 数", worker.worker_count ?? "-"],
+    ["Stream 长度", queue.stream_length ?? "-"],
+    ["待 ACK", queue.pending_count ?? "-"],
+    ["消费者", queue.consumer_count ?? "-"],
+    ["平均完成耗时", formatMilliseconds(mysql.average_completed_ms || 0)],
+    ["重试次数", mysql.retry_count ?? 0],
+    ["失败数", mysql.failed_count ?? 0],
+  ];
+  dom.workerSummary.replaceChildren();
+  for (const [label, value] of items) {
+    const item = document.createElement("div");
+    const labelElement = document.createElement("span");
+    labelElement.textContent = label;
+    const valueElement = document.createElement("strong");
+    valueElement.textContent = String(value);
+    item.append(labelElement, valueElement);
+    dom.workerSummary.append(item);
+  }
+}
+
+function renderJobList(jobs) {
+  dom.jobProgress.replaceChildren();
+  dom.jobList.replaceChildren();
+  if (!jobs.length) {
+    dom.jobList.append(emptyState("暂无入库任务"));
+    return;
+  }
+  for (const job of jobs) {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "job-list-item";
+    item.textContent = `#${job.id} · ${statusTitle(job.status)} · ${job.entity_count || 0} 实体 · ${job.created_at || ""}`;
+    item.addEventListener("click", async () => {
+      state.activeJobId = job.id;
+      await loadJobStatus(job.id);
+      if (!isJobTerminal(job)) {
+        startJobPolling(job.id);
+      }
+    });
+    dom.jobList.append(item);
+  }
+}
+
+function renderJobProgress(job) {
+  dom.jobList.replaceChildren();
+  dom.jobProgress.replaceChildren();
+  const progress = job.progress || {};
+
+  const head = document.createElement("div");
+  head.className = "job-progress-head";
+  const title = document.createElement("strong");
+  title.textContent = `Job #${job.id} · ${statusTitle(job.status)}`;
+  const meta = document.createElement("span");
+  meta.textContent = [
+    `${progress.done || 0}/${progress.total || 0}`,
+    `${formatPercent(progress.percent)}`,
+    `${job.block_count || 0} Block`,
+    `${job.entity_count || 0} 实体`,
+    job.updated_at ? `更新 ${job.updated_at}` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  head.append(title, meta);
+  dom.jobProgress.append(head);
+
+  const bar = document.createElement("div");
+  bar.className = "job-progress-bar";
+  const fill = document.createElement("div");
+  fill.style.width = `${Math.max(0, Math.min(100, Number(progress.percent || 0)))}%`;
+  bar.append(fill);
+  dom.jobProgress.append(bar);
+
+  const counts = document.createElement("div");
+  counts.className = "job-status-counts";
+  const statusCounts = job.status_counts || {};
+  for (const status of ["pending", "processing", "auto_merged", "manual_merged", "new_created", "needs_review", "failed", "dead_letter"]) {
+    if (!statusCounts[status]) {
+      continue;
+    }
+    const chip = document.createElement("span");
+    chip.textContent = `${statusTitle(status)} ${statusCounts[status]}`;
+    counts.append(chip);
+  }
+  dom.jobProgress.append(counts);
+
+  const list = document.createElement("div");
+  list.className = "incoming-status-list";
+  for (const incoming of job.incoming_entities || []) {
+    list.append(incomingStatusItem(incoming));
+  }
+  dom.jobProgress.append(list);
+}
+
+function incomingStatusItem(incoming) {
+  const item = document.createElement("div");
+  item.className = `incoming-status-item status-${incoming.status || "unknown"}`;
+  const body = document.createElement("div");
+  const name = document.createElement("strong");
+  name.textContent = incoming.name || `Incoming #${incoming.id}`;
+  const meta = document.createElement("span");
+  meta.textContent = [
+    `#${incoming.id}`,
+    incoming.entity_type || "concept",
+    statusTitle(incoming.status),
+    `尝试 ${incoming.attempt_count || 0}`,
+    incoming.matched_entity_id ? `匹配实体 ${incoming.matched_entity_id}` : "",
+    incoming.review_task_id ? `审核 #${incoming.review_task_id}` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  body.append(name, meta);
+  if (incoming.decision_reason || incoming.last_error) {
+    const reason = document.createElement("p");
+    reason.textContent = incoming.last_error || incoming.decision_reason;
+    body.append(reason);
+  }
+  item.append(body);
+  if (incoming.review_task_id) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "secondary-button";
+    button.textContent = "看审核";
+    button.addEventListener("click", loadReviewTasks);
+    item.append(button);
+  }
+  return item;
+}
+
+function isJobTerminal(job) {
+  return ["completed", "failed", "needs_review"].includes(String(job.status || ""));
+}
+
+function renderReviewTasks(tasks) {
+  dom.reviewTasks.replaceChildren();
+  if (!tasks.length) {
+    dom.reviewTasks.append(emptyState("暂无待审核任务"));
+    return;
+  }
+
+  for (const task of tasks) {
+    dom.reviewTasks.append(reviewTaskCard(task));
+  }
+}
+
+function reviewTaskCard(task) {
+  const incoming = task.incoming_snapshot || {};
+  const candidates = task.candidates || [];
+  const card = document.createElement("article");
+  card.className = "review-card";
+
+  const head = document.createElement("div");
+  head.className = "review-head";
+  const title = document.createElement("strong");
+  title.textContent = incoming.name || `Review #${task.id}`;
+  const meta = document.createElement("span");
+  meta.textContent = [
+    `任务 #${task.id}`,
+    `Incoming #${task.incoming_entity_id}`,
+    incoming.entity_type || "concept",
+    task.reason || "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  head.append(title, meta);
+  card.append(head);
+
+  if (incoming.identity_description || incoming.description_for_match) {
+    const description = document.createElement("p");
+    description.className = "review-description";
+    description.textContent = incoming.identity_description || incoming.description_for_match;
+    card.append(description);
+  }
+
+  const actions = document.createElement("div");
+  actions.className = "review-actions";
+  const createButton = document.createElement("button");
+  createButton.type = "button";
+  createButton.className = "secondary-button";
+  createButton.textContent = "新建实体";
+  createButton.addEventListener("click", () => handleReviewAction(createButton, task.id, "new", {}));
+  actions.append(createButton);
+  card.append(actions);
+
+  const list = document.createElement("div");
+  list.className = "review-candidates";
+  if (!candidates.length) {
+    list.append(emptyState("暂无候选实体"));
+  } else {
+    for (const candidate of candidates) {
+      list.append(reviewCandidateItem(task.id, candidate));
+    }
+  }
+  card.append(list);
+  return card;
+}
+
+function reviewCandidateItem(reviewTaskId, candidate) {
+  const item = document.createElement("div");
+  item.className = "review-candidate";
+
+  const body = document.createElement("div");
+  body.className = "review-candidate-body";
+  const name = document.createElement("strong");
+  name.textContent = candidate.canonical_name || `Entity ${candidate.id}`;
+  const meta = document.createElement("span");
+  meta.textContent = [
+    `ID ${candidate.id}`,
+    candidate.entity_type || "concept",
+    `融合 ${formatScore(candidate.score)}`,
+    `向量 ${formatScore(candidate.vector_score)}`,
+    `ES ${formatScore(candidate.es_score)}`,
+  ].join(" · ");
+  body.append(name, meta);
+  if (candidate.identity_description || candidate.summary || candidate.description_for_match) {
+    const text = document.createElement("p");
+    text.textContent = candidate.identity_description || candidate.summary || candidate.description_for_match;
+    body.append(text);
+  }
+  item.append(body);
+
+  const actions = document.createElement("div");
+  actions.className = "review-candidate-actions";
+  const mergeButton = document.createElement("button");
+  mergeButton.type = "button";
+  mergeButton.textContent = "合并";
+  mergeButton.addEventListener("click", () =>
+    handleReviewAction(mergeButton, reviewTaskId, "merge", {
+      entity_id: candidate.id,
+    }),
+  );
+  const rejectButton = document.createElement("button");
+  rejectButton.type = "button";
+  rejectButton.className = "secondary-button";
+  rejectButton.textContent = "排除";
+  rejectButton.addEventListener("click", () =>
+    handleReviewAction(rejectButton, reviewTaskId, "reject", {
+      candidate_entity_ids: [candidate.id],
+    }),
+  );
+  actions.append(mergeButton, rejectButton);
+  item.append(actions);
+  return item;
+}
+
+async function handleReviewAction(button, reviewTaskId, action, payload) {
+  const startedAt = performance.now();
+  const endpoints = {
+    merge: `/api/evorag/review-tasks/${reviewTaskId}/merge`,
+    new: `/api/evorag/review-tasks/${reviewTaskId}/new`,
+    reject: `/api/evorag/review-tasks/${reviewTaskId}/reject`,
+  };
+  try {
+    setBusy(button, true, "处理中");
+    setStatus(dom.reviewStatus, "正在提交审核决策...", "");
+    await apiFetch(endpoints[action], {
+      ...payload,
+      decided_by: "manual",
+      reason: "manual review from EvoRAG workbench",
+    });
+    setStatus(dom.reviewStatus, `审核已提交。耗时 ${formatDuration(startedAt)}。`, "ok");
+    await loadReviewTasks();
+  } catch (error) {
+    setStatus(dom.reviewStatus, `${error.message}（耗时 ${formatDuration(startedAt)}）`, "error");
+  } finally {
+    setBusy(button, false, actionLabel(action));
+  }
+}
+
+function actionLabel(action) {
+  if (action === "merge") {
+    return "合并";
+  }
+  if (action === "reject") {
+    return "排除";
+  }
+  return "新建实体";
+}
+
 function renderBackendStatus(status) {
   dom.backendStatus.replaceChildren();
   if (!Object.keys(status).length) {
@@ -851,6 +1292,15 @@ function formatMilliseconds(elapsedMs) {
   return `${(elapsedMs / 1000).toFixed(2)} s`;
 }
 
+function formatPercent(value) {
+  const number = Number(value || 0);
+  return `${number.toFixed(number % 1 === 0 ? 0 : 1)}%`;
+}
+
+function statusTitle(status) {
+  return STATUS_TITLES[status] || status || "未知";
+}
+
 const ATTRIBUTE_ORDER = ["definition", "purpose", "core_idea", "mechanism", "components", "constraints", "related"];
 
 const ATTRIBUTE_TITLES = {
@@ -861,6 +1311,20 @@ const ATTRIBUTE_TITLES = {
   components: "组成",
   constraints: "约束",
   related: "相关",
+};
+
+const STATUS_TITLES = {
+  queued: "已排队",
+  pending: "排队中",
+  processing: "处理中",
+  auto_merged: "自动合并",
+  manual_merged: "人工合并",
+  new_created: "新建实体",
+  completed: "已完成",
+  needs_review: "待审核",
+  failed: "失败",
+  dead_letter: "死信",
+  skipped: "跳过",
 };
 
 function attributeTitle(type) {

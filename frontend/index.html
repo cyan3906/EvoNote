@@ -9,7 +9,7 @@
       type="image/svg+xml"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232f6f65'/%3E%3Cpath d='M20 17h25v8H29v8h14v8H29v8h17v8H20z' fill='white'/%3E%3C/svg%3E"
     />
-    <link rel="stylesheet" href="/static/styles/main.css?v=20260918-block-source-scroll-v2" />
+    <link rel="stylesheet" href="/static/styles/main.css?v=20260927-shell-frame" />
   </head>
   <body>
     <main class="login-page">
@@ -47,34 +47,178 @@
         </form>
       </section>
 
-      <section id="note-shell" class="note-shell" hidden>
-        <header class="app-header">
-          <div class="brand compact">
-            <span class="brand-mark" aria-hidden="true">E</span>
+      <section id="note-shell" class="note-shell app-shell" hidden>
+        <aside class="app-sidebar" aria-label="主导航">
+          <div class="sidebar-brand">
+            <span class="leaf-mark" aria-hidden="true"></span>
             <div>
-              <p class="eyebrow">Evonote</p>
-              <h2>笔记</h2>
+              <strong>EvoNote</strong>
+              <span>笔记自我进化</span>
             </div>
           </div>
 
-          <div class="header-actions">
+          <nav class="sidebar-nav">
+            <button class="nav-item is-active" type="button" data-app-target="home">
+              <svg aria-hidden="true" viewBox="0 0 24 24">
+                <path d="m3 10 9-7 9 7" />
+                <path d="M5 9v11h14V9" />
+                <path d="M9 20v-6h6v6" />
+              </svg>
+              首页
+            </button>
+            <button class="nav-item" type="button" data-app-target="notes">
+              <svg aria-hidden="true" viewBox="0 0 24 24">
+                <path d="M7 3h8l4 4v14H7z" />
+                <path d="M15 3v5h5M10 13h6M10 17h6" />
+              </svg>
+              我的笔记
+            </button>
+            <button class="nav-item" type="button" data-app-target="merge">
+              <svg aria-hidden="true" viewBox="0 0 24 24">
+                <path d="M12 3v5M12 16v5M5 10l4 4M19 10l-4 4" />
+                <path d="M4 4h5v5H4zM15 4h5v5h-5zM9 15h6v6H9z" />
+              </svg>
+              合并生成
+            </button>
+            <button class="nav-item" type="button" data-app-target="entities">
+              <svg aria-hidden="true" viewBox="0 0 24 24">
+                <path d="M6 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM18 22a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM18 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+                <path d="M8.6 6.5h6.8M8.4 7.2l7.2 9.6" />
+              </svg>
+              实体管理
+            </button>
+            <button class="nav-item" type="button" data-app-target="graph">
+              <svg aria-hidden="true" viewBox="0 0 24 24">
+                <circle cx="5" cy="12" r="2.5" />
+                <circle cx="12" cy="5" r="2.5" />
+                <circle cx="19" cy="12" r="2.5" />
+                <circle cx="12" cy="19" r="2.5" />
+                <path d="m7 10 3-3M14 7l3 3M17 14l-3 3M10 17l-3-3" />
+              </svg>
+              知识图谱
+            </button>
+            <button class="nav-item" type="button" data-app-target="history">
+              <svg aria-hidden="true" viewBox="0 0 24 24">
+                <path d="M3 12a9 9 0 1 0 3-6.7" />
+                <path d="M3 4v5h5M12 7v5l3 2" />
+              </svg>
+              生成历史
+            </button>
+          </nav>
+
+          <button class="nav-item settings-link" type="button" data-app-target="settings">
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.1 3.6-.2-.1a1.7 1.7 0 0 0-2 .2 1.7 1.7 0 0 0-.8 1.6V22H9.3v-.3a1.7 1.7 0 0 0-.8-1.6 1.7 1.7 0 0 0-2-.2l-.2.1L4.2 16.4l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.4-1H3V10h.2a1.7 1.7 0 0 0 1.4-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1 2.1-3.6.2.1a1.7 1.7 0 0 0 2-.2A1.7 1.7 0 0 0 9.3 2V2h5.4v.3a1.7 1.7 0 0 0 .8 1.6 1.7 1.7 0 0 0 2 .2l.2-.1 2.1 3.6-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.4 1h.2v3.4h-.2a1.7 1.7 0 0 0-1.4 1Z" />
+            </svg>
+            设置
+          </button>
+        </aside>
+
+        <div class="app-main">
+          <header class="app-topbar">
             <p id="save-status" class="save-status" role="status" aria-live="polite">已保存</p>
-            <div class="export-control">
-              <label for="export-format">导出</label>
-              <select id="export-format">
-                <option value="pdf">PDF</option>
-                <option value="txt">TXT</option>
-                <option value="docx">Word</option>
-              </select>
-              <button id="export-button" class="ghost-button" type="button">下载</button>
+            <div class="user-menu">
+              <span class="user-avatar" aria-hidden="true">U</span>
+              <span>用户</span>
+              <button id="logout-button" class="plain-icon-button" type="button" aria-label="退出登录">
+                <svg aria-hidden="true" viewBox="0 0 24 24">
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </button>
             </div>
-            <a class="ghost-link" href="/info/markdown" target="_blank" rel="noreferrer">Markdown 帮助</a>
-            <button id="open-evolution-button" class="ghost-button" type="button">智能整理</button>
-            <button id="logout-button" class="ghost-button" type="button">退出</button>
-          </div>
-        </header>
+          </header>
 
-        <div class="workspace">
+          <section id="home-view" class="dashboard-view" data-app-view="home">
+            <div class="hero-panel">
+              <div class="hero-copy">
+                <h1>让笔记更有结构，更有深度</h1>
+                <p>自动抽取实体、建立关联、融合知识，生成高质量的长文本内容</p>
+                <div class="hero-actions">
+                  <button id="upload-placeholder-button" class="primary-button hero-button" type="button">
+                    <svg aria-hidden="true" viewBox="0 0 24 24">
+                      <path d="M12 16V4" />
+                      <path d="m7 9 5-5 5 5" />
+                      <path d="M5 20h14" />
+                    </svg>
+                    上传笔记并合并
+                  </button>
+                  <button id="dashboard-new-note-button" class="ghost-button hero-button" type="button">
+                    <svg aria-hidden="true" viewBox="0 0 24 24">
+                      <path d="M7 3h8l4 4v14H7z" />
+                      <path d="M12 11v6M9 14h6" />
+                    </svg>
+                    新建空白笔记
+                  </button>
+                </div>
+                <span class="support-text">支持 txt、md、pdf、docx 等多种格式</span>
+              </div>
+              <div class="hero-visual" aria-hidden="true">
+                <div class="doc-card doc-card-a"></div>
+                <div class="doc-card doc-card-b"></div>
+                <div class="doc-card doc-card-c"></div>
+                <div class="file-node"></div>
+                <div class="graph-card">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+              </div>
+            </div>
+
+            <section class="task-panel" aria-labelledby="latest-task-title">
+              <div class="panel-heading">
+                <h2 id="latest-task-title">
+                  <svg aria-hidden="true" viewBox="0 0 24 24">
+                    <path d="M7 3h8l4 4v14H7z" />
+                    <path d="M9 13h6M9 17h6" />
+                  </svg>
+                  最新任务
+                </h2>
+                <button class="text-button" type="button" data-app-target="history">查看全部</button>
+              </div>
+              <div class="task-table-wrap">
+                <table class="task-table">
+                  <thead>
+                    <tr>
+                      <th>任务名称</th>
+                      <th>状态</th>
+                      <th>进度</th>
+                      <th>处理时间</th>
+                      <th>实体数量</th>
+                      <th>需人工确认</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dashboard-task-list"></tbody>
+                </table>
+              </div>
+            </section>
+          </section>
+
+          <section id="notes-view" class="notes-view" data-app-view="notes" hidden>
+            <header class="module-header">
+              <div>
+                <p class="section-kicker">Notes</p>
+                <h1>我的笔记</h1>
+              </div>
+              <div class="header-actions">
+                <div class="export-control">
+                  <label for="export-format">导出</label>
+                  <select id="export-format">
+                    <option value="pdf">PDF</option>
+                    <option value="txt">TXT</option>
+                    <option value="docx">Word</option>
+                  </select>
+                  <button id="export-button" class="ghost-button" type="button">下载</button>
+                </div>
+                <a class="ghost-link" href="/info/markdown" target="_blank" rel="noreferrer">Markdown 帮助</a>
+              </div>
+            </header>
+
+            <div class="workspace">
           <aside class="note-list-pane" aria-label="笔记列表">
             <div class="list-tools">
               <label class="search-box" for="note-search">
@@ -140,11 +284,11 @@
             </footer>
           </article>
 
-          <article id="evolution-pane" class="evolution-page" aria-label="智能整理" hidden>
+          <article id="evolution-pane" class="evolution-page" aria-label="合并确认" hidden>
             <div class="evolution-page-header">
               <div>
                 <p class="evolution-kicker">Self-evolving</p>
-                <h3>智能整理</h3>
+                <h3>合并确认</h3>
               </div>
               <div class="evolution-actions">
                 <span id="evolution-status">等待分析</span>
@@ -175,10 +319,92 @@
               </div>
             </div>
           </article>
+            </div>
+          </section>
+
+          <section class="merge-view" data-app-view="merge" hidden>
+            <header class="merge-header">
+              <div>
+                <p class="section-kicker">Merge</p>
+                <div class="merge-title-row">
+                  <h1 id="merge-task-title">合并生成</h1>
+                  <span id="merge-task-status" class="merge-status is-idle">等待任务</span>
+                </div>
+                <div class="merge-meta">
+                  <span id="merge-task-id">任务ID: -</span>
+                  <span id="merge-task-started">开始时间: -</span>
+                  <span id="merge-task-elapsed">已用时: -</span>
+                </div>
+              </div>
+              <div class="merge-actions">
+                <button id="download-merge-result-button" class="ghost-button" type="button" disabled>下载结果</button>
+                <button id="generate-long-text-button" class="primary-button" type="button" disabled>生成长文本</button>
+              </div>
+            </header>
+
+            <div id="merge-stage-track" class="merge-stage-track" aria-label="合并生成流程"></div>
+
+            <div class="merge-workbench">
+              <section class="merge-card merge-detail-card" aria-labelledby="merge-detail-title">
+                <div class="merge-card-header">
+                  <h2 id="merge-detail-title">处理详情</h2>
+                </div>
+                <div id="merge-detail-list" class="merge-detail-list"></div>
+              </section>
+
+              <aside class="merge-card block-task-card" aria-labelledby="merge-block-title">
+                <div class="merge-card-header">
+                  <h2 id="merge-block-title">并发任务（Block 处理）</h2>
+                  <span id="merge-block-count">共 0 个 block</span>
+                </div>
+                <div id="merge-block-list" class="merge-block-list"></div>
+              </aside>
+            </div>
+
+            <div class="merge-live-strip">
+              <span id="merge-live-status">实时状态：等待任务</span>
+              <span>每 1.5s 自动刷新</span>
+            </div>
+          </section>
+
+          <section class="review-view" data-app-view="entities" hidden>
+            <header class="review-header">
+              <div>
+                <p class="section-kicker">Review</p>
+                <h1>需要人工确认的内容 <span id="review-total-count">(0)</span></h1>
+                <p id="review-subtitle">以下内容的置信度较低，请确认能否合并。</p>
+              </div>
+            </header>
+
+            <div class="review-workbench">
+              <aside class="review-task-list" id="review-task-list"></aside>
+              <section class="review-detail" id="review-detail">
+                <p class="review-empty">暂无需要确认的实体。</p>
+              </section>
+            </div>
+          </section>
+
+          <section class="placeholder-view" data-app-view="graph" hidden>
+            <p class="section-kicker">Graph</p>
+            <h1>知识图谱</h1>
+            <p>后续展示实体节点、关系边、搜索过滤和知识展开路径。</p>
+          </section>
+
+          <section class="placeholder-view" data-app-view="history" hidden>
+            <p class="section-kicker">History</p>
+            <h1>生成历史</h1>
+            <p>后续统一展示上传合并、笔记整理、生成结果和失败任务。</p>
+          </section>
+
+          <section class="placeholder-view" data-app-view="settings" hidden>
+            <p class="section-kicker">Settings</p>
+            <h1>设置</h1>
+            <p>后续放置模型配置、索引配置、账号与数据管理。</p>
+          </section>
         </div>
       </section>
     </main>
 
-    <script type="module" src="/static/src/app.mjs?v=20260918-block-source-scroll"></script>
+    <script type="module" src="/static/src/app.mjs?v=20260927-shell-frame"></script>
   </body>
 </html>

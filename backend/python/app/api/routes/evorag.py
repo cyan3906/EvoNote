@@ -1,10 +1,14 @@
+import asyncio
 from dataclasses import asdict
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 from app.EvoRAG.entity_store.ingestor import EntityIngestor
 from app.EvoRAG.entity_store.models import EntityScope
+from app.EvoRAG.entity_store.queue import EntityMergeQueue
+from app.EvoRAG.entity_store.repository import MySQLEntityRepository
+from app.EvoRAG.entity_store.worker import entity_worker_runtime_status
 from app.EvoRAG.models import EvoRAGIndexSearchResult, EvoRAGPreprocessResult, EvoRAGQueryResult
 from app.EvoRAG.services import EvoRAGProcessor, EvoRAGQueryService, EvoRAGRetriever
 from app.core.security import require_auth
@@ -22,6 +26,8 @@ class EvoRAGScopePayload(BaseModel):
 
 class EvoRAGIngestRequest(BaseModel):
     text: str = Field(..., min_length=1)
+    note_id: str = ""
+    task_name: str = ""
     scope: EvoRAGScopePayload = Field(default_factory=EvoRAGScopePayload)
 
 
@@ -33,8 +39,35 @@ class EvoRAGQueryRequest(BaseModel):
 
 class EvoRAGIngestResponse(BaseModel):
     preprocess: EvoRAGPreprocessResult
-    ingest_results: list[dict[str, object]]
+    job_id: int = 0
+    status: str = "queued"
+    queued_count: int = 0
+    incoming_entity_ids: list[int] = Field(default_factory=list)
+    ingest_results: list[dict[str, object]] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+
+
+class EvoRAGReviewTaskListResponse(BaseModel):
+    tasks: list[dict[str, object]] = Field(default_factory=list)
+
+
+class EvoRAGIngestJobListResponse(BaseModel):
+    jobs: list[dict[str, object]] = Field(default_factory=list)
+
+
+class EvoRAGReviewMergeRequest(BaseModel):
+    entity_id: int = Field(..., ge=1)
+    reason: str = ""
+    decided_by: str = "manual"
+
+
+class EvoRAGReviewActionRequest(BaseModel):
+    reason: str = ""
+    decided_by: str = "manual"
+
+
+class EvoRAGReviewRejectRequest(EvoRAGReviewActionRequest):
+    candidate_entity_ids: list[int] = Field(default_factory=list)
 
 
 @router.post("/extract", response_model=EvoRAGPreprocessResult)
@@ -50,13 +83,20 @@ async def ingest_text(request: EvoRAGIngestRequest) -> EvoRAGIngestResponse:
     scope = to_scope(request.scope)
     try:
         preprocess = await EvoRAGProcessor().preprocess(request.text)
-        ingest_results = await EntityIngestor(scope=scope).ingest(preprocess)
+        queue_result = await EntityIngestor(scope=scope).queue(
+            preprocess,
+            source_note_id=request.note_id,
+            task_name=request.task_name,
+        )
     except Exception as exc:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
 
     return EvoRAGIngestResponse(
         preprocess=preprocess,
-        ingest_results=[asdict(result) for result in ingest_results],
+        job_id=queue_result.job_id,
+        status=queue_result.status,
+        queued_count=queue_result.queued_count,
+        incoming_entity_ids=queue_result.incoming_entity_ids,
     )
 
 
@@ -74,6 +114,117 @@ async def search_entity_indexes(request: EvoRAGQueryRequest) -> EvoRAGIndexSearc
         return await EvoRAGRetriever(scope=to_scope(request.scope)).search_indexes(request.entity, top_k=request.top_k)
     except Exception as exc:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+
+
+@router.get("/ingest-jobs", response_model=EvoRAGIngestJobListResponse)
+async def list_ingest_jobs(limit: int = 20) -> EvoRAGIngestJobListResponse:
+    repository = MySQLEntityRepository()
+    try:
+        jobs = await asyncio.to_thread(repository.list_ingest_jobs, limit=limit)
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+    return EvoRAGIngestJobListResponse(jobs=jobs)
+
+
+@router.get("/ingest-jobs/{job_id}")
+async def get_ingest_job(job_id: int) -> dict[str, object]:
+    repository = MySQLEntityRepository()
+    try:
+        job = await asyncio.to_thread(repository.get_ingest_job_status, job_id)
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+    if job is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="ingest job not found")
+    return job
+
+
+@router.get("/worker-status")
+async def get_worker_status() -> dict[str, object]:
+    repository = MySQLEntityRepository()
+    response: dict[str, object] = {
+        "worker": entity_worker_runtime_status(),
+        "queue": {"available": False},
+        "mysql": {},
+        "warnings": [],
+    }
+    try:
+        response["queue"] = {"available": True, **await asyncio.to_thread(EntityMergeQueue().stats)}
+    except Exception as exc:
+        response["warnings"].append(f"queue stats unavailable: {exc}")  # type: ignore[index]
+    try:
+        response["mysql"] = await asyncio.to_thread(repository.ingest_observability_summary)
+    except Exception as exc:
+        response["warnings"].append(f"mysql summary unavailable: {exc}")  # type: ignore[index]
+    return response
+
+
+@router.get("/review-tasks", response_model=EvoRAGReviewTaskListResponse)
+async def list_review_tasks(status_filter: str = Query("pending", alias="status"), limit: int = 50) -> EvoRAGReviewTaskListResponse:
+    ingestor = EntityIngestor()
+    try:
+        tasks = await asyncio.to_thread(ingestor.repository.list_review_tasks, status=status_filter, limit=limit)
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+    return EvoRAGReviewTaskListResponse(tasks=tasks)
+
+
+@router.get("/review-tasks/{review_task_id}")
+async def get_review_task(review_task_id: int) -> dict[str, object]:
+    ingestor = EntityIngestor()
+    try:
+        task = await asyncio.to_thread(ingestor.repository.get_review_task, review_task_id)
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+    if task is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="review task not found")
+    return task
+
+
+@router.post("/review-tasks/{review_task_id}/merge")
+async def merge_review_task(review_task_id: int, request: EvoRAGReviewMergeRequest) -> dict[str, object]:
+    try:
+        result = await EntityIngestor().manual_merge_review_task(
+            review_task_id,
+            entity_id=request.entity_id,
+            reason=request.reason,
+            decided_by=request.decided_by,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+    return {"status": "merged", "result": asdict(result)}
+
+
+@router.post("/review-tasks/{review_task_id}/new")
+async def create_new_from_review_task(review_task_id: int, request: EvoRAGReviewActionRequest) -> dict[str, object]:
+    try:
+        result = await EntityIngestor().manual_create_new_review_task(
+            review_task_id,
+            reason=request.reason,
+            decided_by=request.decided_by,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+    return {"status": "new_created", "result": asdict(result)}
+
+
+@router.post("/review-tasks/{review_task_id}/reject")
+async def reject_review_task_candidates(review_task_id: int, request: EvoRAGReviewRejectRequest) -> dict[str, object]:
+    try:
+        result = await EntityIngestor().reject_review_candidates(
+            review_task_id,
+            candidate_entity_ids=request.candidate_entity_ids,
+            reason=request.reason,
+            decided_by=request.decided_by,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+    return result
 
 
 def to_scope(payload: EvoRAGScopePayload) -> EntityScope:

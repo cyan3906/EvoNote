@@ -555,6 +555,149 @@ textarea:focus {
   grid-column: 1 / -1;
 }
 
+.review-panel {
+  grid-column: 1 / -1;
+}
+
+.job-panel {
+  grid-column: 1 / -1;
+}
+
+.worker-summary {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.worker-summary div {
+  display: grid;
+  gap: 3px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-strong);
+  padding: 8px 10px;
+}
+
+.worker-summary span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.worker-summary strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.job-progress {
+  display: grid;
+  gap: 10px;
+}
+
+.job-progress-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.job-progress-head span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.job-progress-bar {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(35, 100, 170, 0.1);
+}
+
+.job-progress-bar div {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--green);
+  transition: width 180ms ease;
+}
+
+.job-status-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.job-status-counts span {
+  border: 1px solid rgba(35, 100, 170, 0.18);
+  border-radius: 999px;
+  background: rgba(35, 100, 170, 0.06);
+  color: var(--muted);
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.incoming-status-list,
+.job-list {
+  display: grid;
+  gap: 8px;
+}
+
+.incoming-status-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--muted);
+  border-radius: 6px;
+  background: #fff;
+  padding: 10px;
+}
+
+.incoming-status-item.status-processing {
+  border-left-color: var(--blue);
+}
+
+.incoming-status-item.status-auto_merged,
+.incoming-status-item.status-manual_merged,
+.incoming-status-item.status-new_created,
+.incoming-status-item.status-completed {
+  border-left-color: var(--green);
+}
+
+.incoming-status-item.status-needs_review {
+  border-left-color: var(--amber);
+}
+
+.incoming-status-item.status-failed,
+.incoming-status-item.status-dead_letter {
+  border-left-color: var(--red);
+}
+
+.incoming-status-item strong {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 14px;
+}
+
+.incoming-status-item span,
+.incoming-status-item p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.job-list-item {
+  min-height: 42px;
+  border-color: var(--line);
+  background: #fff;
+  color: var(--text);
+  text-align: left;
+}
+
 .backend-status,
 .timing-grid {
   display: grid;
@@ -603,6 +746,75 @@ textarea:focus {
 .index-list {
   display: grid;
   gap: 10px;
+}
+
+.review-list {
+  display: grid;
+  gap: 12px;
+}
+
+.review-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-strong);
+  padding: 12px;
+}
+
+.review-head {
+  display: grid;
+  gap: 4px;
+}
+
+.review-head strong {
+  color: var(--text);
+  font-size: 15px;
+}
+
+.review-head span,
+.review-description,
+.review-candidate-body span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.review-description,
+.review-candidate-body p {
+  margin: 0;
+  line-height: 1.55;
+}
+
+.review-actions,
+.review-candidate-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.review-candidates {
+  display: grid;
+  gap: 8px;
+}
+
+.review-candidate {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  padding: 10px;
+}
+
+.review-candidate-body {
+  display: grid;
+  gap: 4px;
+}
+
+.review-candidate-body strong {
+  font-size: 14px;
 }
 
 .index-result-card {
@@ -694,6 +906,7 @@ textarea:focus {
     .graph-columns,
     .index-columns,
     .backend-status,
+    .worker-summary,
     .timing-grid {
     grid-template-columns: 1fr;
   }
@@ -734,6 +947,8 @@ textarea:focus {
   .block-detail summary,
   .entity-detail-head,
   .attribute-item,
+  .incoming-status-item,
+  .review-candidate,
   .index-attributes div {
     grid-template-columns: 1fr;
     display: grid;
