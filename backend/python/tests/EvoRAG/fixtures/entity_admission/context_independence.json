@@ -1,0 +1,413 @@
+{
+  "category": "Context Independence",
+  "case_count": 10,
+  "cases": [
+    {
+      "case_id": "context_independence_001",
+      "category": "Context Independence",
+      "input_text": "# MVCC\nMVCC 通过多版本记录和 ReadView 判断事务能否看到某个版本。\n\n## 可见性判断\n它会比较记录上的 trx_id 与 ReadView 中的活跃事务集合。如果版本创建者不在活跃集合，并且小于最大事务边界，该版本通常可见。这里的它和该版本都依赖 MVCC 上下文，不能独立建实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "MVCC",
+          "entity_type": "concept",
+          "aliases": [
+            "多版本并发控制"
+          ],
+          "attributes": {
+            "definition": [
+              "通过多版本记录和 ReadView 判断版本可见性的机制。"
+            ],
+            "mechanism": [
+              "比较记录 trx_id 与 ReadView 活跃事务集合。"
+            ],
+            "related": [
+              "ReadView"
+            ]
+          }
+        },
+        {
+          "name": "ReadView",
+          "entity_type": "concept",
+          "aliases": [],
+          "attributes": {
+            "definition": [
+              "用于判断事务可见性的快照信息。"
+            ],
+            "components": [
+              "活跃事务集合和事务边界。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "它",
+          "expected_role": "mention",
+          "parent_entity": "MVCC",
+          "attribute_type": "mechanism",
+          "reason": "代词依赖上文，不能成为实体。"
+        },
+        {
+          "text": "该版本",
+          "expected_role": "mention",
+          "parent_entity": "MVCC",
+          "attribute_type": "mechanism",
+          "reason": "指代记录版本，脱离上下文无稳定身份。"
+        }
+      ]
+    },
+    {
+      "case_id": "context_independence_002",
+      "category": "Context Independence",
+      "input_text": "# Redis 分布式锁\n客户端获取锁时写入唯一 token，并设置过期时间。\n\n## 安全释放\n释放时不能直接 DEL，需要先比较 Redis 中保存的值和本地 token。如果相同才删除，否则说明锁已经不属于当前客户端。相同才删除这个短语离开上下文没有独立意义，应作为释放约束。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "Redis 分布式锁",
+          "entity_type": "concept",
+          "aliases": [],
+          "attributes": {
+            "mechanism": [
+              "获取锁时写入唯一 token 并设置过期时间。"
+            ],
+            "constraints": [
+              "释放时需要比较 Redis 中保存的值和本地 token，相同才删除。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "相同才删除",
+          "expected_role": "condition",
+          "parent_entity": "Redis 分布式锁",
+          "attribute_type": "constraints",
+          "reason": "这是释放锁的条件，不是实体。"
+        },
+        {
+          "text": "当前客户端",
+          "expected_role": "mention",
+          "parent_entity": "Redis 分布式锁",
+          "attribute_type": "constraints",
+          "reason": "它依赖锁持有者上下文。"
+        }
+      ]
+    },
+    {
+      "case_id": "context_independence_003",
+      "category": "Context Independence",
+      "input_text": "# HTTP 协商缓存\n协商缓存会在本地副本过期后向服务器验证资源是否变化。客户端可能带上 If-None-Match 或 If-Modified-Since，服务端如果判断资源未变化，就返回 304。未变化和本地副本都是依赖 HTTP 缓存语境的状态描述，不应独立建成实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "HTTP 协商缓存",
+          "entity_type": "concept",
+          "aliases": [],
+          "attributes": {
+            "definition": [
+              "本地缓存过期后向服务器验证资源是否变化的缓存机制。"
+            ],
+            "mechanism": [
+              "客户端带条件请求头，服务端未变化时返回 304。"
+            ],
+            "related": [
+              "If-None-Match",
+              "If-Modified-Since"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "未变化",
+          "expected_role": "condition",
+          "parent_entity": "HTTP 协商缓存",
+          "attribute_type": "mechanism",
+          "reason": "它是服务器验证结果。"
+        },
+        {
+          "text": "本地副本",
+          "expected_role": "mention",
+          "parent_entity": "HTTP 协商缓存",
+          "attribute_type": "components",
+          "reason": "它依赖缓存上下文。"
+        }
+      ]
+    },
+    {
+      "case_id": "context_independence_004",
+      "category": "Context Independence",
+      "input_text": "# 线程池拒绝策略\n线程池在队列已满且线程数达到最大值时，会执行拒绝策略。它可以抛出异常、丢弃任务、丢弃最旧任务或让调用者线程执行。这里的它指拒绝策略，调用者线程执行是策略行为，不是独立实体，应挂到线程池拒绝策略。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "线程池拒绝策略",
+          "entity_type": "method",
+          "aliases": [],
+          "attributes": {
+            "definition": [
+              "线程池无法接收新任务时执行的处理策略。"
+            ],
+            "mechanism": [
+              "可以抛出异常、丢弃任务、丢弃最旧任务或让调用者线程执行。"
+            ],
+            "constraints": [
+              "通常在队列已满且线程数达到最大值时触发。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "它",
+          "expected_role": "mention",
+          "parent_entity": "线程池拒绝策略",
+          "attribute_type": "mechanism",
+          "reason": "代词指代拒绝策略。"
+        },
+        {
+          "text": "调用者线程执行",
+          "expected_role": "attribute",
+          "parent_entity": "线程池拒绝策略",
+          "attribute_type": "mechanism",
+          "reason": "它是拒绝策略的一种行为。"
+        }
+      ]
+    },
+    {
+      "case_id": "context_independence_005",
+      "category": "Context Independence",
+      "input_text": "# Kafka 位移提交\nKafka 消费者处理消息后会提交 offset，用于记录消费进度。自动提交简单但可能在处理完成前记录进度，手动提交更可控。这里的更可控只有在比较自动提交和手动提交时才有意义，不应作为实体；处理完成前也是状态条件。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "Kafka 位移提交",
+          "entity_type": "method",
+          "aliases": [
+            "offset commit"
+          ],
+          "attributes": {
+            "definition": [
+              "消费者提交 offset 记录消费进度的机制。"
+            ],
+            "mechanism": [
+              "可以自动提交或手动提交。"
+            ],
+            "constraints": [
+              "自动提交可能在处理完成前记录进度。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "更可控",
+          "expected_role": "attribute",
+          "parent_entity": "Kafka 位移提交",
+          "attribute_type": "constraints",
+          "reason": "它是手动提交相对自动提交的描述。"
+        },
+        {
+          "text": "处理完成前",
+          "expected_role": "condition",
+          "parent_entity": "Kafka 位移提交",
+          "attribute_type": "constraints",
+          "reason": "它是提交风险条件。"
+        }
+      ]
+    },
+    {
+      "case_id": "context_independence_006",
+      "category": "Context Independence",
+      "input_text": "# 布隆过滤器\n布隆过滤器可以判断元素是否可能存在，但不能保证不存在误判。当所有对应位都是 1 时，它只能说明元素可能存在；如果有任意一位为 0，则元素一定不存在。可能存在和一定不存在都是判断结果，依赖布隆过滤器上下文。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "布隆过滤器",
+          "entity_type": "data_structure",
+          "aliases": [],
+          "attributes": {
+            "definition": [
+              "判断元素是否可能存在的数据结构。"
+            ],
+            "mechanism": [
+              "检查多个哈希位是否都为 1。"
+            ],
+            "constraints": [
+              "可能存在误判，但出现 0 位时可判断一定不存在。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "可能存在",
+          "expected_role": "condition",
+          "parent_entity": "布隆过滤器",
+          "attribute_type": "mechanism",
+          "reason": "它是布隆过滤器查询结果。"
+        },
+        {
+          "text": "一定不存在",
+          "expected_role": "condition",
+          "parent_entity": "布隆过滤器",
+          "attribute_type": "constraints",
+          "reason": "它是位检查后的结论。"
+        }
+      ]
+    },
+    {
+      "case_id": "context_independence_007",
+      "category": "Context Independence",
+      "input_text": "# LRU 缓存\nLRU 缓存会在容量不足时淘汰最近最少使用的数据。每次访问某个 key，都需要把对应节点移动到链表头部。链表头部和对应节点只有在 LRU 的双向链表实现里有意义，不能脱离上下文成为稳定实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "LRU 缓存",
+          "entity_type": "algorithm",
+          "aliases": [
+            "Least Recently Used"
+          ],
+          "attributes": {
+            "definition": [
+              "容量不足时淘汰最近最少使用数据的缓存策略。"
+            ],
+            "mechanism": [
+              "访问 key 时把对应节点移动到链表头部。"
+            ],
+            "components": [
+              "哈希表和双向链表。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "链表头部",
+          "expected_role": "component",
+          "parent_entity": "LRU 缓存",
+          "attribute_type": "mechanism",
+          "reason": "它是 LRU 实现中的位置概念。"
+        },
+        {
+          "text": "对应节点",
+          "expected_role": "mention",
+          "parent_entity": "LRU 缓存",
+          "attribute_type": "mechanism",
+          "reason": "它依赖当前访问 key 的语境。"
+        }
+      ]
+    },
+    {
+      "case_id": "context_independence_008",
+      "category": "Context Independence",
+      "input_text": "# CDN 回源\nCDN 边缘节点缓存未命中时，会向源站请求资源，这个过程称为回源。它会增加源站压力，因此可以通过预热、合理 TTL 和缓存刷新降低频率。这里的它指回源过程，降低频率是优化目标，不是实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "CDN 回源",
+          "entity_type": "process",
+          "aliases": [],
+          "attributes": {
+            "definition": [
+              "边缘节点缓存未命中时向源站请求资源的过程。"
+            ],
+            "constraints": [
+              "回源会增加源站压力。"
+            ],
+            "mechanism": [
+              "可通过预热、合理 TTL 和缓存刷新降低回源频率。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "它",
+          "expected_role": "mention",
+          "parent_entity": "CDN 回源",
+          "attribute_type": "constraints",
+          "reason": "代词指代回源过程。"
+        },
+        {
+          "text": "降低频率",
+          "expected_role": "attribute",
+          "parent_entity": "CDN 回源",
+          "attribute_type": "purpose",
+          "reason": "它是优化目标。"
+        }
+      ]
+    },
+    {
+      "case_id": "context_independence_009",
+      "category": "Context Independence",
+      "input_text": "# Redlock\nRedlock 尝试在多个 Redis 实例上获取锁，并要求在有效时间内获得多数实例成功。多数成功才认为锁获取成功，否则需要释放已经获得的锁。多数成功和已经获得的锁依赖 Redlock 流程上下文，不应独立生成实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "Redlock",
+          "entity_type": "algorithm",
+          "aliases": [],
+          "attributes": {
+            "definition": [
+              "在多个 Redis 实例上尝试获取分布式锁的算法。"
+            ],
+            "mechanism": [
+              "在有效时间内获得多数实例成功才认为获取成功。"
+            ],
+            "constraints": [
+              "失败时需要释放已经获得的锁。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "多数成功",
+          "expected_role": "condition",
+          "parent_entity": "Redlock",
+          "attribute_type": "constraints",
+          "reason": "它是 Redlock 成功条件。"
+        },
+        {
+          "text": "已经获得的锁",
+          "expected_role": "mention",
+          "parent_entity": "Redlock",
+          "attribute_type": "mechanism",
+          "reason": "它依赖失败回滚语境。"
+        }
+      ]
+    },
+    {
+      "case_id": "context_independence_010",
+      "category": "Context Independence",
+      "input_text": "# ReadView\nReadView 保存创建时活跃事务集合以及事务边界，用于判断版本是否可见。如果记录版本的创建事务在集合中，则该版本对当前事务不可见。集合中和当前事务都是上下文依赖表达，应分别作为 ReadView 的组件或可见性判断条件。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "ReadView",
+          "entity_type": "concept",
+          "aliases": [],
+          "attributes": {
+            "definition": [
+              "保存活跃事务集合和事务边界的可见性快照。"
+            ],
+            "components": [
+              "活跃事务集合和事务边界。"
+            ],
+            "mechanism": [
+              "根据记录版本创建事务是否在集合中判断可见性。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "集合中",
+          "expected_role": "condition",
+          "parent_entity": "ReadView",
+          "attribute_type": "mechanism",
+          "reason": "它是可见性判断条件的一部分。"
+        },
+        {
+          "text": "当前事务",
+          "expected_role": "mention",
+          "parent_entity": "ReadView",
+          "attribute_type": "mechanism",
+          "reason": "它依赖事务可见性判断语境。"
+        }
+      ]
+    }
+  ]
+}

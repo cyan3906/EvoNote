@@ -24,7 +24,7 @@ class EvoRAGProcessor:
         self.config = config
         self.llm = llm_client or EvoRAGLLMClient(config)
         self.block_splitter = block_splitter or BlockSplitter(self.llm, config)
-        self.entity_extractor = entity_extractor or EntityExtractor(self.llm)
+        self.entity_extractor = entity_extractor or EntityExtractor(self.llm, config)
 
     async def preprocess(self, text: str) -> EvoRAGPreprocessResult:
         total_started_at = perf_counter()

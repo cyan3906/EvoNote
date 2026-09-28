@@ -27,6 +27,10 @@ class EvoRAGSettings(BaseSettings):
     max_blocks: int = 32
     max_block_chars: int = 1800
 
+    entity_admission_judge_enabled: bool = True
+    entity_admission_judge_model: str = "deepseek-v4-flash-0731"
+    entity_admission_judge_threshold: float = 0.7
+
     default_workspace_id: str = "local"
     default_project_id: str = "evorag"
     default_collection_id: str = "default"

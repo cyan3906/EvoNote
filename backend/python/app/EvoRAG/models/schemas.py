@@ -96,6 +96,21 @@ class EntityAdmissionScore(BaseModel):
         return self
 
 
+class EntityAdmissionJudgeScore(BaseModel):
+    decision: str = Field(default="entity")
+    entity_score: float = Field(default=1.0, ge=0.0, le=1.0)
+    positive_scores: dict[str, float] = Field(default_factory=dict)
+    deductions: dict[str, float] = Field(default_factory=dict)
+    parent_entity: str = ""
+    attribute_type: str = ""
+    reason: str = ""
+
+    @field_validator("decision", "parent_entity", "attribute_type", "reason")
+    @classmethod
+    def clean_judge_text(cls, value: str) -> str:
+        return " ".join(str(value or "").split())
+
+
 class ExtractedEntity(BaseModel):
     name: str
     entity_type: str = Field(default="concept")
@@ -105,6 +120,7 @@ class ExtractedEntity(BaseModel):
         description="Short model-generated description used only for entity identity resolution.",
     )
     admission_score: EntityAdmissionScore = Field(default_factory=EntityAdmissionScore)
+    admission_judge: EntityAdmissionJudgeScore | None = None
     attributes: AttributeBucket = Field(default_factory=AttributeBucket)
 
     @field_validator("name", "entity_type", "identity_description")

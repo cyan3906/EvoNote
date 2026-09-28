@@ -44,6 +44,9 @@ MySQL tables:
 Model settings:
 
 - `EVORAG_INFERENCE_MODEL`: chat/inference model for block splitting, entity extraction, and entity resolution.
+- `EVORAG_ENTITY_ADMISSION_JUDGE_ENABLED`: enables the independent entity-admission judge after entity extraction. Defaults to `true`.
+- `EVORAG_ENTITY_ADMISSION_JUDGE_MODEL`: model used only for entity-admission scoring. Defaults to `deepseek-v4-flash-0731` and reuses `EVORAG_API_BASE_URL` / `EVORAG_API_KEY`.
+- `EVORAG_ENTITY_ADMISSION_JUDGE_THRESHOLD`: minimum judge score required to keep a candidate as an entity. Defaults to `0.7`.
 - `EVORAG_EMBEDDING_MODEL`: embedding model reserved for entity vector generation.
 
 Entity resolution:

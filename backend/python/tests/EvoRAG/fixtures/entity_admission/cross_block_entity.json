@@ -1,0 +1,411 @@
+{
+  "category": "Cross-block Entity",
+  "case_count": 10,
+  "cases": [
+    {
+      "case_id": "cross_block_entity_001",
+      "category": "Cross-block Entity",
+      "input_text": "# MVCC\nMVCC 是 InnoDB 中用于实现一致性读的机制。\n\n## ReadView\nReadView 记录当前活跃事务集合和事务边界。\n\n## 可见性规则\n该机制会根据版本链和 ReadView 判断记录版本是否可见。这里的该机制应回指 MVCC，而不是新建实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "MVCC",
+          "entity_type": "concept",
+          "aliases": [],
+          "attributes": {
+            "definition": [
+              "InnoDB 中用于实现一致性读的机制。"
+            ],
+            "mechanism": [
+              "根据版本链和 ReadView 判断记录版本是否可见。"
+            ],
+            "related": [
+              "ReadView"
+            ]
+          }
+        },
+        {
+          "name": "ReadView",
+          "entity_type": "concept",
+          "aliases": [],
+          "attributes": {
+            "definition": [
+              "记录当前活跃事务集合和事务边界。"
+            ],
+            "related": [
+              "MVCC"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "该机制",
+          "expected_role": "mention",
+          "parent_entity": "MVCC",
+          "attribute_type": "mechanism",
+          "reason": "跨 block 回指 MVCC。"
+        },
+        {
+          "text": "可见性规则",
+          "expected_role": "section_topic",
+          "parent_entity": "MVCC",
+          "attribute_type": "mechanism",
+          "reason": "它是 MVCC 的机制章节。"
+        }
+      ]
+    },
+    {
+      "case_id": "cross_block_entity_002",
+      "category": "Cross-block Entity",
+      "input_text": "# Redis 分布式锁\nRedis 分布式锁通过 SET NX EX 获取锁，并写入唯一 token。\n\n## 续期\n后台线程会检查剩余 TTL，并在需要时延长过期时间。\n\n## 释放\n这个锁释放前必须比较 token，确认仍属于当前客户端。这个锁应回指 Redis 分布式锁。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "Redis 分布式锁",
+          "entity_type": "concept",
+          "aliases": [],
+          "attributes": {
+            "mechanism": [
+              "通过 SET NX EX 获取锁并写入唯一 token。",
+              "后台线程检查 TTL 并续期。"
+            ],
+            "constraints": [
+              "释放前必须比较 token。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "这个锁",
+          "expected_role": "mention",
+          "parent_entity": "Redis 分布式锁",
+          "attribute_type": "constraints",
+          "reason": "跨小节回指 Redis 分布式锁。"
+        },
+        {
+          "text": "释放",
+          "expected_role": "section_topic",
+          "parent_entity": "Redis 分布式锁",
+          "attribute_type": "mechanism",
+          "reason": "它是锁生命周期章节。"
+        }
+      ]
+    },
+    {
+      "case_id": "cross_block_entity_003",
+      "category": "Cross-block Entity",
+      "input_text": "# 布隆过滤器\n布隆过滤器使用位数组和多个哈希函数判断元素是否可能存在。\n\n## 添加\n添加元素时会设置多个哈希位置。\n\n## 查询\n该结构查询时如果有任意对应位为 0，就能判断元素一定不存在。该结构应回指布隆过滤器。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "布隆过滤器",
+          "entity_type": "data_structure",
+          "aliases": [],
+          "attributes": {
+            "definition": [
+              "使用位数组和多个哈希函数判断元素是否可能存在。"
+            ],
+            "mechanism": [
+              "添加时设置多个哈希位置，查询时检查对应位。"
+            ],
+            "constraints": [
+              "任意对应位为 0 可判断元素一定不存在。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "该结构",
+          "expected_role": "mention",
+          "parent_entity": "布隆过滤器",
+          "attribute_type": "mechanism",
+          "reason": "跨 block 回指布隆过滤器。"
+        },
+        {
+          "text": "查询",
+          "expected_role": "section_topic",
+          "parent_entity": "布隆过滤器",
+          "attribute_type": "mechanism",
+          "reason": "它是布隆过滤器操作章节。"
+        }
+      ]
+    },
+    {
+      "case_id": "cross_block_entity_004",
+      "category": "Cross-block Entity",
+      "input_text": "# API 网关\nAPI 网关是客户端访问后端服务的统一入口。\n\n## 鉴权\n它可以校验 token、签名或会话状态。\n\n## 限流\n它也可以按用户或接口限制请求频率。两个它都应回指 API 网关，不能把鉴权或限流当成新实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "API 网关",
+          "entity_type": "system",
+          "aliases": [],
+          "attributes": {
+            "definition": [
+              "客户端访问后端服务的统一入口。"
+            ],
+            "mechanism": [
+              "校验 token、签名或会话状态。",
+              "按用户或接口限制请求频率。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "它",
+          "expected_role": "mention",
+          "parent_entity": "API 网关",
+          "attribute_type": "mechanism",
+          "reason": "跨章节代词回指 API 网关。"
+        },
+        {
+          "text": "限流",
+          "expected_role": "section_topic",
+          "parent_entity": "API 网关",
+          "attribute_type": "mechanism",
+          "reason": "它是网关能力章节。"
+        }
+      ]
+    },
+    {
+      "case_id": "cross_block_entity_005",
+      "category": "Cross-block Entity",
+      "input_text": "# LSM Tree\nLSM Tree 会把写入先放到 MemTable，再刷盘形成 SSTable。\n\n## Compaction\n后台任务会把多层 SSTable 合并，减少查询时需要检查的文件数量。\n\n## 查询\n这种结构读取时可能同时查 MemTable 和多个 SSTable。这种结构回指 LSM Tree。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "LSM Tree",
+          "entity_type": "data_structure",
+          "aliases": [],
+          "attributes": {
+            "definition": [
+              "将写入组织为 MemTable 和 SSTable 的结构。"
+            ],
+            "mechanism": [
+              "后台 compaction 合并多层 SSTable。"
+            ],
+            "constraints": [
+              "读取时可能同时查 MemTable 和多个 SSTable。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "这种结构",
+          "expected_role": "mention",
+          "parent_entity": "LSM Tree",
+          "attribute_type": "constraints",
+          "reason": "跨 block 回指 LSM Tree。"
+        },
+        {
+          "text": "查询",
+          "expected_role": "section_topic",
+          "parent_entity": "LSM Tree",
+          "attribute_type": "constraints",
+          "reason": "它是 LSM Tree 读路径章节。"
+        }
+      ]
+    },
+    {
+      "case_id": "cross_block_entity_006",
+      "category": "Cross-block Entity",
+      "input_text": "# OAuth2 授权码模式\n授权码模式让客户端先获得授权码，再换取访问令牌。\n\n## state\n客户端会在授权请求中带上 state，并在回调时校验。\n\n## PKCE\n该流程还可以使用 code_verifier 和 code_challenge 防止授权码被截获。该流程回指授权码模式。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "OAuth2 授权码模式",
+          "entity_type": "protocol",
+          "aliases": [],
+          "attributes": {
+            "definition": [
+              "客户端先获得授权码再换取访问令牌的流程。"
+            ],
+            "constraints": [
+              "回调时需要校验 state。",
+              "可以使用 PKCE 防止授权码被截获。"
+            ],
+            "related": [
+              "PKCE"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "该流程",
+          "expected_role": "mention",
+          "parent_entity": "OAuth2 授权码模式",
+          "attribute_type": "constraints",
+          "reason": "跨 block 回指授权码模式。"
+        },
+        {
+          "text": "state",
+          "expected_role": "component",
+          "parent_entity": "OAuth2 授权码模式",
+          "attribute_type": "constraints",
+          "reason": "它是流程参数。"
+        }
+      ]
+    },
+    {
+      "case_id": "cross_block_entity_007",
+      "category": "Cross-block Entity",
+      "input_text": "# Kafka 消费者组\n消费者组让多个消费者协同消费同一 topic 的多个分区。\n\n## 分区分配\n协调器会把分区分配给组内成员。\n\n## 位移提交\n该组处理消息后提交 offset，用来记录消费进度。该组应回指 Kafka 消费者组，而不是新实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "Kafka 消费者组",
+          "entity_type": "system",
+          "aliases": [
+            "Consumer Group"
+          ],
+          "attributes": {
+            "definition": [
+              "多个消费者协同消费同一 topic 分区的机制。"
+            ],
+            "mechanism": [
+              "协调器把分区分配给组内成员。",
+              "处理消息后提交 offset 记录消费进度。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "该组",
+          "expected_role": "mention",
+          "parent_entity": "Kafka 消费者组",
+          "attribute_type": "mechanism",
+          "reason": "跨 block 回指消费者组。"
+        },
+        {
+          "text": "位移提交",
+          "expected_role": "section_topic",
+          "parent_entity": "Kafka 消费者组",
+          "attribute_type": "mechanism",
+          "reason": "它是消费者组消费进度章节。"
+        }
+      ]
+    },
+    {
+      "case_id": "cross_block_entity_008",
+      "category": "Cross-block Entity",
+      "input_text": "# JWT\nJWT 是一种由 header、payload 和 signature 组成的令牌格式。\n\n## 过期时间\npayload 中的 exp 可以限制令牌有效期。\n\n## 签名校验\n服务端验证签名，确认令牌没有被篡改。该令牌应回指 JWT，过期时间和签名校验只是属性章节。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "JWT",
+          "entity_type": "protocol",
+          "aliases": [
+            "JSON Web Token"
+          ],
+          "attributes": {
+            "definition": [
+              "由 header、payload 和 signature 组成的令牌格式。"
+            ],
+            "constraints": [
+              "exp 可以限制令牌有效期。"
+            ],
+            "mechanism": [
+              "服务端验证签名确认令牌未被篡改。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "该令牌",
+          "expected_role": "mention",
+          "parent_entity": "JWT",
+          "attribute_type": "mechanism",
+          "reason": "跨 block 回指 JWT。"
+        },
+        {
+          "text": "签名校验",
+          "expected_role": "section_topic",
+          "parent_entity": "JWT",
+          "attribute_type": "mechanism",
+          "reason": "它是 JWT 验证机制章节。"
+        }
+      ]
+    },
+    {
+      "case_id": "cross_block_entity_009",
+      "category": "Cross-block Entity",
+      "input_text": "# Kubernetes Deployment\nDeployment 声明期望的 Pod 副本数，并由控制器持续协调实际状态。\n\n## 滚动更新\n控制器逐步创建新 Pod 并删除旧 Pod。\n\n## 回滚\n这个资源可以回到历史 ReplicaSet。这个资源应回指 Deployment，回滚是能力属性。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "Kubernetes Deployment",
+          "entity_type": "system",
+          "aliases": [
+            "Deployment"
+          ],
+          "attributes": {
+            "definition": [
+              "声明期望 Pod 副本数并由控制器协调状态的资源。"
+            ],
+            "mechanism": [
+              "滚动更新时逐步创建新 Pod 并删除旧 Pod。"
+            ],
+            "constraints": [
+              "可以回到历史 ReplicaSet。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "这个资源",
+          "expected_role": "mention",
+          "parent_entity": "Kubernetes Deployment",
+          "attribute_type": "constraints",
+          "reason": "跨 block 回指 Deployment。"
+        },
+        {
+          "text": "回滚",
+          "expected_role": "section_topic",
+          "parent_entity": "Kubernetes Deployment",
+          "attribute_type": "constraints",
+          "reason": "它是 Deployment 恢复能力章节。"
+        }
+      ]
+    },
+    {
+      "case_id": "cross_block_entity_010",
+      "category": "Cross-block Entity",
+      "input_text": "# HTTP 缓存\nHTTP 缓存通过本地副本减少重复网络传输。\n\n## 强缓存\n浏览器可以在未过期时直接使用本地副本。\n\n## 协商缓存\n它过期后会向服务器验证资源是否变化。它在第二个小节里仍然指 HTTP 缓存，不是新实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "HTTP 缓存",
+          "entity_type": "concept",
+          "aliases": [],
+          "attributes": {
+            "purpose": [
+              "减少重复网络传输。"
+            ],
+            "mechanism": [
+              "未过期时直接使用本地副本，过期后向服务器验证资源是否变化。"
+            ],
+            "related": [
+              "强缓存",
+              "协商缓存"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "它",
+          "expected_role": "mention",
+          "parent_entity": "HTTP 缓存",
+          "attribute_type": "mechanism",
+          "reason": "跨 block 回指 HTTP 缓存。"
+        },
+        {
+          "text": "协商缓存",
+          "expected_role": "section_topic",
+          "parent_entity": "HTTP 缓存",
+          "attribute_type": "mechanism",
+          "reason": "它是 HTTP 缓存的子机制章节。"
+        }
+      ]
+    }
+  ]
+}

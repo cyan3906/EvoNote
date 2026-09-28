@@ -1,0 +1,386 @@
+{
+  "category": "Entity vs Process Step",
+  "case_count": 10,
+  "cases": [
+    {
+      "case_id": "entity_vs_process_step_001",
+      "category": "Entity vs Process Step",
+      "input_text": "# CI 持续集成\nCI 持续集成用于在代码提交后自动验证项目状态。一次流水线通常包括拉取代码、安装依赖、执行静态检查、编译打包、运行测试和生成报告。本文重点是 CI 这个自动化过程，单个动作只是 mechanism 的步骤，不应该把拉取代码或生成报告当成实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "CI 持续集成",
+          "entity_type": "process",
+          "aliases": [
+            "CI"
+          ],
+          "attributes": {
+            "purpose": [
+              "在代码提交后自动验证项目状态。"
+            ],
+            "mechanism": [
+              "拉取代码、安装依赖、静态检查、编译打包、运行测试和生成报告。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "拉取代码",
+          "expected_role": "step",
+          "parent_entity": "CI 持续集成",
+          "attribute_type": "mechanism",
+          "reason": "它是 CI 流水线步骤。"
+        },
+        {
+          "text": "生成报告",
+          "expected_role": "step",
+          "parent_entity": "CI 持续集成",
+          "attribute_type": "mechanism",
+          "reason": "它是流水线的输出步骤。"
+        }
+      ]
+    },
+    {
+      "case_id": "entity_vs_process_step_002",
+      "category": "Entity vs Process Step",
+      "input_text": "# Redis 分布式锁获取流程\n客户端获取 Redis 分布式锁时，会生成 token，执行 SET key token NX EX ttl，判断返回结果，成功后进入业务逻辑，失败则等待或重试。这些动作共同描述获取锁流程。生成 token、执行 SET、判断结果都只是过程步骤，不是独立实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "Redis 分布式锁获取流程",
+          "entity_type": "process",
+          "aliases": [],
+          "attributes": {
+            "definition": [
+              "客户端尝试获取 Redis 分布式锁的流程。"
+            ],
+            "mechanism": [
+              "生成 token，执行 SET NX EX，判断结果，失败后等待或重试。"
+            ],
+            "related": [
+              "Redis 分布式锁"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "生成 token",
+          "expected_role": "step",
+          "parent_entity": "Redis 分布式锁获取流程",
+          "attribute_type": "mechanism",
+          "reason": "它是获取锁流程中的步骤。"
+        },
+        {
+          "text": "判断结果",
+          "expected_role": "step",
+          "parent_entity": "Redis 分布式锁获取流程",
+          "attribute_type": "mechanism",
+          "reason": "它描述流程控制动作。"
+        }
+      ]
+    },
+    {
+      "case_id": "entity_vs_process_step_003",
+      "category": "Entity vs Process Step",
+      "input_text": "# 订单支付流程\n订单支付流程会先创建支付单，再调用第三方支付网关，随后等待回调、校验签名、更新订单状态并发送通知。创建支付单和校验签名都很重要，但在这段文本里它们不是知识主体，而是订单支付流程的有序步骤。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "订单支付流程",
+          "entity_type": "process",
+          "aliases": [],
+          "attributes": {
+            "mechanism": [
+              "创建支付单、调用支付网关、等待回调、校验签名、更新订单状态并发送通知。"
+            ],
+            "constraints": [
+              "回调需要校验签名后才能更新订单状态。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "创建支付单",
+          "expected_role": "step",
+          "parent_entity": "订单支付流程",
+          "attribute_type": "mechanism",
+          "reason": "它是支付流程步骤。"
+        },
+        {
+          "text": "校验签名",
+          "expected_role": "step",
+          "parent_entity": "订单支付流程",
+          "attribute_type": "constraints",
+          "reason": "它是安全校验动作。"
+        }
+      ]
+    },
+    {
+      "case_id": "entity_vs_process_step_004",
+      "category": "Entity vs Process Step",
+      "input_text": "# Docker 镜像构建\nDocker 镜像构建通常先读取 Dockerfile，然后拉取基础镜像，复制项目文件，安装依赖，执行构建命令，最后生成镜像层。读取 Dockerfile、复制文件、安装依赖都是构建过程的步骤，除非文本专门解释 Dockerfile，否则不应该作为实体输出。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "Docker 镜像构建",
+          "entity_type": "process",
+          "aliases": [],
+          "attributes": {
+            "definition": [
+              "根据 Dockerfile 生成镜像层的构建过程。"
+            ],
+            "mechanism": [
+              "读取 Dockerfile、拉取基础镜像、复制文件、安装依赖并执行构建命令。"
+            ],
+            "related": [
+              "Dockerfile"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "复制项目文件",
+          "expected_role": "step",
+          "parent_entity": "Docker 镜像构建",
+          "attribute_type": "mechanism",
+          "reason": "它是镜像构建步骤。"
+        },
+        {
+          "text": "安装依赖",
+          "expected_role": "step",
+          "parent_entity": "Docker 镜像构建",
+          "attribute_type": "mechanism",
+          "reason": "它是构建动作。"
+        }
+      ]
+    },
+    {
+      "case_id": "entity_vs_process_step_005",
+      "category": "Entity vs Process Step",
+      "input_text": "# OAuth2 授权码流程\n授权码流程中，用户先跳转到授权服务器登录并授权，服务器返回授权码，客户端再用授权码换取访问令牌。跳转登录、返回授权码、换取令牌是流程步骤。真正应保留为实体的是 OAuth2 授权码流程，而不是每个动作。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "OAuth2 授权码流程",
+          "entity_type": "process",
+          "aliases": [
+            "OAuth2 授权码模式"
+          ],
+          "attributes": {
+            "mechanism": [
+              "用户授权后返回授权码，客户端用授权码换取访问令牌。"
+            ],
+            "constraints": [
+              "客户端应校验 state 并保护授权码。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "跳转登录",
+          "expected_role": "step",
+          "parent_entity": "OAuth2 授权码流程",
+          "attribute_type": "mechanism",
+          "reason": "它是授权交互步骤。"
+        },
+        {
+          "text": "换取令牌",
+          "expected_role": "step",
+          "parent_entity": "OAuth2 授权码流程",
+          "attribute_type": "mechanism",
+          "reason": "它是流程动作。"
+        }
+      ]
+    },
+    {
+      "case_id": "entity_vs_process_step_006",
+      "category": "Entity vs Process Step",
+      "input_text": "# 消息重试流程\n消息消费失败后，系统会记录失败原因，增加重试次数，延迟重新投递，超过最大次数后写入死信队列。记录失败、增加次数、延迟投递和进入死信都是同一个重试流程的步骤，不应让每个步骤都变成实体节点。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "消息重试流程",
+          "entity_type": "process",
+          "aliases": [],
+          "attributes": {
+            "purpose": [
+              "处理消息消费失败后的恢复路径。"
+            ],
+            "mechanism": [
+              "记录失败、增加重试次数、延迟投递，超过上限后进入死信队列。"
+            ],
+            "constraints": [
+              "超过最大次数后写入死信队列。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "记录失败原因",
+          "expected_role": "step",
+          "parent_entity": "消息重试流程",
+          "attribute_type": "mechanism",
+          "reason": "它是重试流程步骤。"
+        },
+        {
+          "text": "延迟重新投递",
+          "expected_role": "step",
+          "parent_entity": "消息重试流程",
+          "attribute_type": "mechanism",
+          "reason": "它是重试调度动作。"
+        }
+      ]
+    },
+    {
+      "case_id": "entity_vs_process_step_007",
+      "category": "Entity vs Process Step",
+      "input_text": "# 数据库迁移流程\n数据库迁移通常先备份数据，再执行 schema 变更，随后校验行数和关键查询，最后切换应用版本。备份数据、执行变更、校验结果和切换版本是迁移流程的阶段。除非单独说明备份系统，否则这些阶段不应作为实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "数据库迁移流程",
+          "entity_type": "process",
+          "aliases": [],
+          "attributes": {
+            "mechanism": [
+              "备份数据、执行 schema 变更、校验结果并切换应用版本。"
+            ],
+            "constraints": [
+              "迁移前需要备份，迁移后需要校验。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "备份数据",
+          "expected_role": "step",
+          "parent_entity": "数据库迁移流程",
+          "attribute_type": "constraints",
+          "reason": "它是迁移前置步骤。"
+        },
+        {
+          "text": "切换应用版本",
+          "expected_role": "step",
+          "parent_entity": "数据库迁移流程",
+          "attribute_type": "mechanism",
+          "reason": "它是发布阶段动作。"
+        }
+      ]
+    },
+    {
+      "case_id": "entity_vs_process_step_008",
+      "category": "Entity vs Process Step",
+      "input_text": "# 缓存预热流程\n缓存预热会在服务上线前读取热点 key，查询后端数据源，把结果写入缓存，并记录失败项供后续补偿。读取热点 key、查询数据源和写入缓存只是预热流程的动作。它们可以作为 mechanism 属性，不应该各自成为实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "缓存预热流程",
+          "entity_type": "process",
+          "aliases": [
+            "缓存预热"
+          ],
+          "attributes": {
+            "purpose": [
+              "在服务上线前提前填充热点缓存。"
+            ],
+            "mechanism": [
+              "读取热点 key、查询数据源、写入缓存并记录失败项。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "读取热点 key",
+          "expected_role": "step",
+          "parent_entity": "缓存预热流程",
+          "attribute_type": "mechanism",
+          "reason": "它是预热流程步骤。"
+        },
+        {
+          "text": "写入缓存",
+          "expected_role": "step",
+          "parent_entity": "缓存预热流程",
+          "attribute_type": "mechanism",
+          "reason": "它是结果写入动作。"
+        }
+      ]
+    },
+    {
+      "case_id": "entity_vs_process_step_009",
+      "category": "Entity vs Process Step",
+      "input_text": "# 蓝绿发布流程\n蓝绿发布会准备一套新环境，部署新版本，执行健康检查，然后将流量从旧环境切换到新环境。准备环境、部署版本、健康检查和切流都是发布流程中的步骤。它们可以帮助描述蓝绿发布，但不应被系统创建为同级实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "蓝绿发布流程",
+          "entity_type": "process",
+          "aliases": [
+            "蓝绿发布"
+          ],
+          "attributes": {
+            "definition": [
+              "通过新旧两套环境切换流量的发布流程。"
+            ],
+            "mechanism": [
+              "准备新环境、部署版本、健康检查并切换流量。"
+            ],
+            "constraints": [
+              "切流前需要健康检查通过。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "准备新环境",
+          "expected_role": "step",
+          "parent_entity": "蓝绿发布流程",
+          "attribute_type": "mechanism",
+          "reason": "它是发布准备步骤。"
+        },
+        {
+          "text": "切换流量",
+          "expected_role": "step",
+          "parent_entity": "蓝绿发布流程",
+          "attribute_type": "mechanism",
+          "reason": "它是蓝绿发布动作。"
+        }
+      ]
+    },
+    {
+      "case_id": "entity_vs_process_step_010",
+      "category": "Entity vs Process Step",
+      "input_text": "# 日志采集流程\n日志采集流程会在应用端写入日志，采集代理读取文件，按批次发送到队列，再由后端解析、索引并存储。写入日志、读取文件、发送队列、解析字段都是过程动作。预期只把日志采集流程作为实体，步骤进入 mechanism。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "日志采集流程",
+          "entity_type": "process",
+          "aliases": [],
+          "attributes": {
+            "definition": [
+              "从应用日志产生到后端索引存储的采集过程。"
+            ],
+            "mechanism": [
+              "写入日志、代理读取文件、批量发送队列、后端解析索引并存储。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "读取文件",
+          "expected_role": "step",
+          "parent_entity": "日志采集流程",
+          "attribute_type": "mechanism",
+          "reason": "它是采集代理步骤。"
+        },
+        {
+          "text": "解析字段",
+          "expected_role": "step",
+          "parent_entity": "日志采集流程",
+          "attribute_type": "mechanism",
+          "reason": "它是后端处理动作。"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,465 @@
+{
+  "category": "Ambiguous Entity",
+  "case_count": 10,
+  "cases": [
+    {
+      "case_id": "ambiguous_entity_001",
+      "category": "Ambiguous Entity",
+      "input_text": "# Transformer 模型\nTransformer 是一种基于自注意力机制的神经网络架构，常用于机器翻译和大语言模型。\n\n# Transformer 变压器\nTransformer 在电力系统中用于改变交流电压。两个标题都叫 Transformer，但领域、定义和属性完全不同，实体库不能把模型和电气设备合并。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "Transformer 模型",
+          "entity_type": "concept",
+          "aliases": [
+            "Transformer"
+          ],
+          "attributes": {
+            "definition": [
+              "基于自注意力机制的神经网络架构。"
+            ],
+            "purpose": [
+              "用于机器翻译和大语言模型。"
+            ]
+          }
+        },
+        {
+          "name": "Transformer 变压器",
+          "entity_type": "component",
+          "aliases": [
+            "Transformer"
+          ],
+          "attributes": {
+            "definition": [
+              "用于改变交流电压的电力设备。"
+            ],
+            "related": [
+              "电力系统"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "Transformer",
+          "expected_role": "mention",
+          "parent_entity": "Transformer 模型",
+          "attribute_type": "related",
+          "reason": "同名词需要依上下文区分，不能直接合并。"
+        }
+      ]
+    },
+    {
+      "case_id": "ambiguous_entity_002",
+      "category": "Ambiguous Entity",
+      "input_text": "# Java Bean\nJava Bean 是 Java 中遵循属性、getter/setter 和无参构造约定的组件对象。\n\n# Spring Bean\nSpring Bean 是由 Spring 容器创建和管理的对象。两个概念都叫 Bean，但一个强调 Java 规范约定，一个强调 Spring 容器生命周期，不能因名称相似而合并。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "Java Bean",
+          "entity_type": "concept",
+          "aliases": [],
+          "attributes": {
+            "definition": [
+              "遵循属性、getter/setter 和无参构造约定的 Java 组件对象。"
+            ],
+            "constraints": [
+              "依赖 Java Bean 命名和构造约定。"
+            ]
+          }
+        },
+        {
+          "name": "Spring Bean",
+          "entity_type": "component",
+          "aliases": [],
+          "attributes": {
+            "definition": [
+              "由 Spring 容器创建和管理的对象。"
+            ],
+            "mechanism": [
+              "生命周期由 Spring 容器管理。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "Bean",
+          "expected_role": "mention",
+          "parent_entity": "Java Bean",
+          "attribute_type": "related",
+          "reason": "裸词 Bean 在该文本中有两个不同指向。"
+        }
+      ]
+    },
+    {
+      "case_id": "ambiguous_entity_003",
+      "category": "Ambiguous Entity",
+      "input_text": "# Cache 行\n在 CPU 缓存中，cache line 是缓存和内存交换数据的基本单位。\n\n# Redis Cache\n在系统架构里，cache 常指 Redis 或本地缓存层，用来减少数据库访问。两个 cache 分别属于硬件存储层次和应用缓存层，不能只按同名合并。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "Cache 行",
+          "entity_type": "component",
+          "aliases": [
+            "cache line"
+          ],
+          "attributes": {
+            "definition": [
+              "CPU 缓存和内存交换数据的基本单位。"
+            ],
+            "related": [
+              "CPU 缓存"
+            ]
+          }
+        },
+        {
+          "name": "Redis Cache",
+          "entity_type": "system",
+          "aliases": [
+            "cache"
+          ],
+          "attributes": {
+            "definition": [
+              "用于减少数据库访问的应用缓存层。"
+            ],
+            "related": [
+              "Redis",
+              "数据库"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "cache",
+          "expected_role": "mention",
+          "parent_entity": "Redis Cache",
+          "attribute_type": "related",
+          "reason": "cache 在硬件和应用领域含义不同。"
+        }
+      ]
+    },
+    {
+      "case_id": "ambiguous_entity_004",
+      "category": "Ambiguous Entity",
+      "input_text": "# Router 路由器\n网络设备中的 Router 负责转发 IP 数据包，并根据路由表选择下一跳。\n\n# React Router\nReact Router 是前端应用中的路由库，用于把 URL 映射到组件视图。Router 在两段文本里分别是网络设备和前端库，不能合并为单个实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "Router 路由器",
+          "entity_type": "component",
+          "aliases": [
+            "Router"
+          ],
+          "attributes": {
+            "definition": [
+              "根据路由表转发 IP 数据包的网络设备。"
+            ],
+            "mechanism": [
+              "选择下一跳并转发数据包。"
+            ]
+          }
+        },
+        {
+          "name": "React Router",
+          "entity_type": "method",
+          "aliases": [
+            "Router"
+          ],
+          "attributes": {
+            "definition": [
+              "前端应用中把 URL 映射到组件视图的路由库。"
+            ],
+            "related": [
+              "React"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "Router",
+          "expected_role": "mention",
+          "parent_entity": "Router 路由器",
+          "attribute_type": "related",
+          "reason": "同名 Router 需要结合领域消歧。"
+        }
+      ]
+    },
+    {
+      "case_id": "ambiguous_entity_005",
+      "category": "Ambiguous Entity",
+      "input_text": "# Channel 通道\nGo 语言中的 channel 用于 goroutine 之间传递数据，可以是有缓冲或无缓冲。\n\n# 消息 Channel\n消息系统里 channel 可能指逻辑消息通道，用于隔离业务主题。两处 channel 的运行机制不同，一个是语言并发原语，一个是消息系统概念。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "Go channel",
+          "entity_type": "component",
+          "aliases": [
+            "channel"
+          ],
+          "attributes": {
+            "definition": [
+              "Go 中用于 goroutine 间传递数据的并发原语。"
+            ],
+            "constraints": [
+              "可以有缓冲或无缓冲。"
+            ]
+          }
+        },
+        {
+          "name": "消息 Channel",
+          "entity_type": "concept",
+          "aliases": [
+            "channel"
+          ],
+          "attributes": {
+            "definition": [
+              "消息系统中隔离业务主题的逻辑通道。"
+            ],
+            "purpose": [
+              "隔离业务消息。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "channel",
+          "expected_role": "mention",
+          "parent_entity": "Go channel",
+          "attribute_type": "related",
+          "reason": "同名 channel 在语言和消息系统中含义不同。"
+        }
+      ]
+    },
+    {
+      "case_id": "ambiguous_entity_006",
+      "category": "Ambiguous Entity",
+      "input_text": "# Token 认证令牌\n认证系统中的 token 用于表示用户身份或授权范围，常带有过期时间。\n\n# Redis 锁 token\nRedis 分布式锁中的 token 用于标识锁持有者，释放锁前需要比对它。两个 token 都叫 token，但一个是认证凭据，一个是锁所有权标记，不应合并。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "认证 token",
+          "entity_type": "concept",
+          "aliases": [
+            "token"
+          ],
+          "attributes": {
+            "definition": [
+              "表示用户身份或授权范围的认证凭据。"
+            ],
+            "constraints": [
+              "通常带有过期时间。"
+            ]
+          }
+        },
+        {
+          "name": "Redis 锁 token",
+          "entity_type": "component",
+          "aliases": [
+            "token"
+          ],
+          "attributes": {
+            "definition": [
+              "Redis 分布式锁中标识锁持有者的值。"
+            ],
+            "mechanism": [
+              "释放锁前需要比对 token。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "token",
+          "expected_role": "mention",
+          "parent_entity": "Redis 锁 token",
+          "attribute_type": "related",
+          "reason": "token 在认证和锁场景中语义不同。"
+        }
+      ]
+    },
+    {
+      "case_id": "ambiguous_entity_007",
+      "category": "Ambiguous Entity",
+      "input_text": "# Segment 段寄存器\n在 x86 架构中，segment 可以指内存分段相关的段寄存器或段描述。\n\n# Kafka Segment\nKafka 日志中 segment 是按大小或时间滚动生成的日志文件片段。两个 Segment 都有分段含义，但一个属于 CPU 内存模型，一个属于日志存储，不应合并。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "Segment 段寄存器",
+          "entity_type": "component",
+          "aliases": [
+            "segment"
+          ],
+          "attributes": {
+            "definition": [
+              "x86 内存分段相关的段寄存器或段描述。"
+            ],
+            "related": [
+              "x86"
+            ]
+          }
+        },
+        {
+          "name": "Kafka Segment",
+          "entity_type": "component",
+          "aliases": [
+            "segment"
+          ],
+          "attributes": {
+            "definition": [
+              "Kafka 日志按大小或时间滚动生成的文件片段。"
+            ],
+            "related": [
+              "Kafka 日志"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "Segment",
+          "expected_role": "mention",
+          "parent_entity": "Kafka Segment",
+          "attribute_type": "related",
+          "reason": "同名词跨 CPU 和 Kafka 两个领域。"
+        }
+      ]
+    },
+    {
+      "case_id": "ambiguous_entity_008",
+      "category": "Ambiguous Entity",
+      "input_text": "# Shell 外壳程序\n操作系统中的 shell 是用户与系统交互的命令解释器。\n\n# Shell 电子层\n化学中 shell 可以指电子壳层，用于描述原子中电子的能级分布。两个 shell 分别属于操作系统和化学语境，应根据领域分开建实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "Shell 外壳程序",
+          "entity_type": "system",
+          "aliases": [
+            "shell"
+          ],
+          "attributes": {
+            "definition": [
+              "用户与操作系统交互的命令解释器。"
+            ],
+            "related": [
+              "操作系统"
+            ]
+          }
+        },
+        {
+          "name": "Shell 电子层",
+          "entity_type": "concept",
+          "aliases": [
+            "shell"
+          ],
+          "attributes": {
+            "definition": [
+              "原子中描述电子能级分布的壳层。"
+            ],
+            "related": [
+              "化学"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "shell",
+          "expected_role": "mention",
+          "parent_entity": "Shell 外壳程序",
+          "attribute_type": "related",
+          "reason": "同名 shell 需要按学科消歧。"
+        }
+      ]
+    },
+    {
+      "case_id": "ambiguous_entity_009",
+      "category": "Ambiguous Entity",
+      "input_text": "# Queue 数据结构\n队列是一种先进先出的数据结构，常用于广度优先搜索和任务排队。\n\n# 消息队列\n消息队列是用于异步解耦和削峰填谷的中间件系统。Queue 和消息队列名称相近，但一个是抽象数据结构，一个是分布式中间件，不能合并。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "Queue 数据结构",
+          "entity_type": "data_structure",
+          "aliases": [
+            "队列"
+          ],
+          "attributes": {
+            "definition": [
+              "先进先出的数据结构。"
+            ],
+            "purpose": [
+              "用于广度优先搜索和任务排队。"
+            ]
+          }
+        },
+        {
+          "name": "消息队列",
+          "entity_type": "system",
+          "aliases": [
+            "Message Queue"
+          ],
+          "attributes": {
+            "definition": [
+              "用于异步解耦和削峰填谷的中间件系统。"
+            ],
+            "purpose": [
+              "异步解耦和削峰填谷。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "队列",
+          "expected_role": "mention",
+          "parent_entity": "Queue 数据结构",
+          "attribute_type": "related",
+          "reason": "队列在数据结构和中间件中粒度不同。"
+        }
+      ]
+    },
+    {
+      "case_id": "ambiguous_entity_010",
+      "category": "Ambiguous Entity",
+      "input_text": "# Driver 设备驱动\n操作系统中的 driver 负责让内核与硬件设备通信。\n\n# JDBC Driver\nJDBC Driver 是 Java 应用连接数据库的驱动实现。两个 Driver 都叫驱动，但一个面向硬件设备，一个面向数据库协议，实体库应保留两个独立实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "Driver 设备驱动",
+          "entity_type": "component",
+          "aliases": [
+            "driver"
+          ],
+          "attributes": {
+            "definition": [
+              "让操作系统内核与硬件设备通信的组件。"
+            ],
+            "related": [
+              "操作系统",
+              "硬件设备"
+            ]
+          }
+        },
+        {
+          "name": "JDBC Driver",
+          "entity_type": "component",
+          "aliases": [
+            "driver"
+          ],
+          "attributes": {
+            "definition": [
+              "Java 应用连接数据库的驱动实现。"
+            ],
+            "related": [
+              "JDBC",
+              "数据库"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "driver",
+          "expected_role": "mention",
+          "parent_entity": "JDBC Driver",
+          "attribute_type": "related",
+          "reason": "同名 driver 在硬件和数据库场景中不同。"
+        }
+      ]
+    }
+  ]
+}

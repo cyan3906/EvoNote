@@ -78,6 +78,41 @@ async def extract_text(request: EvoRAGIngestRequest) -> EvoRAGPreprocessResult:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
 
 
+@router.post("/debug/extract")
+async def debug_extract_text(request: EvoRAGIngestRequest) -> dict[str, object]:
+    try:
+        preprocess = await EvoRAGProcessor().preprocess(request.text)
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+
+    return debug_extract_payload(preprocess)
+
+
+def debug_extract_payload(preprocess: EvoRAGPreprocessResult) -> dict[str, object]:
+    block_split_blocks: list[dict[str, object]] = []
+    entity_extraction_blocks: list[dict[str, object]] = []
+
+    for block_result in preprocess.blocks:
+        block = block_result.block.model_dump()
+        block_split_blocks.append(block)
+        entity_extraction_blocks.append(
+            {
+                "block_index": block_result.block.block_index,
+                "heading": block_result.block.heading,
+                "anchor_entity": block_result.block.anchor_entity,
+                "entities": [entity.model_dump() for entity in block_result.entities],
+                "warnings": list(block_result.warnings),
+            }
+        )
+
+    return {
+        "input_text": preprocess.input_text,
+        "block_split": {"blocks": block_split_blocks},
+        "entity_extraction": {"blocks": entity_extraction_blocks},
+        "timings": preprocess.timings,
+    }
+
+
 @router.post("/ingest", response_model=EvoRAGIngestResponse)
 async def ingest_text(request: EvoRAGIngestRequest) -> EvoRAGIngestResponse:
     scope = to_scope(request.scope)

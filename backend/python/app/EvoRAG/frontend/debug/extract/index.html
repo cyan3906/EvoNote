@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>EvoRAG 抽取调试</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="debug-shell">
+      <header class="topbar">
+        <div>
+          <h1>EvoRAG 抽取调试</h1>
+          <p>Block 切分与实体抽取单点测试</p>
+        </div>
+        <form id="auth-form" class="auth-form">
+          <span id="auth-state">未登录</span>
+          <input id="password" type="password" autocomplete="current-password" placeholder="开发密码" />
+          <button type="submit">登录</button>
+        </form>
+      </header>
+
+      <section class="input-band">
+        <label for="knowledge-text">测试文本</label>
+        <textarea id="knowledge-text" spellcheck="false" placeholder="粘贴一段要测试的知识文本"></textarea>
+        <div class="action-row">
+          <button id="extract-btn" type="button">运行抽取</button>
+          <button id="clear-btn" type="button" class="secondary-button">清空</button>
+          <span id="status-line" class="status-line"></span>
+        </div>
+      </section>
+
+      <section class="summary-strip" id="summary-strip"></section>
+
+      <section class="result-grid">
+        <div class="result-panel">
+          <header>
+            <h2>Block 切分</h2>
+            <span id="block-count">0</span>
+          </header>
+          <div id="block-output" class="output-list"></div>
+        </div>
+
+        <div class="result-panel">
+          <header>
+            <h2>实体抽取</h2>
+            <span id="entity-count">0</span>
+          </header>
+          <div id="entity-output" class="output-list"></div>
+        </div>
+      </section>
+
+      <details class="raw-panel">
+        <summary>原始 JSON</summary>
+        <pre id="raw-json"></pre>
+      </details>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

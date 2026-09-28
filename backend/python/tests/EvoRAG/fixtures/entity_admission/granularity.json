@@ -1,0 +1,414 @@
+{
+  "category": "Granularity",
+  "case_count": 10,
+  "cases": [
+    {
+      "case_id": "granularity_001",
+      "category": "Granularity",
+      "input_text": "# InnoDB MVCC\nMVCC 依赖 ReadView 判断记录版本是否可见。ReadView 中保存 m_ids、min_trx_id、max_trx_id 和 creator_trx_id 等字段。测试重点是实体粒度：MVCC 和 ReadView 可以作为稳定实体，m_ids、min_trx_id 这类字段更适合作为 ReadView 的组成属性。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "MVCC",
+          "entity_type": "concept",
+          "aliases": [],
+          "attributes": {
+            "definition": [
+              "依赖 ReadView 判断记录版本可见性的并发控制机制。"
+            ],
+            "related": [
+              "ReadView"
+            ]
+          }
+        },
+        {
+          "name": "ReadView",
+          "entity_type": "concept",
+          "aliases": [],
+          "attributes": {
+            "definition": [
+              "用于判断记录版本可见性的快照结构。"
+            ],
+            "components": [
+              "m_ids、min_trx_id、max_trx_id 和 creator_trx_id。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "m_ids",
+          "expected_role": "component",
+          "parent_entity": "ReadView",
+          "attribute_type": "components",
+          "reason": "它是 ReadView 字段，粒度过细。"
+        },
+        {
+          "text": "min_trx_id",
+          "expected_role": "component",
+          "parent_entity": "ReadView",
+          "attribute_type": "components",
+          "reason": "它是 ReadView 边界字段。"
+        }
+      ]
+    },
+    {
+      "case_id": "granularity_002",
+      "category": "Granularity",
+      "input_text": "# TCP 三次握手\nTCP 三次握手用于在客户端和服务端之间建立可靠连接。过程中会交换 SYN、SYN-ACK 和 ACK 报文，并初始化序列号。三次握手是稳定过程实体，SYN 标志位、ACK 标志位和初始序列号是协议字段或组件，不应全部提升为同级实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "TCP 三次握手",
+          "entity_type": "process",
+          "aliases": [],
+          "attributes": {
+            "purpose": [
+              "在客户端和服务端之间建立可靠连接。"
+            ],
+            "mechanism": [
+              "交换 SYN、SYN-ACK 和 ACK 报文并初始化序列号。"
+            ],
+            "related": [
+              "TCP"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "SYN 标志位",
+          "expected_role": "component",
+          "parent_entity": "TCP 三次握手",
+          "attribute_type": "components",
+          "reason": "它是握手报文中的字段。"
+        },
+        {
+          "text": "初始序列号",
+          "expected_role": "component",
+          "parent_entity": "TCP 三次握手",
+          "attribute_type": "components",
+          "reason": "它是连接建立时交换的协议值。"
+        }
+      ]
+    },
+    {
+      "case_id": "granularity_003",
+      "category": "Granularity",
+      "input_text": "# HashMap\nHashMap 使用数组、链表和红黑树组织键值对。负载因子控制扩容阈值，链表长度超过阈值且数组足够大时可能树化。HashMap 是实体，数组和红黑树在某些文本中可以是实体，但此处重点是 HashMap 结构，负载因子和树化阈值应作为属性。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "HashMap",
+          "entity_type": "data_structure",
+          "aliases": [],
+          "attributes": {
+            "definition": [
+              "组织键值对的数据结构。"
+            ],
+            "components": [
+              "数组、链表和红黑树。"
+            ],
+            "constraints": [
+              "负载因子控制扩容阈值，链表长度超过阈值且数组足够大时可能树化。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "负载因子",
+          "expected_role": "attribute",
+          "parent_entity": "HashMap",
+          "attribute_type": "constraints",
+          "reason": "本文中它是 HashMap 扩容参数。"
+        },
+        {
+          "text": "树化阈值",
+          "expected_role": "attribute",
+          "parent_entity": "HashMap",
+          "attribute_type": "constraints",
+          "reason": "它是链表转红黑树的条件参数。"
+        }
+      ]
+    },
+    {
+      "case_id": "granularity_004",
+      "category": "Granularity",
+      "input_text": "# Raft 日志复制\nRaft 通过 leader 将日志条目复制到 follower，并在多数节点确认后提交。日志条目包含 term、index 和 command。Raft 日志复制是稳定实体，term、index、command 在这段文本里只是日志条目的字段，粒度不足以单独进入实体库。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "Raft 日志复制",
+          "entity_type": "algorithm",
+          "aliases": [],
+          "attributes": {
+            "definition": [
+              "Raft 中 leader 向 follower 复制日志并提交的机制。"
+            ],
+            "mechanism": [
+              "leader 复制日志条目，多数节点确认后提交。"
+            ],
+            "components": [
+              "日志条目包含 term、index 和 command。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "term",
+          "expected_role": "component",
+          "parent_entity": "Raft 日志复制",
+          "attribute_type": "components",
+          "reason": "它是日志条目字段。"
+        },
+        {
+          "text": "command",
+          "expected_role": "component",
+          "parent_entity": "Raft 日志复制",
+          "attribute_type": "components",
+          "reason": "它是日志条目载荷字段。"
+        }
+      ]
+    },
+    {
+      "case_id": "granularity_005",
+      "category": "Granularity",
+      "input_text": "# JWT\nJWT 由 header、payload 和 signature 组成。payload 中可以包含 iss、sub、aud、exp、nbf、iat 等声明字段。JWT 作为令牌格式是稳定实体，payload 可以作为组成属性；iss、sub、exp 等字段在本文里粒度过细，应归入 JWT 的 components 或 constraints。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "JWT",
+          "entity_type": "protocol",
+          "aliases": [
+            "JSON Web Token"
+          ],
+          "attributes": {
+            "definition": [
+              "由 header、payload 和 signature 组成的令牌格式。"
+            ],
+            "components": [
+              "header、payload、signature 以及 payload 中的声明字段。"
+            ],
+            "constraints": [
+              "exp、nbf 等声明影响令牌有效性。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "iss",
+          "expected_role": "component",
+          "parent_entity": "JWT",
+          "attribute_type": "components",
+          "reason": "它是 payload 声明字段。"
+        },
+        {
+          "text": "exp",
+          "expected_role": "component",
+          "parent_entity": "JWT",
+          "attribute_type": "constraints",
+          "reason": "它是过期时间字段。"
+        }
+      ]
+    },
+    {
+      "case_id": "granularity_006",
+      "category": "Granularity",
+      "input_text": "# Elasticsearch 倒排索引\n倒排索引把 term 映射到包含该 term 的文档列表，用于快速全文检索。posting list 中可能记录 doc_id、term frequency 和位置信息。倒排索引是稳定实体，doc_id、词频和位置在本文里只是索引条目的字段。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "倒排索引",
+          "entity_type": "data_structure",
+          "aliases": [
+            "Inverted Index"
+          ],
+          "attributes": {
+            "definition": [
+              "把 term 映射到包含该 term 的文档列表的数据结构。"
+            ],
+            "purpose": [
+              "支持快速全文检索。"
+            ],
+            "components": [
+              "posting list 可包含 doc_id、词频和位置信息。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "doc_id",
+          "expected_role": "component",
+          "parent_entity": "倒排索引",
+          "attribute_type": "components",
+          "reason": "它是 posting list 的字段。"
+        },
+        {
+          "text": "term frequency",
+          "expected_role": "component",
+          "parent_entity": "倒排索引",
+          "attribute_type": "components",
+          "reason": "它是检索统计字段。"
+        }
+      ]
+    },
+    {
+      "case_id": "granularity_007",
+      "category": "Granularity",
+      "input_text": "# Kubernetes Pod\nPod 是 Kubernetes 中最小的调度单元，可以包含一个或多个容器。Pod 规格中有 containers、volumes、restartPolicy 和 nodeSelector 等字段。Pod 是实体，containers 和 volumes 在这段文本里是 spec 字段，不应和 Pod 同级；除非另有独立定义。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "Kubernetes Pod",
+          "entity_type": "component",
+          "aliases": [
+            "Pod"
+          ],
+          "attributes": {
+            "definition": [
+              "Kubernetes 中最小的调度单元。"
+            ],
+            "components": [
+              "可以包含一个或多个容器，规格中包含 containers、volumes 等字段。"
+            ],
+            "constraints": [
+              "调度可受 nodeSelector 等字段影响。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "containers",
+          "expected_role": "component",
+          "parent_entity": "Kubernetes Pod",
+          "attribute_type": "components",
+          "reason": "它是 Pod spec 字段。"
+        },
+        {
+          "text": "restartPolicy",
+          "expected_role": "component",
+          "parent_entity": "Kubernetes Pod",
+          "attribute_type": "constraints",
+          "reason": "它是 Pod 重启配置字段。"
+        }
+      ]
+    },
+    {
+      "case_id": "granularity_008",
+      "category": "Granularity",
+      "input_text": "# 布隆过滤器\n布隆过滤器通过位数组和多个哈希函数判断元素是否可能存在。它的容量、哈希函数个数和误判率之间存在权衡。布隆过滤器是稳定实体，bit 位、数组下标、哈希次数是实现细节或参数属性，不应全部抽成实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "布隆过滤器",
+          "entity_type": "data_structure",
+          "aliases": [],
+          "attributes": {
+            "definition": [
+              "用位数组和多个哈希函数判断元素是否可能存在。"
+            ],
+            "components": [
+              "位数组和多个哈希函数。"
+            ],
+            "constraints": [
+              "容量、哈希函数个数和误判率之间存在权衡。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "bit 位",
+          "expected_role": "component",
+          "parent_entity": "布隆过滤器",
+          "attribute_type": "components",
+          "reason": "它是位数组的细粒度组成。"
+        },
+        {
+          "text": "数组下标",
+          "expected_role": "component",
+          "parent_entity": "布隆过滤器",
+          "attribute_type": "mechanism",
+          "reason": "它是哈希映射结果。"
+        }
+      ]
+    },
+    {
+      "case_id": "granularity_009",
+      "category": "Granularity",
+      "input_text": "# TLS 握手\nTLS 握手用于协商加密参数并建立安全连接。过程中会交换 ClientHello、ServerHello、证书、随机数和密钥材料。TLS 握手是稳定过程实体，random、cipher suite、session id 在本文里是报文字段或参数，不能都建成长期实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "TLS 握手",
+          "entity_type": "process",
+          "aliases": [],
+          "attributes": {
+            "purpose": [
+              "协商加密参数并建立安全连接。"
+            ],
+            "mechanism": [
+              "交换 ClientHello、ServerHello、证书、随机数和密钥材料。"
+            ],
+            "related": [
+              "TLS"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "random",
+          "expected_role": "component",
+          "parent_entity": "TLS 握手",
+          "attribute_type": "components",
+          "reason": "它是握手报文参数。"
+        },
+        {
+          "text": "cipher suite",
+          "expected_role": "component",
+          "parent_entity": "TLS 握手",
+          "attribute_type": "components",
+          "reason": "它是协商参数。"
+        }
+      ]
+    },
+    {
+      "case_id": "granularity_010",
+      "category": "Granularity",
+      "input_text": "# LSM Tree\nLSM Tree 将写入先放入 MemTable，达到阈值后刷成 SSTable，再通过 compaction 合并层级。level0、level1、sequence number 和 tombstone 都可能出现，但在这段文本中它们是实现字段或层级细节，不应和 LSM Tree 同级建实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "LSM Tree",
+          "entity_type": "data_structure",
+          "aliases": [
+            "Log-Structured Merge Tree"
+          ],
+          "attributes": {
+            "definition": [
+              "将写入组织为内存表和多层磁盘有序文件的数据结构。"
+            ],
+            "mechanism": [
+              "写入 MemTable，刷成 SSTable，再通过 compaction 合并层级。"
+            ],
+            "components": [
+              "MemTable 和 SSTable。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "level0",
+          "expected_role": "component",
+          "parent_entity": "LSM Tree",
+          "attribute_type": "components",
+          "reason": "它是层级细节。"
+        },
+        {
+          "text": "sequence number",
+          "expected_role": "component",
+          "parent_entity": "LSM Tree",
+          "attribute_type": "components",
+          "reason": "它是版本顺序字段。"
+        }
+      ]
+    }
+  ]
+}

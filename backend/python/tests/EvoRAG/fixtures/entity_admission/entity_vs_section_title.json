@@ -1,0 +1,401 @@
+{
+  "category": "Entity vs Section Title",
+  "case_count": 10,
+  "cases": [
+    {
+      "case_id": "entity_vs_section_title_001",
+      "category": "Entity vs Section Title",
+      "input_text": "# Redis 分布式锁\nRedis 分布式锁通过 SET NX EX 写入 token 并设置过期时间。\n\n## 自动续期\n如果业务执行时间超过 TTL，后台线程可以周期性检查剩余时间并续期。\n\n## 释放锁\n释放前必须校验 token，相同才删除。自动续期和释放锁是小节主题，应归入分布式锁机制。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "Redis 分布式锁",
+          "entity_type": "concept",
+          "aliases": [],
+          "attributes": {
+            "mechanism": [
+              "通过 SET NX EX 写入 token 并设置过期时间。",
+              "后台线程可以自动续期。",
+              "释放前必须校验 token。"
+            ],
+            "constraints": [
+              "只有 token 相同才删除锁。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "自动续期",
+          "expected_role": "section_topic",
+          "parent_entity": "Redis 分布式锁",
+          "attribute_type": "mechanism",
+          "reason": "它是 Redis 分布式锁下的小节主题。"
+        },
+        {
+          "text": "释放锁",
+          "expected_role": "section_topic",
+          "parent_entity": "Redis 分布式锁",
+          "attribute_type": "mechanism",
+          "reason": "它是锁生命周期的一段机制说明。"
+        }
+      ]
+    },
+    {
+      "case_id": "entity_vs_section_title_002",
+      "category": "Entity vs Section Title",
+      "input_text": "# MySQL 索引\nMySQL 索引用于提升查询效率，但会增加写入维护成本。\n\n## 性能优化\n合理索引可以减少扫描行数，避免全表扫描。\n\n## 失效场景\n函数包裹索引列、隐式类型转换和最左前缀不满足，都可能导致索引无法使用。两个二级标题只是索引知识的方面。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "MySQL 索引",
+          "entity_type": "concept",
+          "aliases": [],
+          "attributes": {
+            "purpose": [
+              "提升查询效率。"
+            ],
+            "mechanism": [
+              "减少扫描行数，避免全表扫描。"
+            ],
+            "constraints": [
+              "函数包裹索引列、隐式类型转换和最左前缀不满足可能导致索引失效。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "性能优化",
+          "expected_role": "section_topic",
+          "parent_entity": "MySQL 索引",
+          "attribute_type": "purpose",
+          "reason": "它是索引效果小节标题。"
+        },
+        {
+          "text": "失效场景",
+          "expected_role": "section_topic",
+          "parent_entity": "MySQL 索引",
+          "attribute_type": "constraints",
+          "reason": "它是索引约束小节标题。"
+        }
+      ]
+    },
+    {
+      "case_id": "entity_vs_section_title_003",
+      "category": "Entity vs Section Title",
+      "input_text": "# Kafka 消费者组\n消费者组让多个消费者协同消费 topic 分区。\n\n## Rebalance\n当消费者加入或退出时，分区会重新分配。\n\n## 位移提交\n消费者处理消息后提交 offset，用来记录消费进度。Rebalance 和位移提交在本文中都是消费者组机制章节，不是和消费者组同级的实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "Kafka 消费者组",
+          "entity_type": "system",
+          "aliases": [
+            "Consumer Group"
+          ],
+          "attributes": {
+            "definition": [
+              "多个消费者协同消费 topic 分区的机制。"
+            ],
+            "mechanism": [
+              "成员变化时分区会重新分配。",
+              "消费者提交 offset 记录消费进度。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "Rebalance",
+          "expected_role": "section_topic",
+          "parent_entity": "Kafka 消费者组",
+          "attribute_type": "mechanism",
+          "reason": "它是消费者组成员变化后的机制章节。"
+        },
+        {
+          "text": "位移提交",
+          "expected_role": "section_topic",
+          "parent_entity": "Kafka 消费者组",
+          "attribute_type": "mechanism",
+          "reason": "它是消费进度记录机制。"
+        }
+      ]
+    },
+    {
+      "case_id": "entity_vs_section_title_004",
+      "category": "Entity vs Section Title",
+      "input_text": "# API 网关\nAPI 网关统一承接客户端请求，并转发到后端服务。\n\n## 鉴权\n网关可以校验 token 或签名，拒绝非法请求。\n\n## 限流\n网关可以按用户、IP 或接口维度限制请求频率。鉴权和限流是网关能力章节，不能因为标题短就成为实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "API 网关",
+          "entity_type": "system",
+          "aliases": [],
+          "attributes": {
+            "definition": [
+              "统一承接客户端请求并转发到后端服务的入口。"
+            ],
+            "purpose": [
+              "集中处理鉴权、限流和请求转发。"
+            ],
+            "mechanism": [
+              "校验 token 或签名，按用户、IP 或接口维度限制请求频率。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "鉴权",
+          "expected_role": "section_topic",
+          "parent_entity": "API 网关",
+          "attribute_type": "mechanism",
+          "reason": "它是 API 网关能力之一。"
+        },
+        {
+          "text": "限流",
+          "expected_role": "section_topic",
+          "parent_entity": "API 网关",
+          "attribute_type": "mechanism",
+          "reason": "它是网关策略章节。"
+        }
+      ]
+    },
+    {
+      "case_id": "entity_vs_section_title_005",
+      "category": "Entity vs Section Title",
+      "input_text": "# 线程池\n线程池复用线程处理任务，避免频繁创建线程。\n\n## 队列策略\n任务无法立即执行时会进入阻塞队列。\n\n## 拒绝策略\n队列满且线程数达到上限时，线程池会执行拒绝处理。队列策略和拒绝策略是线程池配置章节，不应独立建实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "线程池",
+          "entity_type": "system",
+          "aliases": [],
+          "attributes": {
+            "purpose": [
+              "复用线程并避免频繁创建线程。"
+            ],
+            "mechanism": [
+              "任务无法立即执行时进入阻塞队列。"
+            ],
+            "constraints": [
+              "队列满且线程数达到上限时触发拒绝策略。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "队列策略",
+          "expected_role": "section_topic",
+          "parent_entity": "线程池",
+          "attribute_type": "mechanism",
+          "reason": "它是线程池任务排队策略。"
+        },
+        {
+          "text": "拒绝策略",
+          "expected_role": "section_topic",
+          "parent_entity": "线程池",
+          "attribute_type": "constraints",
+          "reason": "它是线程池满载时的处理规则。"
+        }
+      ]
+    },
+    {
+      "case_id": "entity_vs_section_title_006",
+      "category": "Entity vs Section Title",
+      "input_text": "# 布隆过滤器\n布隆过滤器用位数组和多个哈希函数判断元素是否可能存在。\n\n## 添加元素\n添加时对元素做多次哈希，并把对应位设置为 1。\n\n## 查询元素\n查询时检查所有对应位是否为 1。添加元素和查询元素是操作章节，不是实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "布隆过滤器",
+          "entity_type": "data_structure",
+          "aliases": [],
+          "attributes": {
+            "definition": [
+              "用位数组和多个哈希函数判断元素是否可能存在的数据结构。"
+            ],
+            "mechanism": [
+              "添加时设置多个哈希位，查询时检查对应位是否为 1。"
+            ],
+            "constraints": [
+              "可能出现误判。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "添加元素",
+          "expected_role": "section_topic",
+          "parent_entity": "布隆过滤器",
+          "attribute_type": "mechanism",
+          "reason": "它是布隆过滤器操作章节。"
+        },
+        {
+          "text": "查询元素",
+          "expected_role": "section_topic",
+          "parent_entity": "布隆过滤器",
+          "attribute_type": "mechanism",
+          "reason": "它是查询操作章节。"
+        }
+      ]
+    },
+    {
+      "case_id": "entity_vs_section_title_007",
+      "category": "Entity vs Section Title",
+      "input_text": "# OAuth2 授权码模式\n授权码模式让客户端通过授权码换取访问令牌。\n\n## 安全校验\n客户端需要校验 state，防止跨站请求伪造。\n\n## 令牌交换\n客户端向授权服务器提交授权码和客户端凭据换取令牌。两个标题都描述授权码模式的阶段。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "OAuth2 授权码模式",
+          "entity_type": "protocol",
+          "aliases": [],
+          "attributes": {
+            "definition": [
+              "通过授权码换取访问令牌的 OAuth2 流程。"
+            ],
+            "constraints": [
+              "客户端需要校验 state。"
+            ],
+            "mechanism": [
+              "提交授权码和客户端凭据换取令牌。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "安全校验",
+          "expected_role": "section_topic",
+          "parent_entity": "OAuth2 授权码模式",
+          "attribute_type": "constraints",
+          "reason": "它是协议安全约束章节。"
+        },
+        {
+          "text": "令牌交换",
+          "expected_role": "section_topic",
+          "parent_entity": "OAuth2 授权码模式",
+          "attribute_type": "mechanism",
+          "reason": "它是授权码流程阶段。"
+        }
+      ]
+    },
+    {
+      "case_id": "entity_vs_section_title_008",
+      "category": "Entity vs Section Title",
+      "input_text": "# MVCC\nMVCC 通过多版本数据让读写并发更少互相阻塞。\n\n## 快照读\n普通 select 可以基于 ReadView 读取符合可见性的历史版本。\n\n## 当前读\n加锁读需要读取最新版本并可能加锁。快照读和当前读是 MVCC 读路径分类，不能直接当实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "MVCC",
+          "entity_type": "concept",
+          "aliases": [
+            "多版本并发控制"
+          ],
+          "attributes": {
+            "definition": [
+              "通过多版本数据支持并发读写的机制。"
+            ],
+            "mechanism": [
+              "快照读基于 ReadView 读取历史版本，当前读读取最新版本并可能加锁。"
+            ],
+            "related": [
+              "ReadView"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "快照读",
+          "expected_role": "section_topic",
+          "parent_entity": "MVCC",
+          "attribute_type": "mechanism",
+          "reason": "它是 MVCC 下的读路径分类。"
+        },
+        {
+          "text": "当前读",
+          "expected_role": "section_topic",
+          "parent_entity": "MVCC",
+          "attribute_type": "mechanism",
+          "reason": "它是 MVCC 读路径分类。"
+        }
+      ]
+    },
+    {
+      "case_id": "entity_vs_section_title_009",
+      "category": "Entity vs Section Title",
+      "input_text": "# Kubernetes Deployment\nDeployment 用于声明式管理 Pod 副本和滚动更新。\n\n## 滚动更新\n控制器逐步创建新 Pod 并删除旧 Pod。\n\n## 回滚\n新版本异常时可以回到历史 ReplicaSet。滚动更新和回滚在这里是 Deployment 的能力章节，不应成为同级实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "Kubernetes Deployment",
+          "entity_type": "system",
+          "aliases": [
+            "Deployment"
+          ],
+          "attributes": {
+            "definition": [
+              "Kubernetes 中声明式管理 Pod 副本和更新的资源。"
+            ],
+            "mechanism": [
+              "逐步创建新 Pod 并删除旧 Pod。"
+            ],
+            "constraints": [
+              "新版本异常时可以回到历史 ReplicaSet。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "滚动更新",
+          "expected_role": "section_topic",
+          "parent_entity": "Kubernetes Deployment",
+          "attribute_type": "mechanism",
+          "reason": "它是 Deployment 的更新方式。"
+        },
+        {
+          "text": "回滚",
+          "expected_role": "section_topic",
+          "parent_entity": "Kubernetes Deployment",
+          "attribute_type": "constraints",
+          "reason": "它是 Deployment 的异常恢复能力。"
+        }
+      ]
+    },
+    {
+      "case_id": "entity_vs_section_title_010",
+      "category": "Entity vs Section Title",
+      "input_text": "# CDN\nCDN 通过边缘节点缓存静态资源，降低源站压力并缩短访问路径。\n\n## 回源\n边缘节点未命中缓存时会向源站请求资源。\n\n## 刷新\n用户可以主动清理边缘缓存，让新资源生效。回源和刷新是 CDN 行为章节，不应被标题诱导成实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "CDN",
+          "entity_type": "system",
+          "aliases": [
+            "内容分发网络"
+          ],
+          "attributes": {
+            "definition": [
+              "通过边缘节点缓存和分发资源的系统。"
+            ],
+            "purpose": [
+              "降低源站压力并缩短访问路径。"
+            ],
+            "mechanism": [
+              "未命中时回源，必要时可以刷新边缘缓存。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "回源",
+          "expected_role": "section_topic",
+          "parent_entity": "CDN",
+          "attribute_type": "mechanism",
+          "reason": "它是 CDN 未命中后的行为。"
+        },
+        {
+          "text": "刷新",
+          "expected_role": "section_topic",
+          "parent_entity": "CDN",
+          "attribute_type": "mechanism",
+          "reason": "它是 CDN 缓存管理行为。"
+        }
+      ]
+    }
+  ]
+}

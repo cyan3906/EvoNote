@@ -1,0 +1,418 @@
+{
+  "category": "Entity vs Attribute",
+  "case_count": 10,
+  "cases": [
+    {
+      "case_id": "entity_vs_attribute_001",
+      "category": "Entity vs Attribute",
+      "input_text": "# Redis 分布式锁\nRedis 分布式锁常用 SET NX EX 获取锁，客户端会写入唯一 token 并设置过期时间。业务执行时间可能超过 TTL，因此后台线程可以做自动续期。续期前必须读取锁中的 token，确认仍属于当前客户端，避免给其他客户端重新获得的锁续期。这里的自动续期只是分布式锁的机制属性，不是新的知识对象。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "Redis 分布式锁",
+          "entity_type": "concept",
+          "aliases": [],
+          "attributes": {
+            "definition": [
+              "基于 Redis 实现的跨进程互斥控制。"
+            ],
+            "mechanism": [
+              "使用 SET NX EX 获取锁并写入唯一 token。",
+              "后台线程可以在 TTL 较低时自动续期。"
+            ],
+            "constraints": [
+              "续期前必须确认 token 仍属于当前客户端。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "自动续期",
+          "expected_role": "attribute",
+          "parent_entity": "Redis 分布式锁",
+          "attribute_type": "mechanism",
+          "reason": "在该文本中是分布式锁的续期机制，不是可独立长期积累的实体。"
+        },
+        {
+          "text": "唯一 token",
+          "expected_role": "attribute",
+          "parent_entity": "Redis 分布式锁",
+          "attribute_type": "components",
+          "reason": "token 是锁安全释放与续期的组成属性。"
+        }
+      ]
+    },
+    {
+      "case_id": "entity_vs_attribute_002",
+      "category": "Entity vs Attribute",
+      "input_text": "# HTTP 缓存\nHTTP 缓存通过 Cache-Control、ETag 和 Last-Modified 减少重复传输。强缓存命中时浏览器可以直接使用本地副本，协商缓存则需要向服务器验证资源是否变化。max-age、no-cache、must-revalidate 都是缓存策略的属性值，用来描述缓存行为边界，不应该被提升成独立实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "HTTP 缓存",
+          "entity_type": "concept",
+          "aliases": [],
+          "attributes": {
+            "purpose": [
+              "减少重复传输并提升页面加载效率。"
+            ],
+            "mechanism": [
+              "通过 Cache-Control、ETag 和 Last-Modified 控制缓存。"
+            ],
+            "constraints": [
+              "强缓存和协商缓存有不同的验证路径。"
+            ]
+          }
+        },
+        {
+          "name": "ETag",
+          "entity_type": "concept",
+          "aliases": [],
+          "attributes": {
+            "definition": [
+              "用于标识资源版本的 HTTP 缓存校验信息。"
+            ],
+            "related": [
+              "HTTP 缓存"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "max-age",
+          "expected_role": "attribute",
+          "parent_entity": "HTTP 缓存",
+          "attribute_type": "constraints",
+          "reason": "它是 Cache-Control 的策略属性，不是本文主体。"
+        },
+        {
+          "text": "no-cache",
+          "expected_role": "attribute",
+          "parent_entity": "HTTP 缓存",
+          "attribute_type": "constraints",
+          "reason": "它描述缓存验证策略，应作为缓存属性。"
+        }
+      ]
+    },
+    {
+      "case_id": "entity_vs_attribute_003",
+      "category": "Entity vs Attribute",
+      "input_text": "# MySQL B+Tree 索引\nB+Tree 索引通过有序键值和叶子节点链表支持范围查询。联合索引遵循最左前缀原则，查询条件如果跳过前导列，索引利用率会下降。选择性、基数、回表次数都是评估索引效果的属性，用来描述索引质量，不应和 B+Tree 索引同级建实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "B+Tree 索引",
+          "entity_type": "data_structure",
+          "aliases": [
+            "MySQL B+Tree 索引"
+          ],
+          "attributes": {
+            "definition": [
+              "MySQL 中基于 B+Tree 的有序索引结构。"
+            ],
+            "mechanism": [
+              "通过有序键值和叶子节点链表支持范围查询。"
+            ],
+            "constraints": [
+              "联合索引遵循最左前缀原则。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "选择性",
+          "expected_role": "attribute",
+          "parent_entity": "B+Tree 索引",
+          "attribute_type": "constraints",
+          "reason": "选择性是评价索引效果的属性。"
+        },
+        {
+          "text": "回表次数",
+          "expected_role": "attribute",
+          "parent_entity": "B+Tree 索引",
+          "attribute_type": "constraints",
+          "reason": "回表次数描述索引访问代价，不是独立实体。"
+        }
+      ]
+    },
+    {
+      "case_id": "entity_vs_attribute_004",
+      "category": "Entity vs Attribute",
+      "input_text": "# Kafka 消费者组\nKafka 消费者组用于让多个消费者协同消费同一 topic 的分区。每个分区同一时刻只能分配给组内一个消费者，组成员变化会触发 rebalance。offset、lag、group.id 是消费者组运行状态或配置属性，测试时应保留在消费者组属性中，不要新建成实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "Kafka 消费者组",
+          "entity_type": "system",
+          "aliases": [
+            "Consumer Group"
+          ],
+          "attributes": {
+            "definition": [
+              "Kafka 中协同消费 topic 分区的一组消费者。"
+            ],
+            "mechanism": [
+              "分区会分配给消费者组内的消费者处理。"
+            ],
+            "constraints": [
+              "组成员变化会触发 rebalance。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "offset",
+          "expected_role": "attribute",
+          "parent_entity": "Kafka 消费者组",
+          "attribute_type": "components",
+          "reason": "offset 是消费进度属性。"
+        },
+        {
+          "text": "lag",
+          "expected_role": "attribute",
+          "parent_entity": "Kafka 消费者组",
+          "attribute_type": "constraints",
+          "reason": "lag 描述积压状态，不应作为本文实体。"
+        }
+      ]
+    },
+    {
+      "case_id": "entity_vs_attribute_005",
+      "category": "Entity vs Attribute",
+      "input_text": "# 线程池\n线程池通过复用工作线程降低频繁创建线程的开销。核心线程数、最大线程数、队列容量和拒绝策略共同决定任务提交后的行为。这里重点讲线程池本身，corePoolSize、maximumPoolSize、keepAliveTime 都是配置属性，不能因为是英文参数名就被提升为实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "线程池",
+          "entity_type": "system",
+          "aliases": [],
+          "attributes": {
+            "purpose": [
+              "复用工作线程并降低线程创建销毁开销。"
+            ],
+            "components": [
+              "核心线程数、最大线程数、队列容量和拒绝策略。"
+            ],
+            "mechanism": [
+              "任务提交后由线程池按配置创建线程、排队或拒绝。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "corePoolSize",
+          "expected_role": "attribute",
+          "parent_entity": "线程池",
+          "attribute_type": "components",
+          "reason": "它是线程池配置项。"
+        },
+        {
+          "text": "keepAliveTime",
+          "expected_role": "attribute",
+          "parent_entity": "线程池",
+          "attribute_type": "constraints",
+          "reason": "它描述非核心线程空闲存活时间。"
+        }
+      ]
+    },
+    {
+      "case_id": "entity_vs_attribute_006",
+      "category": "Entity vs Attribute",
+      "input_text": "# JWT\nJWT 是一种紧凑的令牌格式，常用于在客户端和服务端之间传递认证声明。它通常由 header、payload 和 signature 三部分组成。过期时间、签发者、受众和 subject 都是 payload 中的声明属性，应该挂在 JWT 下，而不是被当成一批同级实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "JWT",
+          "entity_type": "protocol",
+          "aliases": [
+            "JSON Web Token"
+          ],
+          "attributes": {
+            "definition": [
+              "用于传递认证声明的紧凑令牌格式。"
+            ],
+            "components": [
+              "header、payload 和 signature。"
+            ],
+            "constraints": [
+              "声明需要结合签名验证可信性。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "过期时间",
+          "expected_role": "attribute",
+          "parent_entity": "JWT",
+          "attribute_type": "constraints",
+          "reason": "过期时间是 JWT 声明属性。"
+        },
+        {
+          "text": "签发者",
+          "expected_role": "attribute",
+          "parent_entity": "JWT",
+          "attribute_type": "components",
+          "reason": "签发者是 payload 声明字段。"
+        }
+      ]
+    },
+    {
+      "case_id": "entity_vs_attribute_007",
+      "category": "Entity vs Attribute",
+      "input_text": "# 布隆过滤器\n布隆过滤器用位数组和多个哈希函数判断元素是否可能存在。它可以节省空间，但存在误判率，不能直接删除元素。误判率、位数组长度、哈希函数个数是布隆过滤器的参数属性，测试中不应把这些指标提升成新的实体节点。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "布隆过滤器",
+          "entity_type": "data_structure",
+          "aliases": [],
+          "attributes": {
+            "definition": [
+              "用位数组和多个哈希函数判断元素是否可能存在的数据结构。"
+            ],
+            "purpose": [
+              "以较低空间成本做存在性判断。"
+            ],
+            "constraints": [
+              "存在误判率，普通布隆过滤器不能直接删除元素。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "误判率",
+          "expected_role": "attribute",
+          "parent_entity": "布隆过滤器",
+          "attribute_type": "constraints",
+          "reason": "误判率是布隆过滤器的质量指标。"
+        },
+        {
+          "text": "哈希函数个数",
+          "expected_role": "attribute",
+          "parent_entity": "布隆过滤器",
+          "attribute_type": "components",
+          "reason": "它是结构参数。"
+        }
+      ]
+    },
+    {
+      "case_id": "entity_vs_attribute_008",
+      "category": "Entity vs Attribute",
+      "input_text": "# API 网关\nAPI 网关位于客户端和后端服务之间，统一处理路由、鉴权、限流和观测。超时时间、重试次数、限流阈值和熔断开关都是网关策略属性。它们会影响请求路径，但本文没有单独定义这些策略，所以不应该被抽成独立实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "API 网关",
+          "entity_type": "system",
+          "aliases": [],
+          "attributes": {
+            "definition": [
+              "位于客户端和后端服务之间的统一入口。"
+            ],
+            "purpose": [
+              "统一处理路由、鉴权、限流和观测。"
+            ],
+            "constraints": [
+              "超时、重试、限流和熔断策略会影响请求路径。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "超时时间",
+          "expected_role": "attribute",
+          "parent_entity": "API 网关",
+          "attribute_type": "constraints",
+          "reason": "它是网关策略配置。"
+        },
+        {
+          "text": "限流阈值",
+          "expected_role": "attribute",
+          "parent_entity": "API 网关",
+          "attribute_type": "constraints",
+          "reason": "它描述限流策略边界。"
+        }
+      ]
+    },
+    {
+      "case_id": "entity_vs_attribute_009",
+      "category": "Entity vs Attribute",
+      "input_text": "# LSM Tree\nLSM Tree 通过内存写入和磁盘多层有序文件提升写入吞吐。数据先进入 MemTable，刷盘后形成 SSTable，并通过 compaction 合并层级。层级数、写放大、读放大和压缩策略都是结构运行属性，不应和 LSM Tree 同级建成实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "LSM Tree",
+          "entity_type": "data_structure",
+          "aliases": [
+            "Log-Structured Merge Tree"
+          ],
+          "attributes": {
+            "definition": [
+              "以内存写入和磁盘多层有序文件组织数据的结构。"
+            ],
+            "mechanism": [
+              "数据进入 MemTable，刷盘形成 SSTable，再通过 compaction 合并。"
+            ],
+            "constraints": [
+              "可能带来读放大和写放大。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "写放大",
+          "expected_role": "attribute",
+          "parent_entity": "LSM Tree",
+          "attribute_type": "constraints",
+          "reason": "写放大是 LSM Tree 的代价属性。"
+        },
+        {
+          "text": "层级数",
+          "expected_role": "attribute",
+          "parent_entity": "LSM Tree",
+          "attribute_type": "components",
+          "reason": "层级数描述结构参数。"
+        }
+      ]
+    },
+    {
+      "case_id": "entity_vs_attribute_010",
+      "category": "Entity vs Attribute",
+      "input_text": "# OAuth2 授权码模式\nOAuth2 授权码模式让客户端先拿授权码，再用授权码换取访问令牌。redirect_uri、scope、state 和 code_verifier 都是协议交互中的参数属性。它们能影响安全边界，但在这段文本里不是独立协议或组件，应归入授权码模式的约束和机制。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "OAuth2 授权码模式",
+          "entity_type": "protocol",
+          "aliases": [],
+          "attributes": {
+            "definition": [
+              "客户端先获取授权码再换取访问令牌的 OAuth2 流程。"
+            ],
+            "mechanism": [
+              "使用授权码换取访问令牌。"
+            ],
+            "constraints": [
+              "redirect_uri、scope、state 和 code_verifier 影响安全边界。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "redirect_uri",
+          "expected_role": "attribute",
+          "parent_entity": "OAuth2 授权码模式",
+          "attribute_type": "constraints",
+          "reason": "它是协议参数。"
+        },
+        {
+          "text": "state",
+          "expected_role": "attribute",
+          "parent_entity": "OAuth2 授权码模式",
+          "attribute_type": "constraints",
+          "reason": "它是防 CSRF 的流程参数。"
+        }
+      ]
+    }
+  ]
+}

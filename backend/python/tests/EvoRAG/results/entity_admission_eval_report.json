@@ -1,0 +1,1147 @@
+{
+  "judge_model": "deepseek-v4-flash-0731",
+  "inference_model": "gpt-4o-mini",
+  "fixture_dir": "E:\\huadian\\evonote\\backend\\python\\tests\\EvoRAG\\fixtures\\entity_admission",
+  "total_cases": 3,
+  "runtime": {
+    "total_eval_ms": 243433.79,
+    "avg_case_ms": 81143.076667
+  },
+  "cost": {
+    "inference": {
+      "calls": 13,
+      "prompt_tokens": 16757,
+      "completion_tokens": 8218,
+      "total_tokens": 24975,
+      "total_duration_ms": 95025.35,
+      "avg_duration_ms": 7309.642308,
+      "by_model": {
+        "gpt-4o-mini": {
+          "calls": 9,
+          "prompt_tokens": 11714,
+          "completion_tokens": 2719,
+          "total_tokens": 14433,
+          "total_duration_ms": 53971.93,
+          "avg_duration_ms": 5996.881111
+        },
+        "deepseek-v4-flash-0731": {
+          "calls": 4,
+          "prompt_tokens": 5043,
+          "completion_tokens": 5499,
+          "total_tokens": 10542,
+          "total_duration_ms": 41053.42,
+          "avg_duration_ms": 10263.355
+        }
+      }
+    },
+    "judge": {
+      "calls": 3,
+      "prompt_tokens": 6730,
+      "completion_tokens": 13293,
+      "total_tokens": 20023,
+      "total_duration_ms": 166363.14,
+      "avg_duration_ms": 55454.38,
+      "by_model": {
+        "deepseek-v4-flash-0731": {
+          "calls": 3,
+          "prompt_tokens": 6730,
+          "completion_tokens": 13293,
+          "total_tokens": 20023,
+          "total_duration_ms": 166363.14,
+          "avg_duration_ms": 55454.38
+        }
+      }
+    },
+    "total": {
+      "calls": 16,
+      "prompt_tokens": 23487,
+      "completion_tokens": 21511,
+      "total_tokens": 44998,
+      "total_duration_ms": 261388.49,
+      "avg_duration_ms": 16336.780625,
+      "by_model": {
+        "gpt-4o-mini": {
+          "calls": 9,
+          "prompt_tokens": 11714,
+          "completion_tokens": 2719,
+          "total_tokens": 14433,
+          "total_duration_ms": 53971.93,
+          "avg_duration_ms": 5996.881111
+        },
+        "deepseek-v4-flash-0731": {
+          "calls": 7,
+          "prompt_tokens": 11773,
+          "completion_tokens": 18792,
+          "total_tokens": 30565,
+          "total_duration_ms": 207416.56,
+          "avg_duration_ms": 29630.937143
+        }
+      }
+    }
+  },
+  "overall": {
+    "entity_precision": 1.0,
+    "entity_recall": 0.666667,
+    "false_promotion_rate": 0.4,
+    "matched_predicted_attribute_rate": 1.0,
+    "unmatched_predicted_attribute_rate": 0.0,
+    "contradictory_predicted_attribute_rate": 0.0,
+    "wrong_bucket_rate": 0.2,
+    "gold_attribute_recall": 0.6,
+    "counts": {
+      "gold_entities": 3,
+      "matched_gold_entities": 2,
+      "predicted_entities": 2,
+      "correct_predicted_entities": 2,
+      "gold_non_entities": 5,
+      "false_promotions": 2,
+      "predicted_attributes": 5,
+      "matched_predicted_attributes": 5,
+      "unmatched_predicted_attributes": 0,
+      "contradictory_predicted_attributes": 0,
+      "bucket_checked_predicted_attributes": 5,
+      "wrong_bucket_predicted_attributes": 1,
+      "gold_attributes": 10,
+      "matched_gold_attributes": 6
+    }
+  },
+  "by_category": {
+    "Alias / Coreference": {
+      "entity_precision": 1.0,
+      "entity_recall": 0.666667,
+      "false_promotion_rate": 0.4,
+      "matched_predicted_attribute_rate": 1.0,
+      "unmatched_predicted_attribute_rate": 0.0,
+      "contradictory_predicted_attribute_rate": 0.0,
+      "wrong_bucket_rate": 0.2,
+      "gold_attribute_recall": 0.6,
+      "counts": {
+        "gold_entities": 3,
+        "matched_gold_entities": 2,
+        "predicted_entities": 2,
+        "correct_predicted_entities": 2,
+        "gold_non_entities": 5,
+        "false_promotions": 2,
+        "predicted_attributes": 5,
+        "matched_predicted_attributes": 5,
+        "unmatched_predicted_attributes": 0,
+        "contradictory_predicted_attributes": 0,
+        "bucket_checked_predicted_attributes": 5,
+        "wrong_bucket_predicted_attributes": 1,
+        "gold_attributes": 10,
+        "matched_gold_attributes": 6
+      }
+    }
+  },
+  "cases": [
+    {
+      "case_id": "alias_coreference_001",
+      "category": "Alias / Coreference",
+      "prediction": {
+        "input_text": "# MySQL 隔离级别\nRR，也叫 Repeatable Read，中文常写作可重复读，是 MySQL 常用的事务隔离级别。它通过 MVCC 减少不可重复读问题，并在 InnoDB 中配合间隙锁处理部分幻读场景。RR、Repeatable Read 和可重复读应合并为同一个实体，而不是重复建库。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+        "blocks": [
+          {
+            "block": {
+              "block_index": 0,
+              "heading": "MySQL 隔离级别",
+              "anchor_entity": "MySQL 隔离级别",
+              "candidate_entities": [
+                "可重复读",
+                "RR",
+                "Repeatable Read",
+                "MVCC",
+                "InnoDB",
+                "间隙锁",
+                "幻读"
+              ],
+              "l1_text": "RR，也叫 Repeatable Read，中文常写作可重复读，是 MySQL 常用的事务隔离级别。它通过 MVCC 减少不可重复读问题，并在 InnoDB 中配合间隙锁处理部分幻读场景。RR、Repeatable Read 和可重复读应合并为同一个实体，而不是重复建库。",
+              "split_reason": "heading",
+              "anchor_confidence": 0.9,
+              "parent_block_index": null,
+              "chunk_index": 0,
+              "chunk_count": 1,
+              "char_start": -1,
+              "char_end": -1
+            },
+            "entities": [],
+            "warnings": [
+              "dropped non-entity candidate by judge: MySQL 隔离级别 (decision=section_topic, entity_score=0.320 < 0.70)"
+            ]
+          },
+          {
+            "block": {
+              "block_index": 1,
+              "heading": "评测焦点",
+              "anchor_entity": "",
+              "candidate_entities": [],
+              "l1_text": "评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+              "split_reason": "fallback",
+              "anchor_confidence": 0.0,
+              "parent_block_index": null,
+              "chunk_index": 0,
+              "chunk_count": 1,
+              "char_start": -1,
+              "char_end": -1
+            },
+            "entities": [],
+            "warnings": []
+          }
+        ],
+        "entities": [],
+        "timings": {
+          "startup_to_first_block_split_ms": 0.01,
+          "entity_anchor_split_ms": 12209.35,
+          "physical_chunk_split_ms": 0.17,
+          "entity_extraction_ms": 27509.57,
+          "total_ms": 39729.1
+        }
+      },
+      "judgment": {
+        "case_id": "alias_coreference_001",
+        "gold_entity_matches": [
+          {
+            "gold_entity": "Repeatable Read",
+            "status": "missing",
+            "matched_prediction": "",
+            "reason": "预测结果 entities 为空，未抽取任何实体，gold 主实体完全缺失。"
+          }
+        ],
+        "predicted_entity_judgments": [],
+        "non_entity_judgments": [
+          {
+            "text": "RR",
+            "promoted": false,
+            "predicted_entity": "",
+            "reason": "RR 出现在候选实体列表中但最终未被提升为实体，符合 gold 的 alias 非实体预期。"
+          },
+          {
+            "text": "可重复读",
+            "promoted": false,
+            "predicted_entity": "",
+            "reason": "可重复读出现在候选实体列表中但最终未被提升为实体，符合 gold 的中文别名非实体预期。"
+          }
+        ],
+        "predicted_attribute_judgments": [],
+        "gold_attribute_matches": [
+          {
+            "gold_entity": "Repeatable Read",
+            "gold_attribute": "MySQL 常用的事务隔离级别。",
+            "bucket": "definition",
+            "status": "missing",
+            "matched_predicted_attribute": "",
+            "reason": "预测未抽取任何实体属性。"
+          },
+          {
+            "gold_entity": "Repeatable Read",
+            "gold_attribute": "通过 MVCC 减少不可重复读问题。",
+            "bucket": "mechanism",
+            "status": "missing",
+            "matched_predicted_attribute": "",
+            "reason": "预测未抽取任何实体属性。"
+          },
+          {
+            "gold_entity": "Repeatable Read",
+            "gold_attribute": "MVCC",
+            "bucket": "related",
+            "status": "missing",
+            "matched_predicted_attribute": "",
+            "reason": "预测未抽取任何实体属性。"
+          },
+          {
+            "gold_entity": "Repeatable Read",
+            "gold_attribute": "间隙锁",
+            "bucket": "related",
+            "status": "missing",
+            "matched_predicted_attribute": "",
+            "reason": "预测未抽取任何实体属性。"
+          }
+        ],
+        "errors": [
+          {
+            "type": "missing_entity",
+            "severity": "high",
+            "text": "Repeatable Read",
+            "reason": "gold 核心实体 Repeatable Read 及其别名 RR/可重复读均未被抽取为实体，最终实体列表为空。"
+          },
+          {
+            "type": "unmatched_attribute",
+            "severity": "medium",
+            "text": "Repeatable Read definition/mechanism/related 属性",
+            "reason": "由于实体缺失，对应的定义、机制与关联属性全部未被输出。"
+          }
+        ]
+      },
+      "runtime": {
+        "preprocess_ms": 39729.15,
+        "judge_ms": 9960.09,
+        "total_case_ms": 49689.38
+      },
+      "usage": {
+        "inference": {
+          "calls": 4,
+          "prompt_tokens": 5401,
+          "completion_tokens": 4499,
+          "total_tokens": 9900,
+          "total_duration_ms": 42153.99,
+          "avg_duration_ms": 10538.4975,
+          "by_model": {
+            "gpt-4o-mini": {
+              "calls": 3,
+              "prompt_tokens": 3971,
+              "completion_tokens": 954,
+              "total_tokens": 4925,
+              "total_duration_ms": 23674.19,
+              "avg_duration_ms": 7891.396667
+            },
+            "deepseek-v4-flash-0731": {
+              "calls": 1,
+              "prompt_tokens": 1430,
+              "completion_tokens": 3545,
+              "total_tokens": 4975,
+              "total_duration_ms": 18479.8,
+              "avg_duration_ms": 18479.8
+            }
+          }
+        },
+        "judge": {
+          "calls": 1,
+          "prompt_tokens": 1789,
+          "completion_tokens": 798,
+          "total_tokens": 2587,
+          "total_duration_ms": 9959.4,
+          "avg_duration_ms": 9959.4,
+          "by_model": {
+            "deepseek-v4-flash-0731": {
+              "calls": 1,
+              "prompt_tokens": 1789,
+              "completion_tokens": 798,
+              "total_tokens": 2587,
+              "total_duration_ms": 9959.4,
+              "avg_duration_ms": 9959.4
+            }
+          }
+        },
+        "total": {
+          "calls": 5,
+          "prompt_tokens": 7190,
+          "completion_tokens": 5297,
+          "total_tokens": 12487,
+          "total_duration_ms": 52113.39,
+          "avg_duration_ms": 10422.678,
+          "by_model": {
+            "gpt-4o-mini": {
+              "calls": 3,
+              "prompt_tokens": 3971,
+              "completion_tokens": 954,
+              "total_tokens": 4925,
+              "total_duration_ms": 23674.19,
+              "avg_duration_ms": 7891.396667
+            },
+            "deepseek-v4-flash-0731": {
+              "calls": 2,
+              "prompt_tokens": 3219,
+              "completion_tokens": 4343,
+              "total_tokens": 7562,
+              "total_duration_ms": 28439.2,
+              "avg_duration_ms": 14219.6
+            }
+          }
+        },
+        "llm_calls": {
+          "inference": [
+            {
+              "operation_name": "EvoRAG block split",
+              "model": "gpt-4o-mini",
+              "prompt_tokens": 846,
+              "completion_tokens": 405,
+              "total_tokens": 1251,
+              "duration_ms": 12208.95
+            },
+            {
+              "operation_name": "EvoRAG entity extraction block 1",
+              "model": "gpt-4o-mini",
+              "prompt_tokens": 1511,
+              "completion_tokens": 12,
+              "total_tokens": 1523,
+              "duration_ms": 2500.83
+            },
+            {
+              "operation_name": "EvoRAG entity extraction block 0",
+              "model": "gpt-4o-mini",
+              "prompt_tokens": 1614,
+              "completion_tokens": 537,
+              "total_tokens": 2151,
+              "duration_ms": 8964.41
+            },
+            {
+              "operation_name": "EvoRAG entity admission judge block 0 entity MySQL 隔离级别",
+              "model": "deepseek-v4-flash-0731",
+              "prompt_tokens": 1430,
+              "completion_tokens": 3545,
+              "total_tokens": 4975,
+              "duration_ms": 18479.8
+            }
+          ],
+          "judge": [
+            {
+              "operation_name": "EvoRAG entity admission eval judge alias_coreference_001",
+              "model": "deepseek-v4-flash-0731",
+              "prompt_tokens": 1789,
+              "completion_tokens": 798,
+              "total_tokens": 2587,
+              "duration_ms": 9959.4
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "alias_coreference_002",
+      "category": "Alias / Coreference",
+      "prediction": {
+        "input_text": "# JSON Web Token\nJSON Web Token 通常简称 JWT，是一种紧凑的令牌格式。JWT 可以在 header、payload 和 signature 中携带认证声明并验证完整性。本文里的 JSON Web Token 和 JWT 指向同一个实体，不能新建两个实体节点，也不能把简称当独立概念。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+        "blocks": [
+          {
+            "block": {
+              "block_index": 0,
+              "heading": "JSON Web Token",
+              "anchor_entity": "JSON Web Token",
+              "candidate_entities": [
+                "JWT"
+              ],
+              "l1_text": "JSON Web Token 通常简称 JWT，是一种紧凑的令牌格式。JWT 可以在 header、payload 和 signature 中携带认证声明并验证完整性。本文里的 JSON Web Token 和 JWT 指向同一个实体，不能新建两个实体节点，也不能把简称当独立概念。",
+              "split_reason": "heading",
+              "anchor_confidence": 1.0,
+              "parent_block_index": null,
+              "chunk_index": 0,
+              "chunk_count": 1,
+              "char_start": -1,
+              "char_end": -1
+            },
+            "entities": [
+              {
+                "name": "JSON Web Token",
+                "entity_type": "concept",
+                "aliases": [
+                  "JWT"
+                ],
+                "identity_description": "是一种用于安全信息传输的紧凑令牌格式。",
+                "admission_score": {
+                  "definable": 1.0,
+                  "query_entry": 1.0,
+                  "independent_scope": 1.0,
+                  "stable_relations": 1.0,
+                  "key_sentence": 1.0,
+                  "aggregate_score": 1.0,
+                  "rationale": "该候选可被定义，且是当前 block 的主题知识入口"
+                },
+                "admission_judge": {
+                  "decision": "entity",
+                  "entity_score": 0.95,
+                  "positive_scores": {
+                    "identity_boundary": 0.95,
+                    "knowledge_capacity": 0.95,
+                    "query_entry_value": 1.0,
+                    "evolution_stability": 0.9
+                  },
+                  "deductions": {
+                    "section_role_penalty": 0.0,
+                    "action_phrase_penalty": 0.0,
+                    "parent_attribute_penalty": 0.0,
+                    "context_dependency_penalty": 0.0,
+                    "granularity_penalty": 0.0,
+                    "evidence_weak_penalty": 0.0
+                  },
+                  "parent_entity": "",
+                  "attribute_type": "",
+                  "reason": "JSON Web Token 是明确的独立概念实体，有定义和机制，是自然查询入口，且别名 JWT 已正确归并，不应降级为属性或步骤。"
+                },
+                "attributes": {
+                  "definition": [
+                    {
+                      "value": "一种紧凑的令牌格式",
+                      "evidence": "JSON Web Token 通常简称 JWT，是一种紧凑的令牌格式。",
+                      "confidence": 0.9
+                    }
+                  ],
+                  "purpose": [],
+                  "core_idea": [],
+                  "mechanism": [
+                    {
+                      "value": "在 header、payload 和 signature 中携带认证声明并验证完整性",
+                      "evidence": "JWT 可以在 header、payload 和 signature 中携带认证声明并验证完整性。",
+                      "confidence": 0.8
+                    }
+                  ],
+                  "components": [],
+                  "constraints": [],
+                  "related": []
+                }
+              }
+            ],
+            "warnings": []
+          },
+          {
+            "block": {
+              "block_index": 1,
+              "heading": "评测焦点",
+              "anchor_entity": "",
+              "candidate_entities": [],
+              "l1_text": "评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+              "split_reason": "fallback",
+              "anchor_confidence": 0.0,
+              "parent_block_index": 0,
+              "chunk_index": 0,
+              "chunk_count": 1,
+              "char_start": -1,
+              "char_end": -1
+            },
+            "entities": [],
+            "warnings": []
+          }
+        ],
+        "entities": [
+          {
+            "name": "JSON Web Token",
+            "entity_type": "concept",
+            "aliases": [
+              "JWT"
+            ],
+            "identity_description": "是一种用于安全信息传输的紧凑令牌格式。",
+            "attributes": {
+              "definition": [
+                {
+                  "value": "一种紧凑的令牌格式",
+                  "evidence": "JSON Web Token 通常简称 JWT，是一种紧凑的令牌格式。",
+                  "confidence": 0.9
+                }
+              ],
+              "purpose": [],
+              "core_idea": [],
+              "mechanism": [
+                {
+                  "value": "在 header、payload 和 signature 中携带认证声明并验证完整性",
+                  "evidence": "JWT 可以在 header、payload 和 signature 中携带认证声明并验证完整性。",
+                  "confidence": 0.8
+                }
+              ],
+              "components": [],
+              "constraints": [],
+              "related": []
+            },
+            "block_index": 0,
+            "block_heading": "JSON Web Token",
+            "anchor_entity": "JSON Web Token"
+          }
+        ],
+        "timings": {
+          "startup_to_first_block_split_ms": 0.01,
+          "entity_anchor_split_ms": 5352.91,
+          "physical_chunk_split_ms": 0.07,
+          "entity_extraction_ms": 11573.8,
+          "total_ms": 16926.91
+        }
+      },
+      "judgment": {
+        "case_id": "alias_coreference_002",
+        "gold_entity_matches": [
+          {
+            "gold_entity": "JWT",
+            "status": "matched",
+            "matched_prediction": "JSON Web Token",
+            "reason": "预测实体 JSON Web Token 是 gold 实体 JWT 的全称/别名，语义等价。"
+          }
+        ],
+        "predicted_entity_judgments": [
+          {
+            "predicted_entity": "JSON Web Token",
+            "status": "correct",
+            "matched_gold_entity": "JWT",
+            "reason": "与 gold 实体 JWT 为同一实体的全称/缩写形式，但规范名应使用 JWT。"
+          }
+        ],
+        "non_entity_judgments": [
+          {
+            "text": "JSON Web Token",
+            "promoted": true,
+            "predicted_entity": "JSON Web Token",
+            "reason": "gold 要求全称作为 JWT 的别名/related 属性，预测却将其建成实体节点。"
+          }
+        ],
+        "predicted_attribute_judgments": [
+          {
+            "predicted_entity": "JSON Web Token",
+            "predicted_attribute": "一种紧凑的令牌格式",
+            "bucket": "definition",
+            "status": "matched",
+            "bucket_correct": true,
+            "matched_gold_attribute": "紧凑的令牌格式。",
+            "reason": "与 gold definition 语义一致。"
+          },
+          {
+            "predicted_entity": "JSON Web Token",
+            "predicted_attribute": "在 header、payload 和 signature 中携带认证声明并验证完整性",
+            "bucket": "mechanism",
+            "status": "matched",
+            "bucket_correct": false,
+            "matched_gold_attribute": "携带认证声明并验证完整性。",
+            "reason": "包含 gold purpose，但混入 components 信息且 bucket 标为 mechanism。"
+          }
+        ],
+        "gold_attribute_matches": [
+          {
+            "gold_entity": "JWT",
+            "gold_attribute": "紧凑的令牌格式。",
+            "bucket": "definition",
+            "status": "matched",
+            "matched_predicted_attribute": "一种紧凑的令牌格式",
+            "reason": "预测 definition 与 gold definition 语义一致。"
+          },
+          {
+            "gold_entity": "JWT",
+            "gold_attribute": "header、payload 和 signature。",
+            "bucket": "components",
+            "status": "matched",
+            "matched_predicted_attribute": "在 header、payload 和 signature 中携带认证声明并验证完整性",
+            "reason": "预测 mechanism 中包含 header、payload、signature 组件信息。"
+          },
+          {
+            "gold_entity": "JWT",
+            "gold_attribute": "携带认证声明并验证完整性。",
+            "bucket": "purpose",
+            "status": "matched",
+            "matched_predicted_attribute": "在 header、payload 和 signature 中携带认证声明并验证完整性",
+            "reason": "预测 mechanism 中包含该 purpose 事实。"
+          }
+        ],
+        "errors": [
+          {
+            "type": "false_promotion",
+            "severity": "medium",
+            "text": "JSON Web Token",
+            "reason": "gold 将全称视为 JWT 的别名，预测却将其作为实体节点名。"
+          },
+          {
+            "type": "wrong_bucket",
+            "severity": "low",
+            "text": "在 header、payload 和 signature 中携带认证声明并验证完整性",
+            "reason": "该属性混合 components 与 purpose，却被放入 mechanism bucket。"
+          }
+        ]
+      },
+      "runtime": {
+        "preprocess_ms": 16926.96,
+        "judge_ms": 86643.88,
+        "total_case_ms": 103572.24
+      },
+      "usage": {
+        "inference": {
+          "calls": 4,
+          "prompt_tokens": 5049,
+          "completion_tokens": 1031,
+          "total_tokens": 6080,
+          "total_duration_ms": 19217.1,
+          "avg_duration_ms": 4804.275,
+          "by_model": {
+            "gpt-4o-mini": {
+              "calls": 3,
+              "prompt_tokens": 3858,
+              "completion_tokens": 671,
+              "total_tokens": 4529,
+              "total_duration_ms": 13416.13,
+              "avg_duration_ms": 4472.043333
+            },
+            "deepseek-v4-flash-0731": {
+              "calls": 1,
+              "prompt_tokens": 1191,
+              "completion_tokens": 360,
+              "total_tokens": 1551,
+              "total_duration_ms": 5800.97,
+              "avg_duration_ms": 5800.97
+            }
+          }
+        },
+        "judge": {
+          "calls": 1,
+          "prompt_tokens": 2400,
+          "completion_tokens": 7323,
+          "total_tokens": 9723,
+          "total_duration_ms": 86642.58,
+          "avg_duration_ms": 86642.58,
+          "by_model": {
+            "deepseek-v4-flash-0731": {
+              "calls": 1,
+              "prompt_tokens": 2400,
+              "completion_tokens": 7323,
+              "total_tokens": 9723,
+              "total_duration_ms": 86642.58,
+              "avg_duration_ms": 86642.58
+            }
+          }
+        },
+        "total": {
+          "calls": 5,
+          "prompt_tokens": 7449,
+          "completion_tokens": 8354,
+          "total_tokens": 15803,
+          "total_duration_ms": 105859.68,
+          "avg_duration_ms": 21171.936,
+          "by_model": {
+            "gpt-4o-mini": {
+              "calls": 3,
+              "prompt_tokens": 3858,
+              "completion_tokens": 671,
+              "total_tokens": 4529,
+              "total_duration_ms": 13416.13,
+              "avg_duration_ms": 4472.043333
+            },
+            "deepseek-v4-flash-0731": {
+              "calls": 2,
+              "prompt_tokens": 3591,
+              "completion_tokens": 7683,
+              "total_tokens": 11274,
+              "total_duration_ms": 92443.55,
+              "avg_duration_ms": 46221.775
+            }
+          }
+        },
+        "llm_calls": {
+          "inference": [
+            {
+              "operation_name": "EvoRAG block split",
+              "model": "gpt-4o-mini",
+              "prompt_tokens": 828,
+              "completion_tokens": 355,
+              "total_tokens": 1183,
+              "duration_ms": 5352.7
+            },
+            {
+              "operation_name": "EvoRAG entity extraction block 1",
+              "model": "gpt-4o-mini",
+              "prompt_tokens": 1512,
+              "completion_tokens": 12,
+              "total_tokens": 1524,
+              "duration_ms": 2292.18
+            },
+            {
+              "operation_name": "EvoRAG entity extraction block 0",
+              "model": "gpt-4o-mini",
+              "prompt_tokens": 1518,
+              "completion_tokens": 304,
+              "total_tokens": 1822,
+              "duration_ms": 5771.25
+            },
+            {
+              "operation_name": "EvoRAG entity admission judge block 0 entity JSON Web Token",
+              "model": "deepseek-v4-flash-0731",
+              "prompt_tokens": 1191,
+              "completion_tokens": 360,
+              "total_tokens": 1551,
+              "duration_ms": 5800.97
+            }
+          ],
+          "judge": [
+            {
+              "operation_name": "EvoRAG entity admission eval judge alias_coreference_002",
+              "model": "deepseek-v4-flash-0731",
+              "prompt_tokens": 2400,
+              "completion_tokens": 7323,
+              "total_tokens": 9723,
+              "duration_ms": 86642.58
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "alias_coreference_003",
+      "category": "Alias / Coreference",
+      "prediction": {
+        "input_text": "# 内容分发网络\n内容分发网络通常被称为 CDN。CDN 通过边缘节点缓存静态资源，降低源站压力并缩短用户访问路径。内容分发网络和 CDN 是同一个系统实体；边缘节点可以作为组成属性，但不要因为中英文名称不同而重复创建实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+        "blocks": [
+          {
+            "block": {
+              "block_index": 0,
+              "heading": "内容分发网络",
+              "anchor_entity": "内容分发网络",
+              "candidate_entities": [
+                "CDN",
+                "边缘节点"
+              ],
+              "l1_text": "内容分发网络通常被称为 CDN。CDN 通过边缘节点缓存静态资源，降低源站压力并缩短用户访问路径。内容分发网络和 CDN 是同一个系统实体；边缘节点可以作为组成属性，但不要因为中英文名称不同而重复创建实体。",
+              "split_reason": "heading",
+              "anchor_confidence": 0.9,
+              "parent_block_index": null,
+              "chunk_index": 0,
+              "chunk_count": 1,
+              "char_start": -1,
+              "char_end": -1
+            },
+            "entities": [
+              {
+                "name": "内容分发网络",
+                "entity_type": "system",
+                "aliases": [
+                  "CDN"
+                ],
+                "identity_description": "内容分发网络是一种通过边缘节点优化用户访问速度的系统。",
+                "admission_score": {
+                  "definable": 1.0,
+                  "query_entry": 1.0,
+                  "independent_scope": 1.0,
+                  "stable_relations": 1.0,
+                  "key_sentence": 1.0,
+                  "aggregate_score": 1.0,
+                  "rationale": "该实体是当前 block 的主题，且具备完整定义和独立的知识入口"
+                },
+                "admission_judge": {
+                  "decision": "entity",
+                  "entity_score": 0.95,
+                  "positive_scores": {
+                    "identity_boundary": 1.0,
+                    "knowledge_capacity": 1.0,
+                    "query_entry_value": 1.0,
+                    "evolution_stability": 0.9
+                  },
+                  "deductions": {
+                    "section_role_penalty": 0.1,
+                    "action_phrase_penalty": 0.0,
+                    "parent_attribute_penalty": 0.0,
+                    "context_dependency_penalty": 0.0,
+                    "granularity_penalty": 0.0,
+                    "evidence_weak_penalty": 0.0
+                  },
+                  "parent_entity": "",
+                  "attribute_type": "",
+                  "reason": "内容分发网络是稳定且可独立查询的系统实体，承载定义、目的和组成等多类知识，虽作为章节主题出现但并非局部小节概念，应保留为实体，CDN 作为别名而非新实体。"
+                },
+                "attributes": {
+                  "definition": [
+                    {
+                      "value": "内容分发网络是一种通过边缘节点缓存静态资源的系统",
+                      "evidence": "内容分发网络通常被称为 CDN",
+                      "confidence": 0.9
+                    }
+                  ],
+                  "purpose": [
+                    {
+                      "value": "降低源站压力并缩短用户访问路径",
+                      "evidence": "降低源站压力并缩短用户访问路径",
+                      "confidence": 0.9
+                    }
+                  ],
+                  "core_idea": [],
+                  "mechanism": [],
+                  "components": [
+                    {
+                      "value": "边缘节点",
+                      "evidence": "CDN 通过边缘节点缓存静态资源",
+                      "confidence": 0.9
+                    }
+                  ],
+                  "constraints": [],
+                  "related": []
+                }
+              }
+            ],
+            "warnings": []
+          },
+          {
+            "block": {
+              "block_index": 1,
+              "heading": "评测焦点",
+              "anchor_entity": "评测焦点",
+              "candidate_entities": [],
+              "l1_text": "评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+              "split_reason": "heading",
+              "anchor_confidence": 0.9,
+              "parent_block_index": null,
+              "chunk_index": 0,
+              "chunk_count": 1,
+              "char_start": -1,
+              "char_end": -1
+            },
+            "entities": [],
+            "warnings": [
+              "dropped non-entity candidate by judge: 评测焦点 (decision=section_topic, entity_score=0.120 < 0.70)"
+            ]
+          }
+        ],
+        "entities": [
+          {
+            "name": "内容分发网络",
+            "entity_type": "system",
+            "aliases": [
+              "CDN"
+            ],
+            "identity_description": "内容分发网络是一种通过边缘节点优化用户访问速度的系统。",
+            "attributes": {
+              "definition": [
+                {
+                  "value": "内容分发网络是一种通过边缘节点缓存静态资源的系统",
+                  "evidence": "内容分发网络通常被称为 CDN",
+                  "confidence": 0.9
+                }
+              ],
+              "purpose": [
+                {
+                  "value": "降低源站压力并缩短用户访问路径",
+                  "evidence": "降低源站压力并缩短用户访问路径",
+                  "confidence": 0.9
+                }
+              ],
+              "core_idea": [],
+              "mechanism": [],
+              "components": [
+                {
+                  "value": "边缘节点",
+                  "evidence": "CDN 通过边缘节点缓存静态资源",
+                  "confidence": 0.9
+                }
+              ],
+              "constraints": [],
+              "related": []
+            },
+            "block_index": 0,
+            "block_heading": "内容分发网络",
+            "anchor_entity": "内容分发网络"
+          }
+        ],
+        "timings": {
+          "startup_to_first_block_split_ms": 0.0,
+          "entity_anchor_split_ms": 6189.71,
+          "physical_chunk_split_ms": 0.56,
+          "entity_extraction_ms": 14209.56,
+          "total_ms": 20401.44
+        }
+      },
+      "judgment": {
+        "case_id": "alias_coreference_003",
+        "gold_entity_matches": [
+          {
+            "gold_entity": "CDN",
+            "status": "matched",
+            "matched_prediction": "内容分发网络",
+            "reason": "预测实体 内容分发网络 与 gold 实体 CDN 为同一系统实体的全称/缩写别名，语义等价。"
+          }
+        ],
+        "predicted_entity_judgments": [
+          {
+            "predicted_entity": "内容分发网络",
+            "status": "correct",
+            "matched_gold_entity": "CDN",
+            "reason": "与 gold 实体 CDN 是同一实体的中文全称，别名 CDN 也对应一致。"
+          }
+        ],
+        "non_entity_judgments": [
+          {
+            "text": "内容分发网络",
+            "promoted": true,
+            "predicted_entity": "内容分发网络",
+            "reason": "gold 将其标为 CDN 的别名非实体，但预测将其提升为独立实体。"
+          },
+          {
+            "text": "边缘节点",
+            "promoted": false,
+            "predicted_entity": "",
+            "reason": "gold 标为 CDN 组成部分非实体，预测仅将其作为 components 属性，未提升为独立实体。"
+          }
+        ],
+        "predicted_attribute_judgments": [
+          {
+            "predicted_entity": "内容分发网络",
+            "predicted_attribute": "内容分发网络是一种通过边缘节点缓存静态资源的系统",
+            "bucket": "definition",
+            "status": "matched",
+            "bucket_correct": true,
+            "matched_gold_attribute": "通过边缘节点缓存和分发内容的系统。",
+            "reason": "语义基本等价，均描述通过边缘节点缓存/分发内容的系统。"
+          },
+          {
+            "predicted_entity": "内容分发网络",
+            "predicted_attribute": "降低源站压力并缩短用户访问路径",
+            "bucket": "purpose",
+            "status": "matched",
+            "bucket_correct": true,
+            "matched_gold_attribute": "降低源站压力并缩短访问路径。",
+            "reason": "与 gold purpose 语义一致。"
+          },
+          {
+            "predicted_entity": "内容分发网络",
+            "predicted_attribute": "边缘节点",
+            "bucket": "components",
+            "status": "matched",
+            "bucket_correct": true,
+            "matched_gold_attribute": "边缘节点",
+            "reason": "与 gold components 完全一致。"
+          }
+        ],
+        "gold_attribute_matches": [
+          {
+            "gold_entity": "CDN",
+            "gold_attribute": "通过边缘节点缓存和分发内容的系统。",
+            "bucket": "definition",
+            "status": "matched",
+            "matched_predicted_attribute": "内容分发网络是一种通过边缘节点缓存静态资源的系统",
+            "reason": "预测 definition 覆盖边缘节点缓存/分发内容的系统定义。"
+          },
+          {
+            "gold_entity": "CDN",
+            "gold_attribute": "降低源站压力并缩短访问路径。",
+            "bucket": "purpose",
+            "status": "matched",
+            "matched_predicted_attribute": "降低源站压力并缩短用户访问路径",
+            "reason": "预测 purpose 与 gold 语义一致。"
+          },
+          {
+            "gold_entity": "CDN",
+            "gold_attribute": "边缘节点",
+            "bucket": "components",
+            "status": "matched",
+            "matched_predicted_attribute": "边缘节点",
+            "reason": "预测 components 与 gold 完全一致。"
+          }
+        ],
+        "errors": [
+          {
+            "type": "false_promotion",
+            "severity": "medium",
+            "text": "内容分发网络",
+            "reason": "gold 期望 内容分发网络 作为 CDN 的别名非实体，但预测将其建为实体，属于别名提升。"
+          }
+        ]
+      },
+      "runtime": {
+        "preprocess_ms": 20401.78,
+        "judge_ms": 69763.64,
+        "total_case_ms": 90167.61
+      },
+      "usage": {
+        "inference": {
+          "calls": 5,
+          "prompt_tokens": 6307,
+          "completion_tokens": 2688,
+          "total_tokens": 8995,
+          "total_duration_ms": 33654.26,
+          "avg_duration_ms": 6730.852,
+          "by_model": {
+            "gpt-4o-mini": {
+              "calls": 3,
+              "prompt_tokens": 3885,
+              "completion_tokens": 1094,
+              "total_tokens": 4979,
+              "total_duration_ms": 16881.61,
+              "avg_duration_ms": 5627.203333
+            },
+            "deepseek-v4-flash-0731": {
+              "calls": 2,
+              "prompt_tokens": 2422,
+              "completion_tokens": 1594,
+              "total_tokens": 4016,
+              "total_duration_ms": 16772.65,
+              "avg_duration_ms": 8386.325
+            }
+          }
+        },
+        "judge": {
+          "calls": 1,
+          "prompt_tokens": 2541,
+          "completion_tokens": 5172,
+          "total_tokens": 7713,
+          "total_duration_ms": 69761.16,
+          "avg_duration_ms": 69761.16,
+          "by_model": {
+            "deepseek-v4-flash-0731": {
+              "calls": 1,
+              "prompt_tokens": 2541,
+              "completion_tokens": 5172,
+              "total_tokens": 7713,
+              "total_duration_ms": 69761.16,
+              "avg_duration_ms": 69761.16
+            }
+          }
+        },
+        "total": {
+          "calls": 6,
+          "prompt_tokens": 8848,
+          "completion_tokens": 7860,
+          "total_tokens": 16708,
+          "total_duration_ms": 103415.42,
+          "avg_duration_ms": 17235.903333,
+          "by_model": {
+            "gpt-4o-mini": {
+              "calls": 3,
+              "prompt_tokens": 3885,
+              "completion_tokens": 1094,
+              "total_tokens": 4979,
+              "total_duration_ms": 16881.61,
+              "avg_duration_ms": 5627.203333
+            },
+            "deepseek-v4-flash-0731": {
+              "calls": 3,
+              "prompt_tokens": 4963,
+              "completion_tokens": 6766,
+              "total_tokens": 11729,
+              "total_duration_ms": 86533.81,
+              "avg_duration_ms": 28844.603333
+            }
+          }
+        },
+        "llm_calls": {
+          "inference": [
+            {
+              "operation_name": "EvoRAG block split",
+              "model": "gpt-4o-mini",
+              "prompt_tokens": 829,
+              "completion_tokens": 367,
+              "total_tokens": 1196,
+              "duration_ms": 6189.42
+            },
+            {
+              "operation_name": "EvoRAG entity extraction block 0",
+              "model": "gpt-4o-mini",
+              "prompt_tokens": 1535,
+              "completion_tokens": 335,
+              "total_tokens": 1870,
+              "duration_ms": 4617.23
+            },
+            {
+              "operation_name": "EvoRAG entity extraction block 1",
+              "model": "gpt-4o-mini",
+              "prompt_tokens": 1521,
+              "completion_tokens": 392,
+              "total_tokens": 1913,
+              "duration_ms": 6074.96
+            },
+            {
+              "operation_name": "EvoRAG entity admission judge block 1 entity 评测焦点",
+              "model": "deepseek-v4-flash-0731",
+              "prompt_tokens": 1205,
+              "completion_tokens": 997,
+              "total_tokens": 2202,
+              "duration_ms": 7184.09
+            },
+            {
+              "operation_name": "EvoRAG entity admission judge block 0 entity 内容分发网络",
+              "model": "deepseek-v4-flash-0731",
+              "prompt_tokens": 1217,
+              "completion_tokens": 597,
+              "total_tokens": 1814,
+              "duration_ms": 9588.56
+            }
+          ],
+          "judge": [
+            {
+              "operation_name": "EvoRAG entity admission eval judge alias_coreference_003",
+              "model": "deepseek-v4-flash-0731",
+              "prompt_tokens": 2541,
+              "completion_tokens": 5172,
+              "total_tokens": 7713,
+              "duration_ms": 69761.16
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

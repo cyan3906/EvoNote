@@ -1,0 +1,408 @@
+{
+  "category": "Alias / Coreference",
+  "case_count": 10,
+  "cases": [
+    {
+      "case_id": "alias_coreference_001",
+      "category": "Alias / Coreference",
+      "input_text": "# MySQL 隔离级别\nRR，也叫 Repeatable Read，中文常写作可重复读，是 MySQL 常用的事务隔离级别。它通过 MVCC 减少不可重复读问题，并在 InnoDB 中配合间隙锁处理部分幻读场景。RR、Repeatable Read 和可重复读应合并为同一个实体，而不是重复建库。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "Repeatable Read",
+          "entity_type": "concept",
+          "aliases": [
+            "RR",
+            "可重复读"
+          ],
+          "attributes": {
+            "definition": [
+              "MySQL 常用的事务隔离级别。"
+            ],
+            "mechanism": [
+              "通过 MVCC 减少不可重复读问题。"
+            ],
+            "related": [
+              "MVCC",
+              "间隙锁"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "RR",
+          "expected_role": "alias",
+          "parent_entity": "Repeatable Read",
+          "attribute_type": "related",
+          "reason": "RR 是 Repeatable Read 的缩写。"
+        },
+        {
+          "text": "可重复读",
+          "expected_role": "alias",
+          "parent_entity": "Repeatable Read",
+          "attribute_type": "related",
+          "reason": "中文名应作为别名合并。"
+        }
+      ]
+    },
+    {
+      "case_id": "alias_coreference_002",
+      "category": "Alias / Coreference",
+      "input_text": "# JSON Web Token\nJSON Web Token 通常简称 JWT，是一种紧凑的令牌格式。JWT 可以在 header、payload 和 signature 中携带认证声明并验证完整性。本文里的 JSON Web Token 和 JWT 指向同一个实体，不能新建两个实体节点，也不能把简称当独立概念。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "JWT",
+          "entity_type": "protocol",
+          "aliases": [
+            "JSON Web Token"
+          ],
+          "attributes": {
+            "definition": [
+              "紧凑的令牌格式。"
+            ],
+            "components": [
+              "header、payload 和 signature。"
+            ],
+            "purpose": [
+              "携带认证声明并验证完整性。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "JSON Web Token",
+          "expected_role": "alias",
+          "parent_entity": "JWT",
+          "attribute_type": "related",
+          "reason": "全称和简称指同一实体。"
+        }
+      ]
+    },
+    {
+      "case_id": "alias_coreference_003",
+      "category": "Alias / Coreference",
+      "input_text": "# 内容分发网络\n内容分发网络通常被称为 CDN。CDN 通过边缘节点缓存静态资源，降低源站压力并缩短用户访问路径。内容分发网络和 CDN 是同一个系统实体；边缘节点可以作为组成属性，但不要因为中英文名称不同而重复创建实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "CDN",
+          "entity_type": "system",
+          "aliases": [
+            "内容分发网络"
+          ],
+          "attributes": {
+            "definition": [
+              "通过边缘节点缓存和分发内容的系统。"
+            ],
+            "purpose": [
+              "降低源站压力并缩短访问路径。"
+            ],
+            "components": [
+              "边缘节点"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "内容分发网络",
+          "expected_role": "alias",
+          "parent_entity": "CDN",
+          "attribute_type": "related",
+          "reason": "它是 CDN 的中文全称。"
+        },
+        {
+          "text": "边缘节点",
+          "expected_role": "component",
+          "parent_entity": "CDN",
+          "attribute_type": "components",
+          "reason": "它是 CDN 组成部分。"
+        }
+      ]
+    },
+    {
+      "case_id": "alias_coreference_004",
+      "category": "Alias / Coreference",
+      "input_text": "# 多版本并发控制\n多版本并发控制，英文常称 MVCC，是数据库中降低读写阻塞的机制。MVCC 会让读操作基于快照读取历史版本，而写操作创建新版本。多版本并发控制和 MVCC 不应生成两个实体；快照读取是机制属性。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "MVCC",
+          "entity_type": "concept",
+          "aliases": [
+            "多版本并发控制"
+          ],
+          "attributes": {
+            "definition": [
+              "数据库中降低读写阻塞的机制。"
+            ],
+            "mechanism": [
+              "读操作基于快照读取历史版本，写操作创建新版本。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "多版本并发控制",
+          "expected_role": "alias",
+          "parent_entity": "MVCC",
+          "attribute_type": "related",
+          "reason": "它是 MVCC 的中文名。"
+        },
+        {
+          "text": "快照读取",
+          "expected_role": "attribute",
+          "parent_entity": "MVCC",
+          "attribute_type": "mechanism",
+          "reason": "它是 MVCC 读取机制。"
+        }
+      ]
+    },
+    {
+      "case_id": "alias_coreference_005",
+      "category": "Alias / Coreference",
+      "input_text": "# 二叉搜索树\n二叉搜索树也叫 BST，它要求左子树节点值小于根节点，右子树节点值大于根节点。BST 支持按序遍历得到有序结果。二叉搜索树和 BST 是同一个数据结构实体；左子树和右子树是组成或约束属性。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "二叉搜索树",
+          "entity_type": "data_structure",
+          "aliases": [
+            "BST"
+          ],
+          "attributes": {
+            "definition": [
+              "满足左小右大约束的二叉树。"
+            ],
+            "constraints": [
+              "左子树节点值小于根节点，右子树节点值大于根节点。"
+            ],
+            "purpose": [
+              "按序遍历可以得到有序结果。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "BST",
+          "expected_role": "alias",
+          "parent_entity": "二叉搜索树",
+          "attribute_type": "related",
+          "reason": "BST 是二叉搜索树缩写。"
+        },
+        {
+          "text": "左子树",
+          "expected_role": "component",
+          "parent_entity": "二叉搜索树",
+          "attribute_type": "components",
+          "reason": "它是树结构组成。"
+        }
+      ]
+    },
+    {
+      "case_id": "alias_coreference_006",
+      "category": "Alias / Coreference",
+      "input_text": "# 发布订阅\n发布订阅模式通常简称 Pub/Sub。生产者把消息发布到主题，订阅者接收自己关注主题上的消息。发布订阅和 Pub/Sub 是同一个通信模式；主题和订阅者是该模式的组件或角色，不应导致重复实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "发布订阅模式",
+          "entity_type": "method",
+          "aliases": [
+            "Pub/Sub",
+            "发布订阅"
+          ],
+          "attributes": {
+            "definition": [
+              "生产者向主题发布消息，订阅者接收关注主题消息的通信模式。"
+            ],
+            "components": [
+              "生产者、主题和订阅者。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "Pub/Sub",
+          "expected_role": "alias",
+          "parent_entity": "发布订阅模式",
+          "attribute_type": "related",
+          "reason": "它是发布订阅模式简称。"
+        },
+        {
+          "text": "订阅者",
+          "expected_role": "component",
+          "parent_entity": "发布订阅模式",
+          "attribute_type": "components",
+          "reason": "它是模式角色。"
+        }
+      ]
+    },
+    {
+      "case_id": "alias_coreference_007",
+      "category": "Alias / Coreference",
+      "input_text": "# 单点登录\n单点登录通常写作 SSO，允许用户登录一次后访问多个受信任系统。SSO 依赖身份提供方、服务提供方和令牌传递。单点登录与 SSO 是同一个实体；身份提供方在本文中是组成角色，可以作为组件而不是重复实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "单点登录",
+          "entity_type": "system",
+          "aliases": [
+            "SSO"
+          ],
+          "attributes": {
+            "definition": [
+              "用户登录一次后访问多个受信任系统的机制。"
+            ],
+            "components": [
+              "身份提供方、服务提供方和令牌。"
+            ],
+            "purpose": [
+              "减少多系统重复登录。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "SSO",
+          "expected_role": "alias",
+          "parent_entity": "单点登录",
+          "attribute_type": "related",
+          "reason": "SSO 是单点登录简称。"
+        },
+        {
+          "text": "身份提供方",
+          "expected_role": "component",
+          "parent_entity": "单点登录",
+          "attribute_type": "components",
+          "reason": "它是单点登录角色。"
+        }
+      ]
+    },
+    {
+      "case_id": "alias_coreference_008",
+      "category": "Alias / Coreference",
+      "input_text": "# 对象关系映射\n对象关系映射常简称 ORM，它把对象模型和关系数据库表之间的转换自动化。ORM 可以减少手写 SQL，但也可能隐藏查询成本。对象关系映射和 ORM 是同一实体；手写 SQL 在这里是对比对象，不应新建为核心实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "ORM",
+          "entity_type": "method",
+          "aliases": [
+            "对象关系映射"
+          ],
+          "attributes": {
+            "definition": [
+              "自动化对象模型和关系数据库表转换的方法。"
+            ],
+            "purpose": [
+              "减少手写 SQL。"
+            ],
+            "constraints": [
+              "可能隐藏查询成本。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "对象关系映射",
+          "expected_role": "alias",
+          "parent_entity": "ORM",
+          "attribute_type": "related",
+          "reason": "它是 ORM 的中文全称。"
+        },
+        {
+          "text": "手写 SQL",
+          "expected_role": "mention",
+          "parent_entity": "ORM",
+          "attribute_type": "purpose",
+          "reason": "它是 ORM 减少的人工工作。"
+        }
+      ]
+    },
+    {
+      "case_id": "alias_coreference_009",
+      "category": "Alias / Coreference",
+      "input_text": "# 反向代理\n反向代理常见英文是 Reverse Proxy，它代表后端服务接收客户端请求，再转发给真实服务。Reverse Proxy 和反向代理是同一个系统角色。真实服务、客户端和转发请求描述其关系，不应因多次出现而另建实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "反向代理",
+          "entity_type": "system",
+          "aliases": [
+            "Reverse Proxy"
+          ],
+          "attributes": {
+            "definition": [
+              "代表后端服务接收并转发客户端请求的系统角色。"
+            ],
+            "mechanism": [
+              "接收客户端请求后转发给真实服务。"
+            ],
+            "related": [
+              "客户端",
+              "真实服务"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "Reverse Proxy",
+          "expected_role": "alias",
+          "parent_entity": "反向代理",
+          "attribute_type": "related",
+          "reason": "它是反向代理的英文名。"
+        },
+        {
+          "text": "转发请求",
+          "expected_role": "attribute",
+          "parent_entity": "反向代理",
+          "attribute_type": "mechanism",
+          "reason": "它是反向代理行为。"
+        }
+      ]
+    },
+    {
+      "case_id": "alias_coreference_010",
+      "category": "Alias / Coreference",
+      "input_text": "# 写时复制\n写时复制又称 COW，表示多个使用者先共享同一份数据，只有发生写入时才复制副本。COW 可以降低不必要的复制成本。写时复制和 COW 是同一机制；复制副本是触发后的行为，不应单独建实体。\n\n评测焦点：系统需要结合全文层级和上下文判断候选短语的身份边界、知识承载能力、查询入口价值和演化稳定性。如果候选只是标题、步骤、属性、字段、别名、条件或代词指代，应记录为非实体决策，并挂回预期父实体的属性中。",
+      "expected_entities": [
+        {
+          "name": "写时复制",
+          "entity_type": "method",
+          "aliases": [
+            "COW",
+            "Copy-on-Write"
+          ],
+          "attributes": {
+            "definition": [
+              "共享数据直到写入发生时再复制副本的机制。"
+            ],
+            "purpose": [
+              "降低不必要的复制成本。"
+            ],
+            "mechanism": [
+              "写入时才复制副本。"
+            ]
+          }
+        }
+      ],
+      "expected_non_entities": [
+        {
+          "text": "COW",
+          "expected_role": "alias",
+          "parent_entity": "写时复制",
+          "attribute_type": "related",
+          "reason": "COW 是写时复制缩写。"
+        },
+        {
+          "text": "复制副本",
+          "expected_role": "attribute",
+          "parent_entity": "写时复制",
+          "attribute_type": "mechanism",
+          "reason": "它是写入触发后的动作。"
+        }
+      ]
+    }
+  ]
+}
