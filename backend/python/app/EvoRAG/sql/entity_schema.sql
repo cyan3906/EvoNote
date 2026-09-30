@@ -221,3 +221,43 @@ CREATE TABLE IF NOT EXISTS evorag_entity_resolution_rejections (
         FOREIGN KEY (candidate_entity_id) REFERENCES evorag_entities(id)
         ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS evorag_entity_resolution_relation_memory (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    workspace_id VARCHAR(128) NOT NULL DEFAULT 'local',
+    project_id VARCHAR(128) NOT NULL DEFAULT 'evorag',
+    collection_id VARCHAR(128) NOT NULL DEFAULT 'default',
+    domain VARCHAR(128) NOT NULL DEFAULT 'general',
+    scope_hash CHAR(40) NOT NULL,
+    left_entity_id BIGINT NULL,
+    left_name VARCHAR(255) NOT NULL DEFAULT '',
+    left_normalized_name VARCHAR(255) NOT NULL,
+    left_type VARCHAR(64) NOT NULL DEFAULT '',
+    right_entity_id BIGINT NULL,
+    right_name VARCHAR(255) NOT NULL DEFAULT '',
+    right_normalized_name VARCHAR(255) NOT NULL,
+    right_type VARCHAR(64) NOT NULL DEFAULT '',
+    decision VARCHAR(32) NOT NULL,
+    relation_type VARCHAR(64) NOT NULL DEFAULT '',
+    confidence DOUBLE NOT NULL DEFAULT 1.0,
+    hit_count BIGINT NOT NULL DEFAULT 0,
+    source VARCHAR(64) NOT NULL DEFAULT 'manual',
+    reason TEXT NOT NULL,
+    evidence_json JSON NULL,
+    status VARCHAR(32) NOT NULL DEFAULT 'active',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_evorag_relation_memory_pair (
+        scope_hash, left_normalized_name, left_type, right_normalized_name, right_type, status
+    ),
+    INDEX idx_evorag_relation_memory_left (scope_hash, left_normalized_name, left_type, status),
+    INDEX idx_evorag_relation_memory_right (scope_hash, right_normalized_name, right_type, status),
+    INDEX idx_evorag_relation_memory_decision (decision, status),
+    INDEX idx_evorag_relation_memory_hits (hit_count, updated_at),
+    CONSTRAINT fk_evorag_relation_memory_left_entity
+        FOREIGN KEY (left_entity_id) REFERENCES evorag_entities(id)
+        ON DELETE SET NULL,
+    CONSTRAINT fk_evorag_relation_memory_right_entity
+        FOREIGN KEY (right_entity_id) REFERENCES evorag_entities(id)
+        ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

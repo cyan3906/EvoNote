@@ -1,0 +1,1669 @@
+{
+  "dataset_id": "entity-resolution-benchmark-v1",
+  "fixture_path": "E:\\huadian\\evonote\\backend\\python\\tests\\EvoRAG\\fixtures\\entity_resolution\\benchmark_v1.json",
+  "output_path": "E:\\huadian\\evonote\\backend\\python\\tests\\EvoRAG\\results\\memory_guarded_hybrid__category-nil_new_entity__limit-all__top-k-5\\entity_resolution_eval_report__20260930_161058_979273.json",
+  "strategy": "memory_guarded_hybrid",
+  "scope": {
+    "workspace_id": "eval",
+    "project_id": "entity-resolution",
+    "collection_id": "benchmark-v1",
+    "domain": "computer-science"
+  },
+  "top_k": 5,
+  "seed_entity_count": 70,
+  "total_cases": 10,
+  "models": {
+    "embedding_model": "text-embedding-3-large",
+    "judge_model": "deepseek-v4-flash-0731"
+  },
+  "indexes": {
+    "elasticsearch": "evorag_entities_eval_entity_resolution_benchmark_v1",
+    "milvus": "evorag_entities_eval_entity_resolution_benchmark_v1"
+  },
+  "runtime": {
+    "total_eval_ms": 446838.34,
+    "avg_case_ms": 43508.398
+  },
+  "cost": {
+    "judge": {
+      "calls": 25,
+      "prompt_tokens": 21262,
+      "completion_tokens": 4758,
+      "total_tokens": 26020,
+      "total_duration_ms": 380383.32,
+      "avg_duration_ms": 15215.3328,
+      "by_model": {
+        "deepseek-v4-flash-0731": {
+          "calls": 25,
+          "prompt_tokens": 21262,
+          "completion_tokens": 4758,
+          "total_tokens": 26020,
+          "total_duration_ms": 380383.32,
+          "avg_duration_ms": 15215.3328
+        }
+      }
+    }
+  },
+  "overall": {
+    "retrieval": {
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "mrr": 0.0,
+      "ambiguous_coverage@3": 0.0,
+      "close_negative_top1_rate": 0.6,
+      "counts": {
+        "matched_cases": 0,
+        "ambiguous_cases": 0,
+        "ambiguous_covered@3": 0,
+        "close_negative_cases": 10,
+        "close_negative_top1": 6,
+        "matched_found@1": 0,
+        "matched_found@3": 0,
+        "matched_found@5": 0
+      }
+    },
+    "deepseek_judge": {
+      "decision_accuracy": 1.0,
+      "matched_entity_accuracy": 0.0,
+      "false_match_rate": 0.0,
+      "false_new_rate": 0.0,
+      "false_ambiguous_rate": 0.0,
+      "ambiguous_accuracy": 0.0,
+      "counts": {
+        "total_cases": 10,
+        "correct_decisions": 10,
+        "expected_matched_cases": 0,
+        "correct_matched_entities": 0,
+        "expected_non_matched_cases": 10,
+        "false_matches": 0,
+        "false_new_cases": 0,
+        "clear_cases": 10,
+        "false_ambiguous_cases": 0,
+        "ambiguous_cases": 0,
+        "correct_ambiguous_cases": 0
+      }
+    }
+  },
+  "by_category": {
+    "nil_new_entity": {
+      "retrieval": {
+        "recall@1": 0.0,
+        "recall@3": 0.0,
+        "recall@5": 0.0,
+        "mrr": 0.0,
+        "ambiguous_coverage@3": 0.0,
+        "close_negative_top1_rate": 0.6,
+        "counts": {
+          "matched_cases": 0,
+          "ambiguous_cases": 0,
+          "ambiguous_covered@3": 0,
+          "close_negative_cases": 10,
+          "close_negative_top1": 6,
+          "matched_found@1": 0,
+          "matched_found@3": 0,
+          "matched_found@5": 0
+        }
+      },
+      "deepseek_judge": {
+        "decision_accuracy": 1.0,
+        "matched_entity_accuracy": 0.0,
+        "false_match_rate": 0.0,
+        "false_new_rate": 0.0,
+        "false_ambiguous_rate": 0.0,
+        "ambiguous_accuracy": 0.0,
+        "counts": {
+          "total_cases": 10,
+          "correct_decisions": 10,
+          "expected_matched_cases": 0,
+          "correct_matched_entities": 0,
+          "expected_non_matched_cases": 10,
+          "false_matches": 0,
+          "false_new_cases": 0,
+          "clear_cases": 10,
+          "false_ambiguous_cases": 0,
+          "ambiguous_cases": 0,
+          "correct_ambiguous_cases": 0
+        }
+      }
+    }
+  },
+  "flow_metrics": {
+    "total_cases": 10,
+    "by_stage": {
+      "no_relation_memory_fallback_hybrid": 5,
+      "memory_judge_fallback_hybrid": 5
+    },
+    "by_category_stage": {
+      "nil_new_entity": {
+        "no_relation_memory_fallback_hybrid": 5,
+        "memory_judge_fallback_hybrid": 5
+      }
+    },
+    "accuracy_by_stage": {
+      "no_relation_memory_fallback_hybrid": {
+        "correct": 5,
+        "total": 5,
+        "accuracy": 1.0
+      },
+      "memory_judge_fallback_hybrid": {
+        "correct": 5,
+        "total": 5,
+        "accuracy": 1.0
+      }
+    },
+    "accuracy_by_category_stage": {
+      "nil_new_entity": {
+        "no_relation_memory_fallback_hybrid": {
+          "correct": 5,
+          "total": 5,
+          "accuracy": 1.0
+        },
+        "memory_judge_fallback_hybrid": {
+          "correct": 5,
+          "total": 5,
+          "accuracy": 1.0
+        }
+      }
+    },
+    "component_usage_counts": {
+      "redis": 10,
+      "admission_guard": 10,
+      "mysql_memory": 5,
+      "relation_guard": 5,
+      "hybrid": 10,
+      "experience_write": 8,
+      "manual_review_trigger": 8
+    },
+    "hybrid_fallback_rate": 1.0,
+    "experience_write_count": 8,
+    "manual_review_trigger_count": 8
+  },
+  "cases": [
+    {
+      "case_id": "nil_new_entity_001",
+      "category": "nil_new_entity",
+      "incoming_entity": {
+        "name": "QUIC",
+        "entity_type": "protocol",
+        "aliases": [],
+        "identity_description": "基于 UDP 的传输协议，集成连接建立、可靠传输和 TLS 安全能力。"
+      },
+      "expected": {
+        "decision": "new",
+        "matched_seed_id": null,
+        "expected_top_candidates": [
+          "seed-062",
+          "seed-066",
+          "seed-061"
+        ],
+        "must_not_match_seed_ids": [
+          "seed-062",
+          "seed-066",
+          "seed-061"
+        ]
+      },
+      "retrieval": {
+        "ranked_seed_ids": [
+          "seed-061",
+          "seed-062",
+          "seed-064",
+          "seed-066",
+          "seed-023"
+        ],
+        "candidates": [
+          {
+            "rank": 1,
+            "seed_id": "seed-061",
+            "entity_id": 61,
+            "canonical_name": "TCP",
+            "entity_type": "protocol",
+            "score": 1.0,
+            "source": "elasticsearch+milvus",
+            "vector_score": 0.6509658694267273,
+            "es_score": 1.0,
+            "identity_description": "面向连接、可靠传输、提供流量控制和拥塞控制的传输层协议。"
+          },
+          {
+            "rank": 2,
+            "seed_id": "seed-062",
+            "entity_id": 62,
+            "canonical_name": "UDP",
+            "entity_type": "protocol",
+            "score": 0.8918911269715974,
+            "source": "elasticsearch+milvus",
+            "vector_score": 0.5805984735488892,
+            "es_score": 0.8918911269715974,
+            "identity_description": "无连接、不保证可靠送达但开销较低的传输层协议。"
+          },
+          {
+            "rank": 3,
+            "seed_id": "seed-064",
+            "entity_id": 64,
+            "canonical_name": "WebSocket",
+            "entity_type": "protocol",
+            "score": 0.5980340838432312,
+            "source": "elasticsearch+milvus",
+            "vector_score": 0.5980340838432312,
+            "es_score": 0.0,
+            "identity_description": "在单个连接上提供全双工通信的应用层协议。"
+          },
+          {
+            "rank": 4,
+            "seed_id": "seed-066",
+            "entity_id": 66,
+            "canonical_name": "TLS",
+            "entity_type": "protocol",
+            "score": 0.5707433223724365,
+            "source": "elasticsearch+milvus",
+            "vector_score": 0.5707433223724365,
+            "es_score": 0.0,
+            "identity_description": "为网络通信提供加密、认证和完整性保护的安全协议。"
+          },
+          {
+            "rank": 5,
+            "seed_id": "seed-023",
+            "entity_id": 23,
+            "canonical_name": "Backpressure",
+            "entity_type": "mechanism",
+            "score": 0.3679793890364564,
+            "source": "elasticsearch",
+            "vector_score": 0.0,
+            "es_score": 0.3679793890364564,
+            "identity_description": "下游处理能力不足时向上游传递压力以控制生产速率的机制。"
+          }
+        ]
+      },
+      "judgment": {
+        "decision": "new",
+        "matched_seed_id": null,
+        "confidence": 0.97,
+        "reason": "候选列表中没有 QUIC 实体，TCP、UDP、WebSocket、TLS、Backpressure 均与 QUIC 不是同一实体。"
+      },
+      "runtime": {
+        "total_case_ms": 33211.42
+      },
+      "usage": {
+        "judge": {
+          "calls": 2,
+          "prompt_tokens": 1734,
+          "completion_tokens": 252,
+          "total_tokens": 1986,
+          "total_duration_ms": 29156.46,
+          "avg_duration_ms": 14578.23,
+          "by_model": {
+            "deepseek-v4-flash-0731": {
+              "calls": 2,
+              "prompt_tokens": 1734,
+              "completion_tokens": 252,
+              "total_tokens": 1986,
+              "total_duration_ms": 29156.46,
+              "avg_duration_ms": 14578.23
+            }
+          }
+        }
+      },
+      "strategy_trace": {
+        "strategy": "memory_guarded_hybrid",
+        "stage": "no_relation_memory_fallback_hybrid",
+        "direct_reject": false
+      },
+      "flow": {
+        "stage": "no_relation_memory_fallback_hybrid",
+        "used_redis": true,
+        "used_admission_guard": true,
+        "used_mysql_memory": false,
+        "used_relation_guard": false,
+        "used_hybrid": true,
+        "wrote_experience": false,
+        "manual_review_triggered": false,
+        "experience_source": null,
+        "experience_relation_type": null
+      }
+    },
+    {
+      "case_id": "nil_new_entity_002",
+      "category": "nil_new_entity",
+      "incoming_entity": {
+        "name": "GraphQL",
+        "entity_type": "query_language",
+        "aliases": [],
+        "identity_description": "客户端声明所需字段，由服务端按 schema 返回结构化数据的 API 查询语言。"
+      },
+      "expected": {
+        "decision": "new",
+        "matched_seed_id": null,
+        "expected_top_candidates": [
+          "seed-034",
+          "seed-063"
+        ],
+        "must_not_match_seed_ids": [
+          "seed-034",
+          "seed-063"
+        ]
+      },
+      "retrieval": {
+        "ranked_seed_ids": [
+          "seed-024",
+          "seed-063",
+          "seed-032",
+          "seed-026",
+          "seed-034"
+        ],
+        "candidates": [
+          {
+            "rank": 1,
+            "seed_id": "seed-024",
+            "entity_id": 24,
+            "canonical_name": "Idempotency Key",
+            "entity_type": "concept",
+            "score": 0.8581289149385901,
+            "source": "elasticsearch+milvus",
+            "vector_score": 0.41304177045822144,
+            "es_score": 0.8581289149385901,
+            "identity_description": "客户端为请求提供的唯一键，用于服务端识别重复请求并避免重复执行。"
+          },
+          {
+            "rank": 2,
+            "seed_id": "seed-063",
+            "entity_id": 63,
+            "canonical_name": "HTTP",
+            "entity_type": "protocol",
+            "score": 0.8830745658508128,
+            "source": "elasticsearch+milvus",
+            "vector_score": 0.39662930369377136,
+            "es_score": 0.8830745658508128,
+            "identity_description": "客户端和服务器交换超文本资源的应用层协议。"
+          },
+          {
+            "rank": 3,
+            "seed_id": "seed-032",
+            "entity_id": 32,
+            "canonical_name": "Reverse Proxy",
+            "entity_type": "system",
+            "score": 1.0,
+            "source": "elasticsearch",
+            "vector_score": 0.0,
+            "es_score": 1.0,
+            "identity_description": "代表后端服务接收客户端请求并转发到真实服务的系统角色。"
+          },
+          {
+            "rank": 4,
+            "seed_id": "seed-026",
+            "entity_id": 26,
+            "canonical_name": "JWT",
+            "entity_type": "format",
+            "score": 0.4336787462234497,
+            "source": "milvus",
+            "vector_score": 0.4336787462234497,
+            "es_score": 0.0,
+            "identity_description": "紧凑的声明令牌格式，由 header、payload 和 signature 组成。"
+          },
+          {
+            "rank": 5,
+            "seed_id": "seed-034",
+            "entity_id": 34,
+            "canonical_name": "API Gateway",
+            "entity_type": "system",
+            "score": 0.9889303965480012,
+            "source": "elasticsearch",
+            "vector_score": 0.0,
+            "es_score": 0.9889303965480012,
+            "identity_description": "位于客户端和后端服务之间，统一处理路由、鉴权、限流和协议适配的入口组件。"
+          }
+        ]
+      },
+      "judgment": {
+        "decision": "new",
+        "matched_seed_id": null,
+        "confidence": 0.98,
+        "reason": "GraphQL 是一种 API 查询语言，候选中的 HTTP、API Gateway、Reverse Proxy、Idempotency Key、JWT 均与 GraphQL 是不同的实体，无匹配项。"
+      },
+      "runtime": {
+        "total_case_ms": 37752.52
+      },
+      "usage": {
+        "judge": {
+          "calls": 3,
+          "prompt_tokens": 2733,
+          "completion_tokens": 689,
+          "total_tokens": 3422,
+          "total_duration_ms": 25927.79,
+          "avg_duration_ms": 8642.596667,
+          "by_model": {
+            "deepseek-v4-flash-0731": {
+              "calls": 3,
+              "prompt_tokens": 2733,
+              "completion_tokens": 689,
+              "total_tokens": 3422,
+              "total_duration_ms": 25927.79,
+              "avg_duration_ms": 8642.596667
+            }
+          }
+        }
+      },
+      "strategy_trace": {
+        "strategy": "memory_guarded_hybrid",
+        "stage": "memory_judge_fallback_hybrid",
+        "memory_decision": "not_matched",
+        "relation_count": 1
+      },
+      "experience": {
+        "recorded": true,
+        "candidate_entity_id": 24,
+        "decision": "reject",
+        "relation_type": "manual_reject",
+        "confidence": 1.0,
+        "source": "manual"
+      },
+      "flow": {
+        "stage": "memory_judge_fallback_hybrid",
+        "used_redis": true,
+        "used_admission_guard": true,
+        "used_mysql_memory": true,
+        "used_relation_guard": true,
+        "used_hybrid": true,
+        "wrote_experience": true,
+        "manual_review_triggered": true,
+        "experience_source": "manual",
+        "experience_relation_type": "manual_reject"
+      }
+    },
+    {
+      "case_id": "nil_new_entity_003",
+      "category": "nil_new_entity",
+      "incoming_entity": {
+        "name": "Prometheus",
+        "entity_type": "system",
+        "aliases": [],
+        "identity_description": "通过拉取指标并按时间序列存储数据的监控系统。"
+      },
+      "expected": {
+        "decision": "new",
+        "matched_seed_id": null,
+        "expected_top_candidates": [
+          "seed-067",
+          "seed-035"
+        ],
+        "must_not_match_seed_ids": [
+          "seed-067",
+          "seed-035"
+        ]
+      },
+      "retrieval": {
+        "ranked_seed_ids": [
+          "seed-008",
+          "seed-001",
+          "seed-011",
+          "seed-065",
+          "seed-007"
+        ],
+        "candidates": [
+          {
+            "rank": 1,
+            "seed_id": "seed-008",
+            "entity_id": 8,
+            "canonical_name": "LSM Tree",
+            "entity_type": "data_structure",
+            "score": 0.869827178208169,
+            "source": "elasticsearch+milvus",
+            "vector_score": 0.4438104033470154,
+            "es_score": 0.869827178208169,
+            "identity_description": "面向写入优化的分层有序数据结构，通过内存表和磁盘层级合并维护数据。"
+          },
+          {
+            "rank": 2,
+            "seed_id": "seed-001",
+            "entity_id": 1,
+            "canonical_name": "MVCC",
+            "entity_type": "concept",
+            "score": 0.9442166618046626,
+            "source": "elasticsearch+milvus",
+            "vector_score": 0.41430696845054626,
+            "es_score": 0.9442166618046626,
+            "identity_description": "数据库通过保存数据多个版本来减少读写阻塞的并发控制机制。"
+          },
+          {
+            "rank": 3,
+            "seed_id": "seed-011",
+            "entity_id": 11,
+            "canonical_name": "Redis",
+            "entity_type": "system",
+            "score": 0.7904089658139621,
+            "source": "elasticsearch+milvus",
+            "vector_score": 0.3547414541244507,
+            "es_score": 0.7904089658139621,
+            "identity_description": "内存键值数据库，支持多种数据结构和高性能读写。"
+          },
+          {
+            "rank": 4,
+            "seed_id": "seed-065",
+            "entity_id": 65,
+            "canonical_name": "DNS",
+            "entity_type": "protocol",
+            "score": 1.0,
+            "source": "elasticsearch",
+            "vector_score": 0.0,
+            "es_score": 1.0,
+            "identity_description": "将域名解析为 IP 地址的分布式命名系统。"
+          },
+          {
+            "rank": 5,
+            "seed_id": "seed-007",
+            "entity_id": 7,
+            "canonical_name": "Write-Ahead Logging",
+            "entity_type": "mechanism",
+            "score": 0.37673139572143555,
+            "source": "milvus",
+            "vector_score": 0.37673139572143555,
+            "es_score": 0.0,
+            "identity_description": "数据库在修改数据页之前先持久化日志以保证崩溃恢复能力。"
+          }
+        ]
+      },
+      "judgment": {
+        "decision": "new",
+        "matched_seed_id": null,
+        "confidence": 1.0,
+        "reason": "传入实体 Prometheus 是监控系统，候选列表中没有任何实体与其为同一知识实体。"
+      },
+      "runtime": {
+        "total_case_ms": 20836.69
+      },
+      "usage": {
+        "judge": {
+          "calls": 3,
+          "prompt_tokens": 2344,
+          "completion_tokens": 527,
+          "total_tokens": 2871,
+          "total_duration_ms": 15096.51,
+          "avg_duration_ms": 5032.17,
+          "by_model": {
+            "deepseek-v4-flash-0731": {
+              "calls": 3,
+              "prompt_tokens": 2344,
+              "completion_tokens": 527,
+              "total_tokens": 2871,
+              "total_duration_ms": 15096.51,
+              "avg_duration_ms": 5032.17
+            }
+          }
+        }
+      },
+      "strategy_trace": {
+        "strategy": "memory_guarded_hybrid",
+        "stage": "memory_judge_fallback_hybrid",
+        "memory_decision": "ambiguous",
+        "relation_count": 1
+      },
+      "experience": {
+        "recorded": true,
+        "candidate_entity_id": 8,
+        "decision": "reject",
+        "relation_type": "manual_reject",
+        "confidence": 1.0,
+        "source": "manual"
+      },
+      "flow": {
+        "stage": "memory_judge_fallback_hybrid",
+        "used_redis": true,
+        "used_admission_guard": true,
+        "used_mysql_memory": true,
+        "used_relation_guard": true,
+        "used_hybrid": true,
+        "wrote_experience": true,
+        "manual_review_triggered": true,
+        "experience_source": "manual",
+        "experience_relation_type": "manual_reject"
+      }
+    },
+    {
+      "case_id": "nil_new_entity_004",
+      "category": "nil_new_entity",
+      "incoming_entity": {
+        "name": "Merkle Tree",
+        "entity_type": "data_structure",
+        "aliases": [
+          "默克尔树"
+        ],
+        "identity_description": "使用哈希逐层汇总数据块以高效验证完整性的树结构。"
+      },
+      "expected": {
+        "decision": "new",
+        "matched_seed_id": null,
+        "expected_top_candidates": [
+          "seed-009",
+          "seed-010",
+          "seed-013"
+        ],
+        "must_not_match_seed_ids": [
+          "seed-009",
+          "seed-010",
+          "seed-013"
+        ]
+      },
+      "retrieval": {
+        "ranked_seed_ids": [
+          "seed-009",
+          "seed-014",
+          "seed-010",
+          "seed-066",
+          "seed-011"
+        ],
+        "candidates": [
+          {
+            "rank": 1,
+            "seed_id": "seed-009",
+            "entity_id": 9,
+            "canonical_name": "B+ Tree Index",
+            "entity_type": "data_structure",
+            "score": 0.9429656663501812,
+            "source": "elasticsearch+milvus",
+            "vector_score": 0.4630231261253357,
+            "es_score": 0.9429656663501812,
+            "identity_description": "数据库常用的多路平衡树索引结构，叶子节点按键有序并适合范围查询。"
+          },
+          {
+            "rank": 2,
+            "seed_id": "seed-014",
+            "entity_id": 14,
+            "canonical_name": "Consistent Hashing",
+            "entity_type": "method",
+            "score": 1.0,
+            "source": "elasticsearch+milvus",
+            "vector_score": 0.413521409034729,
+            "es_score": 1.0,
+            "identity_description": "将节点和键映射到同一哈希环，减少扩缩容时的数据迁移。"
+          },
+          {
+            "rank": 3,
+            "seed_id": "seed-010",
+            "entity_id": 10,
+            "canonical_name": "Hash Index",
+            "entity_type": "data_structure",
+            "score": 0.7841447111461116,
+            "source": "elasticsearch+milvus",
+            "vector_score": 0.4635998606681824,
+            "es_score": 0.7841447111461116,
+            "identity_description": "通过哈希函数定位键值的索引结构，适合等值查询但不适合范围扫描。"
+          },
+          {
+            "rank": 4,
+            "seed_id": "seed-066",
+            "entity_id": 66,
+            "canonical_name": "TLS",
+            "entity_type": "protocol",
+            "score": 0.7415903634926029,
+            "source": "elasticsearch+milvus",
+            "vector_score": 0.36527612805366516,
+            "es_score": 0.7415903634926029,
+            "identity_description": "为网络通信提供加密、认证和完整性保护的安全协议。"
+          },
+          {
+            "rank": 5,
+            "seed_id": "seed-011",
+            "entity_id": 11,
+            "canonical_name": "Redis",
+            "entity_type": "system",
+            "score": 0.8058966132345984,
+            "source": "elasticsearch",
+            "vector_score": 0.0,
+            "es_score": 0.8058966132345984,
+            "identity_description": "内存键值数据库，支持多种数据结构和高性能读写。"
+          }
+        ]
+      },
+      "judgment": {
+        "decision": "new",
+        "matched_seed_id": null,
+        "confidence": 1.0,
+        "reason": "候选列表中不存在与 Merkle Tree 相同的实体，均为相关但不同的数据结构或系统。"
+      },
+      "runtime": {
+        "total_case_ms": 21645.72
+      },
+      "usage": {
+        "judge": {
+          "calls": 3,
+          "prompt_tokens": 2490,
+          "completion_tokens": 846,
+          "total_tokens": 3336,
+          "total_duration_ms": 17816.38,
+          "avg_duration_ms": 5938.793333,
+          "by_model": {
+            "deepseek-v4-flash-0731": {
+              "calls": 3,
+              "prompt_tokens": 2490,
+              "completion_tokens": 846,
+              "total_tokens": 3336,
+              "total_duration_ms": 17816.38,
+              "avg_duration_ms": 5938.793333
+            }
+          }
+        }
+      },
+      "strategy_trace": {
+        "strategy": "memory_guarded_hybrid",
+        "stage": "memory_judge_fallback_hybrid",
+        "memory_decision": "not_matched",
+        "relation_count": 1
+      },
+      "experience": {
+        "recorded": true,
+        "candidate_entity_id": 9,
+        "decision": "reject",
+        "relation_type": "manual_reject",
+        "confidence": 1.0,
+        "source": "manual"
+      },
+      "flow": {
+        "stage": "memory_judge_fallback_hybrid",
+        "used_redis": true,
+        "used_admission_guard": true,
+        "used_mysql_memory": true,
+        "used_relation_guard": true,
+        "used_hybrid": true,
+        "wrote_experience": true,
+        "manual_review_triggered": true,
+        "experience_source": "manual",
+        "experience_relation_type": "manual_reject"
+      }
+    },
+    {
+      "case_id": "nil_new_entity_005",
+      "category": "nil_new_entity",
+      "incoming_entity": {
+        "name": "CRDT",
+        "entity_type": "data_type",
+        "aliases": [
+          "Conflict-free Replicated Data Type"
+        ],
+        "identity_description": "允许多个副本并发更新并最终自动合并的无冲突复制数据类型。"
+      },
+      "expected": {
+        "decision": "new",
+        "matched_seed_id": null,
+        "expected_top_candidates": [
+          "seed-015",
+          "seed-016",
+          "seed-017"
+        ],
+        "must_not_match_seed_ids": [
+          "seed-015",
+          "seed-016",
+          "seed-017"
+        ]
+      },
+      "retrieval": {
+        "ranked_seed_ids": [
+          "seed-001",
+          "seed-070",
+          "seed-006",
+          "seed-015",
+          "seed-019"
+        ],
+        "candidates": [
+          {
+            "rank": 1,
+            "seed_id": "seed-001",
+            "entity_id": 1,
+            "canonical_name": "MVCC",
+            "entity_type": "concept",
+            "score": 1.0,
+            "source": "elasticsearch+milvus",
+            "vector_score": 0.583678662776947,
+            "es_score": 1.0,
+            "identity_description": "数据库通过保存数据多个版本来减少读写阻塞的并发控制机制。"
+          },
+          {
+            "rank": 2,
+            "seed_id": "seed-070",
+            "entity_id": 70,
+            "canonical_name": "Copy-on-Write",
+            "entity_type": "method",
+            "score": 0.748533347293042,
+            "source": "elasticsearch+milvus",
+            "vector_score": 0.6931518316268921,
+            "es_score": 0.748533347293042,
+            "identity_description": "多个使用者共享同一数据，只有发生写入时才复制副本的优化机制。"
+          },
+          {
+            "rank": 3,
+            "seed_id": "seed-006",
+            "entity_id": 6,
+            "canonical_name": "Snapshot Isolation",
+            "entity_type": "concept",
+            "score": 0.6597392478851951,
+            "source": "elasticsearch+milvus",
+            "vector_score": 0.4398118853569031,
+            "es_score": 0.6597392478851951,
+            "identity_description": "事务读取开始时刻的数据快照，并在提交时检测写冲突的隔离模型。"
+          },
+          {
+            "rank": 4,
+            "seed_id": "seed-015",
+            "entity_id": 15,
+            "canonical_name": "Raft",
+            "entity_type": "algorithm",
+            "score": 0.49213331937789917,
+            "source": "milvus",
+            "vector_score": 0.49213331937789917,
+            "es_score": 0.0,
+            "identity_description": "通过领导者选举和日志复制实现分布式一致性的共识算法。"
+          },
+          {
+            "rank": 5,
+            "seed_id": "seed-019",
+            "entity_id": 19,
+            "canonical_name": "Saga Pattern",
+            "entity_type": "pattern",
+            "score": 0.5177592693287624,
+            "source": "elasticsearch",
+            "vector_score": 0.0,
+            "es_score": 0.5177592693287624,
+            "identity_description": "将长事务拆成多个本地事务，并用补偿动作处理失败的分布式事务模式。"
+          }
+        ]
+      },
+      "judgment": {
+        "decision": "new",
+        "matched_seed_id": null,
+        "confidence": 0.98,
+        "reason": "候选实体中均无与 CRDT 相同的知识实体，仅存在相关分布式/并发概念。"
+      },
+      "runtime": {
+        "total_case_ms": 74644.5
+      },
+      "usage": {
+        "judge": {
+          "calls": 3,
+          "prompt_tokens": 2391,
+          "completion_tokens": 292,
+          "total_tokens": 2683,
+          "total_duration_ms": 68723.7,
+          "avg_duration_ms": 22907.9,
+          "by_model": {
+            "deepseek-v4-flash-0731": {
+              "calls": 3,
+              "prompt_tokens": 2391,
+              "completion_tokens": 292,
+              "total_tokens": 2683,
+              "total_duration_ms": 68723.7,
+              "avg_duration_ms": 22907.9
+            }
+          }
+        }
+      },
+      "strategy_trace": {
+        "strategy": "memory_guarded_hybrid",
+        "stage": "memory_judge_fallback_hybrid",
+        "memory_decision": "not_matched",
+        "relation_count": 1
+      },
+      "experience": {
+        "recorded": true,
+        "candidate_entity_id": 1,
+        "decision": "reject",
+        "relation_type": "manual_reject",
+        "confidence": 1.0,
+        "source": "manual"
+      },
+      "flow": {
+        "stage": "memory_judge_fallback_hybrid",
+        "used_redis": true,
+        "used_admission_guard": true,
+        "used_mysql_memory": true,
+        "used_relation_guard": true,
+        "used_hybrid": true,
+        "wrote_experience": true,
+        "manual_review_triggered": true,
+        "experience_source": "manual",
+        "experience_relation_type": "manual_reject"
+      }
+    },
+    {
+      "case_id": "nil_new_entity_006",
+      "category": "nil_new_entity",
+      "incoming_entity": {
+        "name": "OpenID Connect",
+        "entity_type": "protocol",
+        "aliases": [
+          "OIDC"
+        ],
+        "identity_description": "建立在 OAuth 2.0 之上的身份认证协议，用 ID Token 表示用户身份。"
+      },
+      "expected": {
+        "decision": "new",
+        "matched_seed_id": null,
+        "expected_top_candidates": [
+          "seed-025",
+          "seed-026",
+          "seed-027"
+        ],
+        "must_not_match_seed_ids": [
+          "seed-025",
+          "seed-026",
+          "seed-027"
+        ]
+      },
+      "retrieval": {
+        "ranked_seed_ids": [
+          "seed-025",
+          "seed-066",
+          "seed-027",
+          "seed-026",
+          "seed-064"
+        ],
+        "candidates": [
+          {
+            "rank": 1,
+            "seed_id": "seed-025",
+            "entity_id": 25,
+            "canonical_name": "OAuth 2.0",
+            "entity_type": "protocol",
+            "score": 1.0,
+            "source": "elasticsearch+milvus",
+            "vector_score": 0.4155834913253784,
+            "es_score": 1.0,
+            "identity_description": "授权框架，允许第三方应用在用户授权后访问受保护资源。"
+          },
+          {
+            "rank": 2,
+            "seed_id": "seed-066",
+            "entity_id": 66,
+            "canonical_name": "TLS",
+            "entity_type": "protocol",
+            "score": 0.7323342859401893,
+            "source": "elasticsearch+milvus",
+            "vector_score": 0.3867066204547882,
+            "es_score": 0.7323342859401893,
+            "identity_description": "为网络通信提供加密、认证和完整性保护的安全协议。"
+          },
+          {
+            "rank": 3,
+            "seed_id": "seed-027",
+            "entity_id": 27,
+            "canonical_name": "SSO",
+            "entity_type": "system",
+            "score": 0.6497168439558745,
+            "source": "elasticsearch+milvus",
+            "vector_score": 0.40273696184158325,
+            "es_score": 0.6497168439558745,
+            "identity_description": "用户登录一次即可访问多个受信任系统的认证机制。"
+          },
+          {
+            "rank": 4,
+            "seed_id": "seed-026",
+            "entity_id": 26,
+            "canonical_name": "JWT",
+            "entity_type": "format",
+            "score": 0.4213254749774933,
+            "source": "milvus",
+            "vector_score": 0.4213254749774933,
+            "es_score": 0.0,
+            "identity_description": "紧凑的声明令牌格式，由 header、payload 和 signature 组成。"
+          },
+          {
+            "rank": 5,
+            "seed_id": "seed-064",
+            "entity_id": 64,
+            "canonical_name": "WebSocket",
+            "entity_type": "protocol",
+            "score": 0.9977795082143963,
+            "source": "elasticsearch",
+            "vector_score": 0.0,
+            "es_score": 0.9977795082143963,
+            "identity_description": "在单个连接上提供全双工通信的应用层协议。"
+          }
+        ]
+      },
+      "judgment": {
+        "decision": "new",
+        "matched_seed_id": null,
+        "confidence": 0.95,
+        "reason": "OpenID Connect 是建立在 OAuth 2.0 之上的独立身份认证协议，与候选中的 OAuth 2.0、SSO、JWT 等相关但并非同一实体，候选中无 OIDC 条目。"
+      },
+      "runtime": {
+        "total_case_ms": 119043.52
+      },
+      "usage": {
+        "judge": {
+          "calls": 3,
+          "prompt_tokens": 2693,
+          "completion_tokens": 1017,
+          "total_tokens": 3710,
+          "total_duration_ms": 113402.25,
+          "avg_duration_ms": 37800.75,
+          "by_model": {
+            "deepseek-v4-flash-0731": {
+              "calls": 3,
+              "prompt_tokens": 2693,
+              "completion_tokens": 1017,
+              "total_tokens": 3710,
+              "total_duration_ms": 113402.25,
+              "avg_duration_ms": 37800.75
+            }
+          }
+        }
+      },
+      "strategy_trace": {
+        "strategy": "memory_guarded_hybrid",
+        "stage": "memory_judge_fallback_hybrid",
+        "memory_decision": "not_matched",
+        "relation_count": 1
+      },
+      "experience": {
+        "recorded": true,
+        "candidate_entity_id": 25,
+        "decision": "reject",
+        "relation_type": "manual_reject",
+        "confidence": 1.0,
+        "source": "manual"
+      },
+      "flow": {
+        "stage": "memory_judge_fallback_hybrid",
+        "used_redis": true,
+        "used_admission_guard": true,
+        "used_mysql_memory": true,
+        "used_relation_guard": true,
+        "used_hybrid": true,
+        "wrote_experience": true,
+        "manual_review_triggered": true,
+        "experience_source": "manual",
+        "experience_relation_type": "manual_reject"
+      }
+    },
+    {
+      "case_id": "nil_new_entity_007",
+      "category": "nil_new_entity",
+      "incoming_entity": {
+        "name": "WebRTC",
+        "entity_type": "protocol",
+        "aliases": [],
+        "identity_description": "浏览器间进行实时音视频和数据通信的协议栈。"
+      },
+      "expected": {
+        "decision": "new",
+        "matched_seed_id": null,
+        "expected_top_candidates": [
+          "seed-064",
+          "seed-062",
+          "seed-061"
+        ],
+        "must_not_match_seed_ids": [
+          "seed-064",
+          "seed-062",
+          "seed-061"
+        ]
+      },
+      "retrieval": {
+        "ranked_seed_ids": [
+          "seed-064",
+          "seed-063",
+          "seed-066",
+          "seed-069",
+          "seed-029"
+        ],
+        "candidates": [
+          {
+            "rank": 1,
+            "seed_id": "seed-064",
+            "entity_id": 64,
+            "canonical_name": "WebSocket",
+            "entity_type": "protocol",
+            "score": 1.0,
+            "source": "elasticsearch+milvus",
+            "vector_score": 0.49374186992645264,
+            "es_score": 1.0,
+            "identity_description": "在单个连接上提供全双工通信的应用层协议。"
+          },
+          {
+            "rank": 2,
+            "seed_id": "seed-063",
+            "entity_id": 63,
+            "canonical_name": "HTTP",
+            "entity_type": "protocol",
+            "score": 0.6161513565635139,
+            "source": "elasticsearch+milvus",
+            "vector_score": 0.46949756145477295,
+            "es_score": 0.6161513565635139,
+            "identity_description": "客户端和服务器交换超文本资源的应用层协议。"
+          },
+          {
+            "rank": 3,
+            "seed_id": "seed-066",
+            "entity_id": 66,
+            "canonical_name": "TLS",
+            "entity_type": "protocol",
+            "score": 0.6703278399089467,
+            "source": "elasticsearch+milvus",
+            "vector_score": 0.4051209092140198,
+            "es_score": 0.6703278399089467,
+            "identity_description": "为网络通信提供加密、认证和完整性保护的安全协议。"
+          },
+          {
+            "rank": 4,
+            "seed_id": "seed-069",
+            "entity_id": 69,
+            "canonical_name": "ORM",
+            "entity_type": "method",
+            "score": 0.7658399246232971,
+            "source": "elasticsearch",
+            "vector_score": 0.0,
+            "es_score": 0.7658399246232971,
+            "identity_description": "在对象模型和关系数据库表之间进行映射的编程方法。"
+          },
+          {
+            "rank": 5,
+            "seed_id": "seed-029",
+            "entity_id": 29,
+            "canonical_name": "XSS",
+            "entity_type": "attack",
+            "score": 0.7281344640548238,
+            "source": "elasticsearch",
+            "vector_score": 0.0,
+            "es_score": 0.7281344640548238,
+            "identity_description": "攻击者将恶意脚本注入页面并在其他用户浏览器中执行的攻击方式。"
+          }
+        ]
+      },
+      "judgment": {
+        "decision": "new",
+        "matched_seed_id": null,
+        "confidence": 0.98,
+        "reason": "候选列表中没有 WebRTC 实体；WebSocket/HTTP/TLS 等均为不同协议，related-but-different。"
+      },
+      "runtime": {
+        "total_case_ms": 25261.31
+      },
+      "usage": {
+        "judge": {
+          "calls": 2,
+          "prompt_tokens": 1574,
+          "completion_tokens": 189,
+          "total_tokens": 1763,
+          "total_duration_ms": 18675.58,
+          "avg_duration_ms": 9337.79,
+          "by_model": {
+            "deepseek-v4-flash-0731": {
+              "calls": 2,
+              "prompt_tokens": 1574,
+              "completion_tokens": 189,
+              "total_tokens": 1763,
+              "total_duration_ms": 18675.58,
+              "avg_duration_ms": 9337.79
+            }
+          }
+        }
+      },
+      "strategy_trace": {
+        "strategy": "memory_guarded_hybrid",
+        "stage": "no_relation_memory_fallback_hybrid",
+        "direct_reject": false
+      },
+      "experience": {
+        "recorded": true,
+        "candidate_entity_id": 64,
+        "decision": "reject",
+        "relation_type": "manual_reject",
+        "confidence": 1.0,
+        "source": "manual"
+      },
+      "flow": {
+        "stage": "no_relation_memory_fallback_hybrid",
+        "used_redis": true,
+        "used_admission_guard": true,
+        "used_mysql_memory": false,
+        "used_relation_guard": false,
+        "used_hybrid": true,
+        "wrote_experience": true,
+        "manual_review_triggered": true,
+        "experience_source": "manual",
+        "experience_relation_type": "manual_reject"
+      }
+    },
+    {
+      "case_id": "nil_new_entity_008",
+      "category": "nil_new_entity",
+      "incoming_entity": {
+        "name": "Sidecar Container",
+        "entity_type": "pattern",
+        "aliases": [
+          "边车容器"
+        ],
+        "identity_description": "与主应用容器部署在同一 Pod 中，为主应用提供代理、日志或配置能力的辅助容器。"
+      },
+      "expected": {
+        "decision": "new",
+        "matched_seed_id": null,
+        "expected_top_candidates": [
+          "seed-035",
+          "seed-067",
+          "seed-068"
+        ],
+        "must_not_match_seed_ids": [
+          "seed-035",
+          "seed-067",
+          "seed-068"
+        ]
+      },
+      "retrieval": {
+        "ranked_seed_ids": [
+          "seed-067",
+          "seed-068",
+          "seed-063",
+          "seed-035",
+          "seed-064"
+        ],
+        "candidates": [
+          {
+            "rank": 1,
+            "seed_id": "seed-067",
+            "entity_id": 67,
+            "canonical_name": "Kubernetes",
+            "entity_type": "system",
+            "score": 1.0,
+            "source": "elasticsearch+milvus",
+            "vector_score": 0.48037129640579224,
+            "es_score": 1.0,
+            "identity_description": "用于自动部署、扩缩容和管理容器化应用的编排系统。"
+          },
+          {
+            "rank": 2,
+            "seed_id": "seed-068",
+            "entity_id": 68,
+            "canonical_name": "Docker",
+            "entity_type": "system",
+            "score": 0.7431196454062885,
+            "source": "elasticsearch+milvus",
+            "vector_score": 0.4435647428035736,
+            "es_score": 0.7431196454062885,
+            "identity_description": "用于构建、分发和运行容器化应用的平台。"
+          },
+          {
+            "rank": 3,
+            "seed_id": "seed-063",
+            "entity_id": 63,
+            "canonical_name": "HTTP",
+            "entity_type": "protocol",
+            "score": 0.46751226417956726,
+            "source": "elasticsearch",
+            "vector_score": 0.0,
+            "es_score": 0.46751226417956726,
+            "identity_description": "客户端和服务器交换超文本资源的应用层协议。"
+          },
+          {
+            "rank": 4,
+            "seed_id": "seed-035",
+            "entity_id": 35,
+            "canonical_name": "Service Mesh",
+            "entity_type": "system",
+            "score": 0.3293261229991913,
+            "source": "milvus",
+            "vector_score": 0.3293261229991913,
+            "es_score": 0.0,
+            "identity_description": "通过边车代理管理服务间通信、流量治理和可观测性的基础设施层。"
+          },
+          {
+            "rank": 5,
+            "seed_id": "seed-064",
+            "entity_id": 64,
+            "canonical_name": "WebSocket",
+            "entity_type": "protocol",
+            "score": 0.4144875778236104,
+            "source": "elasticsearch",
+            "vector_score": 0.0,
+            "es_score": 0.4144875778236104,
+            "identity_description": "在单个连接上提供全双工通信的应用层协议。"
+          }
+        ]
+      },
+      "judgment": {
+        "decision": "new",
+        "matched_seed_id": null,
+        "confidence": 0.95,
+        "reason": "候选实体中没有与 Sidecar Container 相同的实体，相关实体（如 Service Mesh）也不等同。"
+      },
+      "runtime": {
+        "total_case_ms": 39887.8
+      },
+      "usage": {
+        "judge": {
+          "calls": 2,
+          "prompt_tokens": 1657,
+          "completion_tokens": 318,
+          "total_tokens": 1975,
+          "total_duration_ms": 34114.13,
+          "avg_duration_ms": 17057.065,
+          "by_model": {
+            "deepseek-v4-flash-0731": {
+              "calls": 2,
+              "prompt_tokens": 1657,
+              "completion_tokens": 318,
+              "total_tokens": 1975,
+              "total_duration_ms": 34114.13,
+              "avg_duration_ms": 17057.065
+            }
+          }
+        }
+      },
+      "strategy_trace": {
+        "strategy": "memory_guarded_hybrid",
+        "stage": "no_relation_memory_fallback_hybrid",
+        "direct_reject": false
+      },
+      "experience": {
+        "recorded": true,
+        "candidate_entity_id": 67,
+        "decision": "reject",
+        "relation_type": "manual_reject",
+        "confidence": 1.0,
+        "source": "manual"
+      },
+      "flow": {
+        "stage": "no_relation_memory_fallback_hybrid",
+        "used_redis": true,
+        "used_admission_guard": true,
+        "used_mysql_memory": false,
+        "used_relation_guard": false,
+        "used_hybrid": true,
+        "wrote_experience": true,
+        "manual_review_triggered": true,
+        "experience_source": "manual",
+        "experience_relation_type": "manual_reject"
+      }
+    },
+    {
+      "case_id": "nil_new_entity_009",
+      "category": "nil_new_entity",
+      "incoming_entity": {
+        "name": "MinHash",
+        "entity_type": "algorithm",
+        "aliases": [],
+        "identity_description": "用较小签名估计集合 Jaccard 相似度的概率算法。"
+      },
+      "expected": {
+        "decision": "new",
+        "matched_seed_id": null,
+        "expected_top_candidates": [
+          "seed-013",
+          "seed-044",
+          "seed-043"
+        ],
+        "must_not_match_seed_ids": [
+          "seed-013",
+          "seed-044",
+          "seed-043"
+        ]
+      },
+      "retrieval": {
+        "ranked_seed_ids": [
+          "seed-041",
+          "seed-044",
+          "seed-046",
+          "seed-013",
+          "seed-015"
+        ],
+        "candidates": [
+          {
+            "rank": 1,
+            "seed_id": "seed-041",
+            "entity_id": 41,
+            "canonical_name": "HNSW",
+            "entity_type": "algorithm",
+            "score": 0.7819127523336178,
+            "source": "elasticsearch+milvus",
+            "vector_score": 0.4077448844909668,
+            "es_score": 0.7819127523336178,
+            "identity_description": "用于近似最近邻搜索的分层小世界图索引算法。"
+          },
+          {
+            "rank": 2,
+            "seed_id": "seed-044",
+            "entity_id": 44,
+            "canonical_name": "Cosine Similarity",
+            "entity_type": "metric",
+            "score": 1.0,
+            "source": "elasticsearch+milvus",
+            "vector_score": 0.36139723658561707,
+            "es_score": 1.0,
+            "identity_description": "通过两个向量夹角的余弦值衡量方向相似度的指标。"
+          },
+          {
+            "rank": 3,
+            "seed_id": "seed-046",
+            "entity_id": 46,
+            "canonical_name": "BM25",
+            "entity_type": "algorithm",
+            "score": 0.7259002441278671,
+            "source": "elasticsearch+milvus",
+            "vector_score": 0.38465094566345215,
+            "es_score": 0.7259002441278671,
+            "identity_description": "基于词频、逆文档频率和长度归一化的文本相关性排序算法。"
+          },
+          {
+            "rank": 4,
+            "seed_id": "seed-013",
+            "entity_id": 13,
+            "canonical_name": "Bloom Filter",
+            "entity_type": "data_structure",
+            "score": 0.47347256541252136,
+            "source": "milvus",
+            "vector_score": 0.47347256541252136,
+            "es_score": 0.0,
+            "identity_description": "空间效率高的概率型集合结构，可判断元素一定不存在或可能存在。"
+          },
+          {
+            "rank": 5,
+            "seed_id": "seed-015",
+            "entity_id": 15,
+            "canonical_name": "Raft",
+            "entity_type": "algorithm",
+            "score": 0.6597211818017983,
+            "source": "elasticsearch",
+            "vector_score": 0.0,
+            "es_score": 0.6597211818017983,
+            "identity_description": "通过领导者选举和日志复制实现分布式一致性的共识算法。"
+          }
+        ]
+      },
+      "judgment": {
+        "decision": "new",
+        "matched_seed_id": null,
+        "confidence": 0.95,
+        "reason": "MinHash是用于估计集合Jaccard相似度的概率算法，与候选中的HNSW、Cosine Similarity、BM25、Bloom Filter、Raft均非同一实体，候选中无MinHash。"
+      },
+      "runtime": {
+        "total_case_ms": 17284.06
+      },
+      "usage": {
+        "judge": {
+          "calls": 2,
+          "prompt_tokens": 1810,
+          "completion_tokens": 314,
+          "total_tokens": 2124,
+          "total_duration_ms": 14069.92,
+          "avg_duration_ms": 7034.96,
+          "by_model": {
+            "deepseek-v4-flash-0731": {
+              "calls": 2,
+              "prompt_tokens": 1810,
+              "completion_tokens": 314,
+              "total_tokens": 2124,
+              "total_duration_ms": 14069.92,
+              "avg_duration_ms": 7034.96
+            }
+          }
+        }
+      },
+      "strategy_trace": {
+        "strategy": "memory_guarded_hybrid",
+        "stage": "no_relation_memory_fallback_hybrid",
+        "direct_reject": false
+      },
+      "experience": {
+        "recorded": true,
+        "candidate_entity_id": 41,
+        "decision": "reject",
+        "relation_type": "manual_reject",
+        "confidence": 1.0,
+        "source": "manual"
+      },
+      "flow": {
+        "stage": "no_relation_memory_fallback_hybrid",
+        "used_redis": true,
+        "used_admission_guard": true,
+        "used_mysql_memory": false,
+        "used_relation_guard": false,
+        "used_hybrid": true,
+        "wrote_experience": true,
+        "manual_review_triggered": true,
+        "experience_source": "manual",
+        "experience_relation_type": "manual_reject"
+      }
+    },
+    {
+      "case_id": "nil_new_entity_010",
+      "category": "nil_new_entity",
+      "incoming_entity": {
+        "name": "OpenTelemetry",
+        "entity_type": "standard",
+        "aliases": [
+          "OTel"
+        ],
+        "identity_description": "统一采集 traces、metrics 和 logs 的可观测性标准与工具集合。"
+      },
+      "expected": {
+        "decision": "new",
+        "matched_seed_id": null,
+        "expected_top_candidates": [
+          "seed-035",
+          "seed-020",
+          "seed-067"
+        ],
+        "must_not_match_seed_ids": [
+          "seed-035",
+          "seed-020",
+          "seed-067"
+        ]
+      },
+      "retrieval": {
+        "ranked_seed_ids": [
+          "seed-035",
+          "seed-012",
+          "seed-013",
+          "seed-068",
+          "seed-014"
+        ],
+        "candidates": [
+          {
+            "rank": 1,
+            "seed_id": "seed-035",
+            "entity_id": 35,
+            "canonical_name": "Service Mesh",
+            "entity_type": "system",
+            "score": 0.6552816779521944,
+            "source": "elasticsearch+milvus",
+            "vector_score": 0.40586936473846436,
+            "es_score": 0.6552816779521944,
+            "identity_description": "通过边车代理管理服务间通信、流量治理和可观测性的基础设施层。"
+          },
+          {
+            "rank": 2,
+            "seed_id": "seed-012",
+            "entity_id": 12,
+            "canonical_name": "Redis Sorted Set",
+            "entity_type": "data_structure",
+            "score": 1.0,
+            "source": "elasticsearch",
+            "vector_score": 0.0,
+            "es_score": 1.0,
+            "identity_description": "Redis 中给成员关联 score 并按 score 排序的数据结构。"
+          },
+          {
+            "rank": 3,
+            "seed_id": "seed-013",
+            "entity_id": 13,
+            "canonical_name": "Bloom Filter",
+            "entity_type": "data_structure",
+            "score": 0.673939635372379,
+            "source": "elasticsearch",
+            "vector_score": 0.0,
+            "es_score": 0.673939635372379,
+            "identity_description": "空间效率高的概率型集合结构，可判断元素一定不存在或可能存在。"
+          },
+          {
+            "rank": 4,
+            "seed_id": "seed-068",
+            "entity_id": 68,
+            "canonical_name": "Docker",
+            "entity_type": "system",
+            "score": 0.33320751786231995,
+            "source": "milvus",
+            "vector_score": 0.33320751786231995,
+            "es_score": 0.0,
+            "identity_description": "用于构建、分发和运行容器化应用的平台。"
+          },
+          {
+            "rank": 5,
+            "seed_id": "seed-014",
+            "entity_id": 14,
+            "canonical_name": "Consistent Hashing",
+            "entity_type": "method",
+            "score": 0.6717056004895642,
+            "source": "elasticsearch",
+            "vector_score": 0.0,
+            "es_score": 0.6717056004895642,
+            "identity_description": "将节点和键映射到同一哈希环，减少扩缩容时的数据迁移。"
+          }
+        ]
+      },
+      "judgment": {
+        "decision": "new",
+        "matched_seed_id": null,
+        "confidence": 0.95,
+        "reason": "OpenTelemetry 是可观测性标准与工具集合，候选中 Service Mesh 虽涉及可观测性但属于服务间通信基础设施层，是不同实体，其余候选完全无关。"
+      },
+      "runtime": {
+        "total_case_ms": 45516.44
+      },
+      "usage": {
+        "judge": {
+          "calls": 2,
+          "prompt_tokens": 1836,
+          "completion_tokens": 314,
+          "total_tokens": 2150,
+          "total_duration_ms": 43400.6,
+          "avg_duration_ms": 21700.3,
+          "by_model": {
+            "deepseek-v4-flash-0731": {
+              "calls": 2,
+              "prompt_tokens": 1836,
+              "completion_tokens": 314,
+              "total_tokens": 2150,
+              "total_duration_ms": 43400.6,
+              "avg_duration_ms": 21700.3
+            }
+          }
+        }
+      },
+      "strategy_trace": {
+        "strategy": "memory_guarded_hybrid",
+        "stage": "no_relation_memory_fallback_hybrid",
+        "direct_reject": false
+      },
+      "flow": {
+        "stage": "no_relation_memory_fallback_hybrid",
+        "used_redis": true,
+        "used_admission_guard": true,
+        "used_mysql_memory": false,
+        "used_relation_guard": false,
+        "used_hybrid": true,
+        "wrote_experience": false,
+        "manual_review_triggered": false,
+        "experience_source": null,
+        "experience_relation_type": null
+      }
+    }
+  ]
+}

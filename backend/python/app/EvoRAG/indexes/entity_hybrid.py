@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from typing import Any
 from app.EvoRAG.config import EvoRAGSettings, settings
 from app.EvoRAG.entity_store.models import CandidateEntity, EntityScope, IncomingEntity, StoredEntity
@@ -35,6 +36,13 @@ class EntityHybridIndex:
         es_hits = self.search_elasticsearch(incoming, top_k=limit)
         milvus_hits = self.search_milvus(incoming.embedding, top_k=limit, scope=incoming.scope)
         return es_hits, milvus_hits
+
+    def seed_entities_exist(self, entities: Sequence[StoredEntity]) -> bool:
+        entity_ids = {int(entity.id) for entity in entities}
+        if not entity_ids:
+            return True
+        scope = entities[0].scope
+        return self.elasticsearch_entity_ids_exist(entity_ids, scope) and self.milvus_entity_ids_exist(entity_ids, scope)
 
     def ensure_elasticsearch_index(self) -> None:
         client = self.elasticsearch_client()
@@ -128,6 +136,29 @@ class EntityHybridIndex:
                 )
             )
         return hits
+
+    def elasticsearch_entity_ids_exist(self, entity_ids: set[int], scope: EntityScope) -> bool:
+        client = self.elasticsearch_client()
+        client.indices.refresh(index=self.config.es_entity_index)
+        response = client.search(
+            index=self.config.es_entity_index,
+            size=len(entity_ids),
+            source_includes=["entity_id"],
+            query={
+                "bool": {
+                    "filter": [
+                        {"terms": {"entity_id": sorted(entity_ids)}},
+                        *elasticsearch_scope_filters(scope),
+                    ]
+                }
+            },
+        )
+        found = {
+            int(hit.get("_source", {}).get("entity_id"))
+            for hit in response.get("hits", {}).get("hits", [])
+            if hit.get("_source", {}).get("entity_id") is not None
+        }
+        return entity_ids.issubset(found)
 
     def ensure_milvus_collection(self) -> None:
         client = self.milvus_client()
@@ -231,6 +262,26 @@ class EntityHybridIndex:
                 )
             )
         return hits
+
+    def milvus_entity_ids_exist(self, entity_ids: set[int], scope: EntityScope) -> bool:
+        client = self.milvus_client()
+        if hasattr(client, "load_collection"):
+            client.load_collection(collection_name=self.config.milvus_entity_collection)
+        id_filter = f"entity_id in [{', '.join(str(entity_id) for entity_id in sorted(entity_ids))}]"
+        scope_filter = milvus_scope_filter(scope)
+        filter_expression = " and ".join(part for part in (id_filter, scope_filter) if part)
+        results = client.query(
+            collection_name=self.config.milvus_entity_collection,
+            filter=filter_expression,
+            output_fields=["entity_id"],
+            limit=len(entity_ids),
+        )
+        found = {
+            int(item.get("entity_id") or item.get("id"))
+            for item in results
+            if item.get("entity_id") is not None or item.get("id") is not None
+        }
+        return entity_ids.issubset(found)
 
     def elasticsearch_client(self):
         if self.can_use_core_elasticsearch_client():

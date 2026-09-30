@@ -81,6 +81,18 @@ class EntityResolutionDecision:
 
 
 @dataclass(slots=True)
+class EntityRelationMemoryRecord:
+    id: int
+    decision: str
+    relation_type: str
+    candidate: StoredEntity
+    confidence: float = 1.0
+    hit_count: int = 0
+    source: str = ""
+    reason: str = ""
+
+
+@dataclass(slots=True)
 class EntityUpsertResult:
     entity_id: int
     canonical_name: str

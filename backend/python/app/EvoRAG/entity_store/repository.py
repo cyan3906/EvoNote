@@ -5,7 +5,7 @@ from typing import Any
 
 from app.EvoRAG.config import EvoRAGSettings, settings
 from app.EvoRAG.entity_store.alias_cache import EntityAliasCache, scope_hash
-from app.EvoRAG.entity_store.models import CandidateEntity, EntityAttributeInput, EntityIngestQueueResult, EntityScope, EntityUpsertResult, IncomingEntity, IncomingEntityTask, StoredEntity
+from app.EvoRAG.entity_store.models import CandidateEntity, EntityAttributeInput, EntityIngestQueueResult, EntityRelationMemoryRecord, EntityScope, EntityUpsertResult, IncomingEntity, IncomingEntityTask, StoredEntity
 from app.EvoRAG.entity_store.normalizer import normalize_name, text_fingerprint
 from app.EvoRAG.models import EvoRAGPreprocessResult, StoredAttribute, StoredAttributeEvidence
 from app.core.evorag_database import connect_evorag_mysql
@@ -655,6 +655,143 @@ class MySQLEntityRepository:
                 rows = cursor.fetchall()
         return {int(row["candidate_entity_id"]) for row in rows}
 
+    def list_entity_resolution_relation_memory(
+        self,
+        incoming: IncomingEntity,
+        *,
+        limit: int = 30,
+    ) -> list[EntityRelationMemoryRecord]:
+        normalized_name = incoming.normalized_name or normalize_name(incoming.name)
+        entity_type = incoming.entity_type or ""
+        with self.connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, left_entity_id, left_name, left_normalized_name, left_type,
+                           right_entity_id, right_name, right_normalized_name, right_type,
+                           decision, relation_type, confidence, hit_count, source, reason
+                    FROM evorag_entity_resolution_relation_memory
+                    WHERE scope_hash = %s
+                      AND status = 'active'
+                      AND (
+                            (left_normalized_name = %s AND (left_type = %s OR %s = ''))
+                         OR (right_normalized_name = %s AND (right_type = %s OR %s = ''))
+                      )
+                    ORDER BY hit_count DESC, confidence DESC, updated_at DESC, id DESC
+                    LIMIT %s
+                    """,
+                    (
+                        scope_hash(incoming.scope),
+                        normalized_name,
+                        entity_type,
+                        entity_type,
+                        normalized_name,
+                        entity_type,
+                        entity_type,
+                        max(1, int(limit)),
+                    ),
+                )
+                rows = cursor.fetchall()
+
+        records: list[EntityRelationMemoryRecord] = []
+        for row in rows:
+            record = self._relation_memory_record_from_row(row, incoming)
+            if record is not None:
+                records.append(record)
+        return records
+
+    def _relation_memory_record_from_row(
+        self,
+        row: dict[str, Any],
+        incoming: IncomingEntity,
+    ) -> EntityRelationMemoryRecord | None:
+        normalized_name = incoming.normalized_name or normalize_name(incoming.name)
+        incoming_type = incoming.entity_type or ""
+        left_matches = str(row["left_normalized_name"]) == normalized_name and (not incoming_type or str(row["left_type"]) == incoming_type)
+        candidate_side = "right" if left_matches else "left"
+        candidate_entity_id = row.get(f"{candidate_side}_entity_id")
+        if candidate_entity_id is None:
+            return None
+
+        entity = self.get_entity(int(candidate_entity_id))
+        if entity is None:
+            entity = StoredEntity(
+                id=int(candidate_entity_id),
+                canonical_name=str(row.get(f"{candidate_side}_name") or ""),
+                normalized_name=str(row.get(f"{candidate_side}_normalized_name") or ""),
+                entity_type=str(row.get(f"{candidate_side}_type") or ""),
+                scope=incoming.scope,
+            )
+        return EntityRelationMemoryRecord(
+            id=int(row["id"]),
+            decision=str(row.get("decision") or ""),
+            relation_type=str(row.get("relation_type") or ""),
+            candidate=entity,
+            confidence=float(row.get("confidence") or 0.0),
+            hit_count=int(row.get("hit_count") or 0),
+            source=str(row.get("source") or ""),
+            reason=str(row.get("reason") or ""),
+        )
+
+    def upsert_entity_resolution_relation_memory(
+        self,
+        *,
+        incoming: IncomingEntity,
+        candidate: StoredEntity,
+        decision: str,
+        relation_type: str,
+        confidence: float,
+        source: str,
+        reason: str,
+    ) -> None:
+        normalized_name = incoming.normalized_name or normalize_name(incoming.name)
+        candidate_normalized_name = candidate.normalized_name or normalize_name(candidate.canonical_name)
+        clean_decision = str(decision or "").strip().lower()
+        if clean_decision not in {"allow", "reject"}:
+            raise ValueError(f"unsupported relation memory decision: {decision}")
+        candidate_entity_id = int(candidate.id) if self.get_entity(int(candidate.id)) is not None else None
+        with self.connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO evorag_entity_resolution_relation_memory (
+                        workspace_id, project_id, collection_id, domain, scope_hash,
+                        left_entity_id, left_name, left_normalized_name, left_type,
+                        right_entity_id, right_name, right_normalized_name, right_type,
+                        decision, relation_type, confidence, hit_count, source, reason, status
+                    )
+                    VALUES (%s, %s, %s, %s, %s, NULL, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 1, %s, %s, 'active')
+                    ON DUPLICATE KEY UPDATE
+                        decision = VALUES(decision),
+                        relation_type = VALUES(relation_type),
+                        confidence = VALUES(confidence),
+                        hit_count = hit_count + 1,
+                        source = VALUES(source),
+                        reason = VALUES(reason),
+                        updated_at = CURRENT_TIMESTAMP
+                    """,
+                    (
+                        incoming.scope.workspace_id,
+                        incoming.scope.project_id,
+                        incoming.scope.collection_id,
+                        incoming.scope.domain,
+                        scope_hash(incoming.scope),
+                        incoming.name,
+                        normalized_name,
+                        incoming.entity_type or "",
+                        candidate_entity_id,
+                        candidate.canonical_name,
+                        candidate_normalized_name,
+                        candidate.entity_type or "",
+                        clean_decision,
+                        relation_type,
+                        max(0.0, min(1.0, float(confidence))),
+                        source,
+                        reason,
+                    ),
+                )
+            connection.commit()
+
     def create_review_task(
         self,
         *,
@@ -1258,10 +1395,19 @@ def ensure_review_table_indexes(cursor: Any) -> None:
     cursor.execute("SHOW TABLES LIKE 'evorag_entity_review_tasks'")
     if not cursor.fetchone():
         return
+    ensure_index(cursor, "evorag_entity_review_tasks", "idx_evorag_review_incoming_status", "incoming_entity_id, status")
     cursor.execute("SHOW INDEX FROM evorag_entity_review_tasks WHERE Key_name = 'uk_evorag_review_incoming_active'")
     if cursor.fetchone():
-        cursor.execute("ALTER TABLE evorag_entity_review_tasks DROP INDEX uk_evorag_review_incoming_active")
-    ensure_index(cursor, "evorag_entity_review_tasks", "idx_evorag_review_incoming_status", "incoming_entity_id, status")
+        try:
+            cursor.execute("ALTER TABLE evorag_entity_review_tasks DROP INDEX uk_evorag_review_incoming_active")
+        except Exception as exc:
+            if not is_mysql_foreign_key_index_drop_error(exc):
+                raise
+
+
+def is_mysql_foreign_key_index_drop_error(exc: Exception) -> bool:
+    args = getattr(exc, "args", ())
+    return bool(args and int(args[0]) == 1553)
 
 
 def update_ingest_job_status(cursor: Any, job_id: int) -> None:
@@ -1323,3 +1469,5 @@ def unique_ints(values: list[int]) -> list[int]:
 
 def incoming_entity_key(incoming: IncomingEntity) -> str:
     return f"{normalize_name(incoming.name)}::{normalize_name(incoming.entity_type)}"
+
+

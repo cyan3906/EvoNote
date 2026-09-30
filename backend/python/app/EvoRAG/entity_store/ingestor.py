@@ -11,6 +11,9 @@ from app.EvoRAG.indexes import EntityHybridIndex, EvoRAGEmbeddingClient
 from app.EvoRAG.models import EvoRAGPreprocessResult
 
 
+LOW_SCORE_DIRECT_REJECT_THRESHOLD = 0.5
+
+
 class EntityIngestor:
     def __init__(
         self,
@@ -186,6 +189,15 @@ class EntityIngestor:
             decided_by=decided_by,
             reason=decision.reason,
         )
+        await self._record_relation_memory(
+            incoming=task.incoming,
+            candidate=matched_entity,
+            decision="allow",
+            relation_type="manual_match",
+            confidence=1.0,
+            source=decided_by,
+            reason=decision.reason,
+        )
         return result
 
     async def manual_create_new_review_task(
@@ -224,6 +236,12 @@ class EntityIngestor:
             decided_by=decided_by,
             reason=decision.reason,
         )
+        await self._record_manual_reject_experience_for_review_candidates(
+            review,
+            incoming=task.incoming,
+            reason=decision.reason,
+            decided_by=decided_by,
+        )
         return result
 
     async def reject_review_candidates(
@@ -241,6 +259,12 @@ class EntityIngestor:
 
         await asyncio.to_thread(
             self.repository.record_rejections,
+            incoming=task.incoming,
+            candidate_entity_ids=rejected_ids,
+            reason=reason or "manual review rejected candidates",
+            decided_by=decided_by,
+        )
+        await self._record_manual_reject_experience_for_candidate_ids(
             incoming=task.incoming,
             candidate_entity_ids=rejected_ids,
             reason=reason or "manual review rejected candidates",
@@ -289,6 +313,8 @@ class EntityIngestor:
                 )
                 return None
 
+            await self._record_low_score_direct_reject_experience(decision)
+
             if decision.matched_entity:
                 decision.incoming.aliases = merge_unique(
                     [
@@ -312,6 +338,89 @@ class EntityIngestor:
                 decision.reason,
             )
             return result
+
+    async def _record_low_score_direct_reject_experience(self, decision: EntityResolutionDecision) -> None:
+        if decision.decision != "new" or not decision.candidates:
+            return
+        best = decision.candidates[0]
+        if best.score >= LOW_SCORE_DIRECT_REJECT_THRESHOLD:
+            return
+        await self._record_relation_memory(
+            incoming=decision.incoming,
+            candidate=best.entity,
+            decision="reject",
+            relation_type="low_score_direct_reject",
+            confidence=round(1.0 - float(best.score), 6),
+            source="auto",
+            reason=decision.reason,
+        )
+
+    async def _record_manual_reject_experience_for_review_candidates(
+        self,
+        review: dict[str, Any],
+        *,
+        incoming: IncomingEntity,
+        reason: str,
+        decided_by: str,
+    ) -> None:
+        candidate_ids = [
+            entity_id
+            for entity_id in (candidate_entity_id_from_snapshot(candidate) for candidate in review.get("candidates") or [])
+            if entity_id > 0
+        ]
+        await self._record_manual_reject_experience_for_candidate_ids(
+            incoming=incoming,
+            candidate_entity_ids=candidate_ids,
+            reason=reason,
+            decided_by=decided_by,
+        )
+
+    async def _record_manual_reject_experience_for_candidate_ids(
+        self,
+        *,
+        incoming: IncomingEntity,
+        candidate_entity_ids: list[int],
+        reason: str,
+        decided_by: str,
+    ) -> None:
+        for candidate_id in sorted({int(entity_id) for entity_id in candidate_entity_ids if int(entity_id) > 0}):
+            candidate = await asyncio.to_thread(self.repository.get_entity, candidate_id)
+            if candidate is None:
+                continue
+            await self._record_relation_memory(
+                incoming=incoming,
+                candidate=candidate,
+                decision="reject",
+                relation_type="manual_reject",
+                confidence=1.0,
+                source=decided_by,
+                reason=reason,
+            )
+
+    async def _record_relation_memory(
+        self,
+        *,
+        incoming: IncomingEntity,
+        candidate,
+        decision: str,
+        relation_type: str,
+        confidence: float,
+        source: str,
+        reason: str,
+    ) -> None:
+        writer = getattr(self.repository, "upsert_entity_resolution_relation_memory", None)
+        if writer is None:
+            return
+        await asyncio.to_thread(
+            writer,
+            incoming=incoming,
+            candidate=candidate,
+            decision=decision,
+            relation_type=relation_type,
+            confidence=confidence,
+            source=source,
+            reason=reason,
+        )
 
 
 def source_blocks_for_incoming(
@@ -343,6 +452,17 @@ def source_blocks_for_incoming(
                 }
             )
     return grouped
+
+
+def candidate_entity_id_from_snapshot(candidate: dict[str, Any]) -> int:
+    for key in ("id", "entity_id", "candidate_entity_id"):
+        try:
+            entity_id = int(candidate.get(key) or 0)
+        except (TypeError, ValueError):
+            entity_id = 0
+        if entity_id > 0:
+            return entity_id
+    return 0
 
 
 def incoming_entity_key(incoming: IncomingEntity) -> str:
