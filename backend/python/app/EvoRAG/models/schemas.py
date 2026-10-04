@@ -183,6 +183,19 @@ class BlockEntityExtraction(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+class BlockExtractionFailure(BaseModel):
+    block_index: int = Field(ge=0)
+    heading: str = ""
+    anchor_entity: str = ""
+    l1_text: str = Field(default="", exclude=True)
+    error: str = ""
+
+    @field_validator("heading", "anchor_entity", "l1_text", "error")
+    @classmethod
+    def clean_failure_text(cls, value: str) -> str:
+        return str(value or "").strip()
+
+
 class BlockExtractionResult(BaseModel):
     entities: list[ExtractedEntity] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
@@ -192,6 +205,7 @@ class EvoRAGPreprocessResult(BaseModel):
     input_text: str
     blocks: list[BlockEntityExtraction] = Field(default_factory=list)
     timings: dict[str, float] = Field(default_factory=dict)
+    extraction_failures: list[BlockExtractionFailure] = Field(default_factory=list, exclude=True)
 
     @property
     def entity_count(self) -> int:

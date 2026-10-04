@@ -6,7 +6,6 @@ from pydantic import BaseModel, Field
 
 from app.EvoRAG.entity_store.ingestor import EntityIngestor
 from app.EvoRAG.entity_store.models import EntityScope
-from app.EvoRAG.entity_store.queue import EntityMergeQueue
 from app.EvoRAG.entity_store.repository import MySQLEntityRepository
 from app.EvoRAG.entity_store.worker import entity_worker_runtime_status
 from app.EvoRAG.models import EvoRAGIndexSearchResult, EvoRAGPreprocessResult, EvoRAGQueryResult
@@ -178,14 +177,10 @@ async def get_worker_status() -> dict[str, object]:
     repository = MySQLEntityRepository()
     response: dict[str, object] = {
         "worker": entity_worker_runtime_status(),
-        "queue": {"available": False},
+        "queue": {"available": False, "backend": "mysql"},
         "mysql": {},
         "warnings": [],
     }
-    try:
-        response["queue"] = {"available": True, **await asyncio.to_thread(EntityMergeQueue().stats)}
-    except Exception as exc:
-        response["warnings"].append(f"queue stats unavailable: {exc}")  # type: ignore[index]
     try:
         response["mysql"] = await asyncio.to_thread(repository.ingest_observability_summary)
     except Exception as exc:

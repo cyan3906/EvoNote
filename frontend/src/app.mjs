@@ -1,6 +1,6 @@
+import { createEmptyMergeTask, createSampleNotePayload, getInitialAppView, MERGE_STAGES } from "./app-state.mjs";
+import { createApiClient } from "./api-client.mjs";
 import { markdownToHtml } from "./markdown.mjs";
-
-const API_BASE_URL = `${window.location.origin}/api`;
 
 const page = document.querySelector(".login-page");
 const loginPanel = document.querySelector(".login-panel");
@@ -60,6 +60,7 @@ const reviewTaskList = document.querySelector("#review-task-list");
 const reviewDetail = document.querySelector("#review-detail");
 
 let authToken = "";
+const apiClient = createApiClient({ getToken: () => authToken });
 let notes = [];
 let activeNoteId = null;
 let saveTimer = null;
@@ -76,60 +77,6 @@ let mergeJobs = [];
 let reviewTasks = [];
 let activeReviewJobId = 0;
 let activeReviewTaskId = 0;
-
-const MERGE_STAGES = [
-  { key: "resource", label: "资源准备" },
-  { key: "split", label: "Block 切分" },
-  { key: "entity", label: "实体抽取" },
-  { key: "normalize", label: "规范去重" },
-  { key: "resolve", label: "候选消歧" },
-  { key: "mysql", label: "写入 MySQL" },
-  { key: "index", label: "索引更新" },
-  { key: "done", label: "完成" },
-];
-
-function getInitialAppView() {
-  if (window.location.pathname === "/notes" || window.location.pathname === "/evolution") {
-    return "notes";
-  }
-
-  const hashView = window.location.hash.replace("#", "");
-  const knownViews = new Set(["home", "merge", "entities", "graph", "history", "settings"]);
-  return knownViews.has(hashView) ? hashView : "home";
-}
-
-function createEmptyMergeTask() {
-  return {
-    noteId: "",
-    title: "合并生成",
-    status: "idle",
-    jobId: 0,
-    startedAt: null,
-    preprocess: null,
-    job: null,
-    workerStatus: null,
-    error: "",
-  };
-}
-
-function createSampleNotePayload() {
-  return {
-    title: "Markdown 示例",
-    tags: "markdown, evonote",
-    body: [
-      "# 今天的笔记",
-      "",
-      "- 先写一个想法",
-      "  - 再补一个子想法",
-      "  - 子列表可以继续展开",
-      "- 把结论放在最后",
-      "",
-      "```js",
-      "console.log('Evonote');",
-      "```",
-    ].join("\n"),
-  };
-}
 
 function showApp(isLoggedIn) {
   loginPanel.hidden = isLoggedIn;
@@ -284,55 +231,11 @@ function setWorkspaceView(view, shouldPushUrl = false) {
 }
 
 async function apiRequest(path, options = {}) {
-  const headers = new Headers(options.headers || {});
-
-  if (options.body && !headers.has("Content-Type")) {
-    headers.set("Content-Type", "application/json");
-  }
-
-  if (authToken) {
-    headers.set("Authorization", `Bearer ${authToken}`);
-  }
-
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers,
-  });
-
-  if (!response.ok) {
-    let message = "请求失败";
-
-    try {
-      const result = await response.json();
-      message = result.detail || message;
-    } catch {
-      message = response.statusText || message;
-    }
-
-    throw new Error(message);
-  }
-
-  if (response.status === 204) {
-    return null;
-  }
-
-  return response.json();
+  return apiClient.request(path, options);
 }
 
 async function login(password) {
-  const response = await fetch(`${API_BASE_URL}/auth/login`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ password }),
-  });
-
-  if (!response.ok) {
-    throw new Error(response.status === 401 ? "密码不正确" : "登录失败，请稍后再试");
-  }
-
-  return response.json();
+  return apiClient.login(password);
 }
 
 async function loadNotes() {
@@ -1777,20 +1680,7 @@ async function exportActiveNote() {
   }
 
   const format = exportFormat.value;
-  const response = await fetch(`${API_BASE_URL}/notes/${note.id}/export?format=${format}`, {
-    headers: {
-      Authorization: `Bearer ${authToken}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error("导出失败");
-  }
-
-  const blob = await response.blob();
-  const disposition = response.headers.get("Content-Disposition") || "";
-  const filenameMatch = disposition.match(/filename="([^"]+)"/);
-  const filename = filenameMatch ? filenameMatch[1] : `note.${format}`;
+  const { blob, filename } = await apiClient.exportNote(note.id, format);
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
 

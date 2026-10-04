@@ -25,6 +25,7 @@ def dedupe_extracted_entities(
     blocks: list[BlockEntityExtraction],
     *,
     scope: EntityScope | None = None,
+    source_note_id: str = "",
 ) -> list[IncomingEntity]:
     grouped: OrderedDict[str, IncomingEntity] = OrderedDict()
     entity_scope = scope or EntityScope()
@@ -54,7 +55,7 @@ def dedupe_extracted_entities(
             incoming.source_count += 1
             incoming.attributes = merge_attributes(
                 incoming.attributes,
-                entity_to_attributes(entity, block_index=block.block_index),
+                entity_to_attributes(entity, block_index=block.block_index, source_note_id=source_note_id),
             )
 
     for incoming in grouped.values():
@@ -63,8 +64,9 @@ def dedupe_extracted_entities(
     return list(grouped.values())
 
 
-def entity_to_attributes(entity: ExtractedEntity, *, block_index: int) -> list[EntityAttributeInput]:
+def entity_to_attributes(entity: ExtractedEntity, *, block_index: int, source_note_id: str = "") -> list[EntityAttributeInput]:
     attributes: list[EntityAttributeInput] = []
+    note_id = str(source_note_id or "")
     for attr_type, value in entity.attributes.iter_values():
         if not value.value:
             continue
@@ -74,6 +76,8 @@ def entity_to_attributes(entity: ExtractedEntity, *, block_index: int) -> list[E
                 value_text=value.value,
                 evidence=value.evidence,
                 confidence=value.confidence,
+                note_id=note_id,
+                block_id=source_block_id(note_id, block_index),
                 block_index=block_index,
             )
         )
@@ -120,3 +124,10 @@ def build_description_for_match(entity: IncomingEntity) -> str:
         if values:
             parts.append(f"{attr_type}: {'; '.join(values[:5])}")
     return "\n".join(parts)
+
+
+def source_block_id(source_note_id: str, block_index: int) -> str:
+    note_id = str(source_note_id or "").strip()
+    if not note_id:
+        return ""
+    return f"{note_id}:block:{int(block_index)}"

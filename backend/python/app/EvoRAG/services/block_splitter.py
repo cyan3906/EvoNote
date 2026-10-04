@@ -41,6 +41,7 @@ class BlockSplitter:
             result.blocks,
             max_blocks=self.config.max_blocks,
             max_block_chars=self.config.max_block_chars,
+            source_text=text,
         )
         timings["physical_chunk_split_ms"] = elapsed_ms(normalize_started_at)
         if not blocks:
@@ -48,9 +49,18 @@ class BlockSplitter:
         return blocks, timings
 
 
-def normalize_blocks(blocks: list[TextBlock], *, max_blocks: int, max_block_chars: int) -> list[TextBlock]:
+def normalize_blocks(
+    blocks: list[TextBlock],
+    *,
+    max_blocks: int,
+    max_block_chars: int,
+    source_text: str = "",
+) -> list[TextBlock]:
     normalized: list[TextBlock] = []
-    for index, block in enumerate(blocks[: max(1, max_blocks)]):
+    selected_blocks = blocks[: max(1, max_blocks)]
+    if not source_coverage_is_valid(selected_blocks, source_text):
+        selected_blocks = [fallback_source_block(source_text, selected_blocks)]
+    for index, block in enumerate(selected_blocks):
         l1_text = block.l1_text.strip()
         if not l1_text:
             continue
@@ -81,6 +91,44 @@ def normalize_blocks(blocks: list[TextBlock], *, max_blocks: int, max_block_char
                 )
             )
     return normalized
+
+
+def validate_source_coverage(blocks: list[TextBlock], source_text: str) -> None:
+    if source_coverage_is_valid(blocks, source_text):
+        return
+
+    raise ValueError("block split l1_text does not cover original text")
+
+
+def source_coverage_is_valid(blocks: list[TextBlock], source_text: str) -> bool:
+    expected = coverage_text(source_text)
+    if not expected:
+        return True
+
+    actual = "".join(coverage_text(block.l1_text) for block in blocks)
+    return expected in actual
+
+
+def fallback_source_block(source_text: str, blocks: list[TextBlock]) -> TextBlock:
+    first_block = blocks[0] if blocks else None
+    return TextBlock(
+        block_index=0,
+        heading=(first_block.heading if first_block else "") or (first_block.anchor_entity if first_block else "") or "Original input",
+        anchor_entity=(first_block.anchor_entity if first_block else ""),
+        candidate_entities=(first_block.candidate_entities if first_block else []),
+        l1_text=source_text,
+        split_reason="fallback",
+        anchor_confidence=0.0,
+        parent_block_index=None,
+        chunk_index=0,
+        chunk_count=1,
+        char_start=0,
+        char_end=len(source_text),
+    )
+
+
+def coverage_text(value: str) -> str:
+    return "".join(str(value or "").split())
 
 
 def split_text_by_max_chars(text: str, *, max_block_chars: int) -> list[str]:

@@ -168,6 +168,30 @@ CREATE TABLE IF NOT EXISTS evorag_incoming_entities (
         ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS evorag_entity_extraction_failures (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    job_id BIGINT NOT NULL,
+    workspace_id VARCHAR(128) NOT NULL DEFAULT 'local',
+    project_id VARCHAR(128) NOT NULL DEFAULT 'evorag',
+    collection_id VARCHAR(128) NOT NULL DEFAULT 'default',
+    domain VARCHAR(128) NOT NULL DEFAULT 'general',
+    source_note_id VARCHAR(128) NOT NULL DEFAULT '',
+    block_index INT NOT NULL DEFAULT -1,
+    heading VARCHAR(255) NOT NULL DEFAULT '',
+    anchor_entity VARCHAR(255) NOT NULL DEFAULT '',
+    l1_text MEDIUMTEXT NOT NULL,
+    error TEXT NOT NULL,
+    status VARCHAR(32) NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_evorag_extraction_failures_job (job_id),
+    INDEX idx_evorag_extraction_failures_status (status),
+    INDEX idx_evorag_extraction_failures_scope (workspace_id, project_id, collection_id, domain),
+    CONSTRAINT fk_evorag_extraction_failures_job
+        FOREIGN KEY (job_id) REFERENCES evorag_ingest_jobs(id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS evorag_entity_review_tasks (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     incoming_entity_id BIGINT NOT NULL,
@@ -260,4 +284,82 @@ CREATE TABLE IF NOT EXISTS evorag_entity_resolution_relation_memory (
     CONSTRAINT fk_evorag_relation_memory_right_entity
         FOREIGN KEY (right_entity_id) REFERENCES evorag_entities(id)
         ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS evorag_entity_attribute_decision_audit (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    entity_id BIGINT NOT NULL,
+    input_index INT NOT NULL DEFAULT -1,
+    action VARCHAR(32) NOT NULL,
+    attr_type VARCHAR(32) NOT NULL,
+    incoming_value_text TEXT NOT NULL,
+    target_attribute_id BIGINT NULL,
+    changed_attribute_id BIGINT NULL,
+    new_value_text TEXT NOT NULL,
+    confidence DOUBLE NOT NULL DEFAULT 0,
+    reason TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_evorag_attr_decision_entity (entity_id),
+    INDEX idx_evorag_attr_decision_action (action),
+    CONSTRAINT fk_evorag_attr_decision_entity
+        FOREIGN KEY (entity_id) REFERENCES evorag_entities(id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS evorag_entity_attribute_events (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    entity_id BIGINT NOT NULL,
+    attribute_id BIGINT NOT NULL,
+    attr_type VARCHAR(32) NOT NULL,
+    action VARCHAR(32) NOT NULL,
+    review_status VARCHAR(32) NOT NULL DEFAULT 'pending',
+    before_json JSON NULL,
+    after_json JSON NULL,
+    incoming_json JSON NOT NULL,
+    candidate_json JSON NULL,
+    diff_json JSON NOT NULL,
+    decision_reason TEXT NOT NULL,
+    confidence DOUBLE NOT NULL DEFAULT 0,
+    source VARCHAR(64) NOT NULL DEFAULT 'auto',
+    note_id VARCHAR(128) NOT NULL DEFAULT '',
+    block_id VARCHAR(128) NOT NULL DEFAULT '',
+    block_index INT NOT NULL DEFAULT -1,
+    corrected_by_event_id BIGINT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_evorag_attr_event_entity (entity_id),
+    INDEX idx_evorag_attr_event_attribute (attribute_id),
+    INDEX idx_evorag_attr_event_action (action),
+    INDEX idx_evorag_attr_event_review (review_status),
+    CONSTRAINT fk_evorag_attr_event_entity
+        FOREIGN KEY (entity_id) REFERENCES evorag_entities(id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_evorag_attr_event_attribute
+        FOREIGN KEY (attribute_id) REFERENCES evorag_entity_attributes(id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_evorag_attr_event_correction
+        FOREIGN KEY (corrected_by_event_id) REFERENCES evorag_entity_attribute_events(id)
+        ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS evorag_entity_attribute_conflicts (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    entity_id BIGINT NOT NULL,
+    attribute_id BIGINT NOT NULL,
+    attr_type VARCHAR(32) NOT NULL,
+    incoming_value_text TEXT NOT NULL,
+    incoming_evidence TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    confidence DOUBLE NOT NULL DEFAULT 0,
+    status VARCHAR(32) NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_evorag_attr_conflict_entity (entity_id),
+    INDEX idx_evorag_attr_conflict_attribute (attribute_id),
+    INDEX idx_evorag_attr_conflict_status (status),
+    CONSTRAINT fk_evorag_attr_conflict_entity
+        FOREIGN KEY (entity_id) REFERENCES evorag_entities(id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_evorag_attr_conflict_attribute
+        FOREIGN KEY (attribute_id) REFERENCES evorag_entity_attributes(id)
+        ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

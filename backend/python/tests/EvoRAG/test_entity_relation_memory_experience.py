@@ -53,6 +53,75 @@ def test_low_score_new_decision_does_not_record_middle_score_experience() -> Non
     assert repository.relation_memory_records == []
 
 
+def test_llm_guard_new_decision_records_reject_experience() -> None:
+    repository = FakeExperienceRepository()
+    ingestor = EntityIngestor(repository=repository)
+    ingestor.hybrid_index = FakeHybridIndex()
+    incoming = incoming_entity()
+    candidate = stored_entity()
+    decision = EntityResolutionDecision(
+        incoming=incoming,
+        decision="new",
+        score=0.83,
+        reason="只是候选实体属性",
+        candidates=[CandidateEntity(entity=candidate, score=0.83, rank=1, source="relation_memory")],
+        record_experience=True,
+        experience_decision="reject",
+        experience_relation_type="attribute_of_entity",
+        experience_source="llm_guard",
+        experience_confidence=0.83,
+    )
+
+    asyncio.run(ingestor.apply_decisions([decision]))
+
+    assert repository.relation_memory_records == [
+        {
+            "incoming_name": "多版本并发控制",
+            "candidate_id": 1,
+            "decision": "reject",
+            "relation_type": "attribute_of_entity",
+            "confidence": 0.83,
+            "source": "llm_guard",
+            "reason": "只是候选实体属性",
+        }
+    ]
+
+
+def test_llm_judge_matched_decision_records_allow_experience() -> None:
+    repository = FakeExperienceRepository()
+    ingestor = EntityIngestor(repository=repository)
+    ingestor.hybrid_index = FakeHybridIndex()
+    incoming = incoming_entity()
+    candidate = stored_entity()
+    decision = EntityResolutionDecision(
+        incoming=incoming,
+        decision="matched",
+        matched_entity=candidate,
+        score=0.76,
+        reason="候选描述一致",
+        candidates=[CandidateEntity(entity=candidate, score=0.72, rank=1, source="hybrid")],
+        record_experience=True,
+        experience_decision="allow",
+        experience_relation_type="llm_judge_match",
+        experience_source="llm_judge",
+        experience_confidence=0.76,
+    )
+
+    asyncio.run(ingestor.apply_decisions([decision]))
+
+    assert repository.relation_memory_records == [
+        {
+            "incoming_name": "多版本并发控制",
+            "candidate_id": 1,
+            "decision": "allow",
+            "relation_type": "llm_judge_match",
+            "confidence": 0.76,
+            "source": "llm_judge",
+            "reason": "候选描述一致",
+        }
+    ]
+
+
 def test_manual_merge_records_allow_experience() -> None:
     repository = FakeExperienceRepository()
     ingestor = EntityIngestor(repository=repository)

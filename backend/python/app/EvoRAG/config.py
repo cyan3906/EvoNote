@@ -50,6 +50,11 @@ class EvoRAGSettings(BaseSettings):
     entity_resolution_rrf_k: int = 60
     entity_merge_max_concurrency: int = 4
     entity_vector_dimensions: int = 3072
+    attribute_full_scan_threshold: int = 20
+    attribute_resolution_top_k: int = 10
+    attribute_resolution_rrf_k: int = 60
+    attribute_milvus_max_concurrency: int = 4
+    attribute_index_backfill_batch_size: int = 100
     entity_worker_enabled: bool = True
     entity_worker_count: int = 2
     entity_worker_batch_size: int = 4
@@ -63,11 +68,13 @@ class EvoRAGSettings(BaseSettings):
 
     es_url: str = "http://127.0.0.1:9200"
     es_entity_index: str = "evorag_entities"
+    es_attribute_index: str = "evorag_entity_attributes"
 
     milvus_host: str = "127.0.0.1"
     milvus_port: int = 19530
     milvus_token: str = ""
     milvus_entity_collection: str = "evorag_entities"
+    milvus_attribute_collection: str = "evorag_entity_attributes"
 
     milvus_data_dir: str = str(PROJECT_DATA_DIR / "milvus")
     elasticsearch_data_dir: str = str(PROJECT_DATA_DIR / "elasticsearch")

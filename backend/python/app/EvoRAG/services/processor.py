@@ -4,7 +4,7 @@ from typing import Any
 
 from app.EvoRAG.config import EvoRAGSettings, settings
 from app.EvoRAG.llm import EvoRAGLLMClient
-from app.EvoRAG.models import EvoRAGPreprocessResult
+from app.EvoRAG.models import BlockExtractionFailure, EvoRAGPreprocessResult
 from app.EvoRAG.services.block_splitter import BlockSplitter
 from app.EvoRAG.services.entity_extractor import EntityExtractor
 
@@ -44,7 +44,11 @@ class EvoRAGProcessor:
                 timings["entity_anchor_split_ms"] = elapsed_ms(before_block_split_at)
                 timings["physical_chunk_split_ms"] = 0.0
             entity_extraction_started_at = perf_counter()
-            extractions = await self.entity_extractor.extract_many(blocks)
+            extraction_failures: list[BlockExtractionFailure] = []
+            if hasattr(self.entity_extractor, "extract_many_with_failures"):
+                extractions, extraction_failures = await self.entity_extractor.extract_many_with_failures(blocks)
+            else:
+                extractions = await self.entity_extractor.extract_many(blocks)
             timings["entity_extraction_ms"] = elapsed_ms(entity_extraction_started_at)
         except Exception as exc:
             if isinstance(exc, EvoRAGProcessorError):
@@ -52,7 +56,12 @@ class EvoRAGProcessor:
             raise EvoRAGProcessorError(str(exc)) from exc
 
         timings["total_ms"] = elapsed_ms(total_started_at)
-        return EvoRAGPreprocessResult(input_text=normalized_text, blocks=extractions, timings=timings)
+        return EvoRAGPreprocessResult(
+            input_text=normalized_text,
+            blocks=extractions,
+            timings=timings,
+            extraction_failures=extraction_failures,
+        )
 
 
 async def preprocess_text_async(text: str, *, config: EvoRAGSettings = settings) -> EvoRAGPreprocessResult:

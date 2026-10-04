@@ -5,7 +5,7 @@ from pydantic import ValidationError
 from app.EvoRAG.config import EvoRAGSettings, settings
 from app.EvoRAG.constants import ATTRIBUTE_TYPES
 from app.EvoRAG.llm import EvoRAGLLMClient
-from app.EvoRAG.models import BlockEntityExtraction, BlockExtractionResult, EntityAdmissionJudgeScore, ExtractedEntity, TextBlock
+from app.EvoRAG.models import BlockEntityExtraction, BlockExtractionFailure, BlockExtractionResult, EntityAdmissionJudgeScore, ExtractedEntity, TextBlock
 from app.EvoRAG.prompts import ENTITY_EXTRACTION_SYSTEM_PROMPT
 
 
@@ -82,23 +82,44 @@ class EntityExtractor:
         self.judge_llm = judge_llm_client or llm_client
 
     async def extract_many(self, blocks: list[TextBlock]) -> list[BlockEntityExtraction]:
-        tasks = [self.extract_one(block) for block in blocks]
+        extractions, _failures = await self.extract_many_with_failures(blocks)
+        return extractions
+
+    async def extract_many_with_failures(self, blocks: list[TextBlock]) -> tuple[list[BlockEntityExtraction], list[BlockExtractionFailure]]:
+        semaphore = asyncio.Semaphore(max(1, int(self.config.max_concurrency)))
+
+        async def run_one(block: TextBlock) -> BlockEntityExtraction:
+            async with semaphore:
+                return await self.extract_one(block)
+
+        tasks = [run_one(block) for block in blocks]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         extractions: list[BlockEntityExtraction] = []
+        failures: list[BlockExtractionFailure] = []
         for block, result in zip(blocks, results, strict=False):
             if isinstance(result, Exception):
+                warning = f"entity extraction failed: {result}"
                 extractions.append(
                     BlockEntityExtraction(
                         block=block,
                         entities=[],
-                        warnings=[f"entity extraction failed: {result}"],
+                        warnings=[warning],
+                    )
+                )
+                failures.append(
+                    BlockExtractionFailure(
+                        block_index=block.block_index,
+                        heading=block.heading,
+                        anchor_entity=block.anchor_entity,
+                        l1_text=block.l1_text,
+                        error=warning,
                     )
                 )
                 continue
             extractions.append(result)
 
-        return extractions
+        return extractions, failures
 
     async def extract_one(self, block: TextBlock) -> BlockEntityExtraction:
         data = await self.llm.chat_json(

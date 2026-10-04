@@ -10,6 +10,8 @@ BLOCK_SPLIT_SYSTEM_PROMPT = """
 - 如果没有明确实体锚点，可继承最近的上一个 anchor_entity，并将 split_reason 标为 inherited_anchor；仍无法判断时 anchor_entity 为空，split_reason 标为 fallback。
 - 第二层物理最大字数切分由后端完成。你只做实体锚点预切分，不要因为字数手动截断原文。
 - 不要改写原文事实，不要补充原文没有的内容。
+- 禁止修改原文措辞，l1_text 必须逐字复制输入原文中的连续片段；不要总结、翻译、改写、纠错或补全。
+- 所有 block 的 l1_text 按顺序拼接后必须覆盖原文，不允许遗漏任何原文内容；如果只能继承实体锚点，也必须保留原文文本。
 - 每个 block 的 l1_text 应尽量保留原文措辞。
 - candidate_entities 只放当前 block 中可能作为独立知识入口的候选实体，不要放普通动作、步骤、形容词、条件项。
 - split_reason 可选值：heading、definition_sentence、topic_shift、list_under_anchor、inherited_anchor、fallback。

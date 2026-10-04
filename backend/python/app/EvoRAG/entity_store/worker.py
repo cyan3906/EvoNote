@@ -5,7 +5,6 @@ from threading import Event, Lock
 
 from app.EvoRAG.config import EvoRAGSettings, settings
 from app.EvoRAG.entity_store.ingestor import EntityIngestor
-from app.EvoRAG.entity_store.queue import EntityMergeQueue
 from app.EvoRAG.entity_store.repository import MySQLEntityRepository
 
 
@@ -62,67 +61,30 @@ def entity_worker_runtime_status(config: EvoRAGSettings = settings) -> dict[str,
 
 def recover_pending_entity_tasks(config: EvoRAGSettings = settings) -> int:
     repository = MySQLEntityRepository(config)
-    queue = EntityMergeQueue(config)
     incoming_ids = repository.list_resumable_incoming_entity_ids(limit=config.entity_worker_recover_limit)
-    for incoming_id in incoming_ids:
-        try:
-            queue.enqueue(incoming_id)
-        except Exception:
-            break
     return len(incoming_ids)
 
 
 def _worker_loop(worker_id: str, config: EvoRAGSettings) -> None:
-    queue = EntityMergeQueue(config)
-    ingestor = EntityIngestor(config=config)
+    repository = MySQLEntityRepository(config)
+    ingestor = EntityIngestor(repository=repository, config=config)
     while not _STOP_EVENT.is_set():
         try:
-            messages = queue.read(
-                consumer_name=worker_id,
-                count=config.entity_worker_batch_size,
-                block_ms=config.entity_worker_block_ms,
+            incoming_ids = repository.list_resumable_incoming_entity_ids(
+                limit=config.entity_worker_batch_size,
             )
         except Exception:
             _STOP_EVENT.wait(2)
             continue
 
-        for message_id, payload in messages:
+        if not incoming_ids:
+            _STOP_EVENT.wait(max(0.1, config.entity_worker_block_ms / 1000))
+            continue
+
+        for incoming_entity_id in incoming_ids:
             if _STOP_EVENT.is_set():
                 break
-            _handle_message(queue, ingestor, message_id, payload, worker_id)
-
-
-def _handle_message(
-    queue: EntityMergeQueue,
-    ingestor: EntityIngestor,
-    message_id: str,
-    payload: dict[str, str],
-    worker_id: str,
-) -> None:
-    try:
-        incoming_entity_id = int(payload.get("incoming_entity_id") or 0)
-    except ValueError:
-        queue.dead_letter(message_id, payload, error="invalid incoming_entity_id")
-        queue.ack(message_id)
-        return
-
-    if incoming_entity_id <= 0:
-        queue.dead_letter(message_id, payload, error="missing incoming_entity_id")
-        queue.ack(message_id)
-        return
-
-    try:
-        status = asyncio.run(ingestor.process_incoming_entity_id(incoming_entity_id, worker_id=worker_id))
-    except Exception as exc:
-        queue.dead_letter(message_id, payload, error=str(exc))
-        queue.ack(message_id)
-        return
-
-    if status == "pending":
-        try:
-            queue.enqueue(incoming_entity_id, job_id=int(payload.get("job_id") or 0))
-        except Exception:
-            pass
-    elif status == "dead_letter":
-        queue.dead_letter(message_id, payload, error="max attempts exceeded")
-    queue.ack(message_id)
+            try:
+                asyncio.run(ingestor.process_incoming_entity_id(incoming_entity_id, worker_id=worker_id))
+            except Exception:
+                continue

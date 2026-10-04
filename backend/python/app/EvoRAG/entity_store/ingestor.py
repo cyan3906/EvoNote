@@ -1,13 +1,16 @@
 import asyncio
+from dataclasses import replace
 from typing import Any
 
 from app.EvoRAG.config import EvoRAGSettings, settings
+from app.EvoRAG.entity_store.attribute_decider import AttributeDecisionMaker
+from app.EvoRAG.entity_store.attribute_retriever import AttributeCandidateRetriever
 from app.EvoRAG.entity_store.models import EntityIngestQueueResult, EntityResolutionDecision, EntityScope, EntityUpsertResult, IncomingEntity, IncomingEntityTask
 from app.EvoRAG.entity_store.normalizer import dedupe_extracted_entities, merge_unique, normalize_name
-from app.EvoRAG.entity_store.queue import EntityMergeQueue
+from app.EvoRAG.entity_store.relation_memory import EntityRelationMemory
 from app.EvoRAG.entity_store.repository import MySQLEntityRepository
 from app.EvoRAG.entity_store.resolver import EntityResolver
-from app.EvoRAG.indexes import EntityHybridIndex, EvoRAGEmbeddingClient
+from app.EvoRAG.indexes import AttributeHybridIndex, EntityHybridIndex, EvoRAGEmbeddingClient, attribute_text_for_embedding
 from app.EvoRAG.models import EvoRAGPreprocessResult
 
 
@@ -20,6 +23,12 @@ class EntityIngestor:
         repository: MySQLEntityRepository | None = None,
         config: EvoRAGSettings = settings,
         scope: EntityScope | None = None,
+        embedding_client: EvoRAGEmbeddingClient | Any | None = None,
+        hybrid_index: EntityHybridIndex | Any | None = None,
+        attribute_retriever: AttributeCandidateRetriever | Any | None = None,
+        attribute_decider: AttributeDecisionMaker | Any | None = None,
+        attribute_index: AttributeHybridIndex | Any | None = None,
+        queue_client: Any | None = None,
     ) -> None:
         self.config = config
         self.scope = scope or EntityScope(
@@ -29,9 +38,17 @@ class EntityIngestor:
             domain=config.default_domain,
         )
         self.repository = repository or MySQLEntityRepository(config)
-        self.embedding_client = EvoRAGEmbeddingClient(config)
-        self.hybrid_index = EntityHybridIndex(config)
-        self.queue_client = EntityMergeQueue(config)
+        self.embedding_client = embedding_client or EvoRAGEmbeddingClient(config)
+        self.hybrid_index = hybrid_index or EntityHybridIndex(config)
+        self.attribute_index = attribute_index or AttributeHybridIndex(config)
+        self.attribute_retriever = attribute_retriever or AttributeCandidateRetriever(
+            self.repository,
+            self.embedding_client,
+            self.attribute_index,
+            config,
+        )
+        self.attribute_decider = attribute_decider or AttributeDecisionMaker()
+        self.queue_client = queue_client
 
     async def queue(
         self,
@@ -40,7 +57,7 @@ class EntityIngestor:
         source_note_id: str = "",
         task_name: str = "",
     ) -> EntityIngestQueueResult:
-        incoming_entities = dedupe_extracted_entities(result.blocks, scope=self.scope)
+        incoming_entities = dedupe_extracted_entities(result.blocks, scope=self.scope, source_note_id=source_note_id)
         source_blocks_by_key = source_blocks_for_incoming(result, incoming_entities)
         queue_result = await asyncio.to_thread(
             self.repository.create_ingest_job,
@@ -52,14 +69,6 @@ class EntityIngestor:
             source_note_id=source_note_id,
             task_name=task_name,
         )
-        try:
-            await asyncio.to_thread(
-                self.queue_client.enqueue_many,
-                queue_result.incoming_entity_ids,
-                job_id=queue_result.job_id,
-            )
-        except Exception:
-            pass
         return queue_result
 
     async def ingest(self, result: EvoRAGPreprocessResult) -> list[EntityUpsertResult]:
@@ -77,6 +86,7 @@ class EntityIngestor:
             hybrid_index=self.hybrid_index,
             alias_lookup=self.repository.find_alias_for_incoming,
             rejection_lookup=self.repository.rejected_candidate_ids,
+            relation_memory=EntityRelationMemory(self.repository),
         )
         decisions = await resolver.resolve_many(incoming_entities)
         return await self.apply_decisions(decisions)
@@ -127,6 +137,7 @@ class EntityIngestor:
             hybrid_index=self.hybrid_index,
             alias_lookup=self.repository.find_alias_for_incoming,
             rejection_lookup=self.repository.rejected_candidate_ids,
+            relation_memory=EntityRelationMemory(self.repository),
         )
         decision = await resolver.resolve_one(incoming)
         results = await self.apply_decisions([decision])
@@ -279,7 +290,6 @@ class EntityIngestor:
             reason=reason or "manual review rejected candidates",
         )
         await asyncio.to_thread(self.repository.reset_incoming_for_retry, task.id)
-        await asyncio.to_thread(self.queue_client.enqueue, task.id, job_id=task.job_id)
         return {"review_task_id": review["id"], "incoming_entity_id": task.id, "rejected_entity_ids": rejected_ids, "status": "requeued"}
 
     async def _load_review_task(self, review_task_id: int) -> tuple[dict[str, Any], IncomingEntityTask]:
@@ -313,7 +323,7 @@ class EntityIngestor:
                 )
                 return None
 
-            await self._record_low_score_direct_reject_experience(decision)
+            await self._record_resolution_experience(decision)
 
             if decision.matched_entity:
                 decision.incoming.aliases = merge_unique(
@@ -324,11 +334,26 @@ class EntityIngestor:
                         *decision.incoming.aliases,
                     ]
                 )
-            result = await asyncio.to_thread(self.repository.upsert_entity, decision.incoming, matched_entity_id=matched_id)
+            incoming_for_upsert = decision.incoming
+            attribute_decisions = []
+            if decision.matched_entity and decision.incoming.attributes:
+                retrieval_results = await self.attribute_retriever.retrieve(decision.matched_entity, decision.incoming.attributes)
+                attribute_decisions = self.attribute_decider.decide(decision.incoming.attributes, retrieval_results)
+                incoming_for_upsert = replace(decision.incoming, attributes=[])
+
+            result = await asyncio.to_thread(self.repository.upsert_entity, incoming_for_upsert, matched_entity_id=matched_id)
+            if attribute_decisions:
+                apply_result = await asyncio.to_thread(self.repository.apply_attribute_decisions, result.entity_id, attribute_decisions)
+                result.attribute_count += apply_result.attribute_count
+                result.evidence_count += apply_result.evidence_count
+                result.conflict_count += apply_result.conflict_count
+                result.changed_attribute_ids = merge_ints(result.changed_attribute_ids, apply_result.changed_attribute_ids)
+
             stored = await asyncio.to_thread(self.repository.get_entity, result.entity_id)
             if stored is not None:
                 await asyncio.to_thread(self.repository.upsert_aliases_for_entity, stored, source=decision.decision, confidence=decision.score or 1.0)
                 await asyncio.to_thread(self.hybrid_index.upsert_entity, stored)
+            await self._upsert_changed_attribute_indexes(result.changed_attribute_ids)
             await asyncio.to_thread(
                 self.repository.record_resolution_audit,
                 decision.incoming,
@@ -339,10 +364,36 @@ class EntityIngestor:
             )
             return result
 
-    async def _record_low_score_direct_reject_experience(self, decision: EntityResolutionDecision) -> None:
-        if decision.decision != "new" or not decision.candidates:
+    async def _upsert_changed_attribute_indexes(self, attribute_ids: list[int]) -> None:
+        unique_ids = merge_ints(attribute_ids, [])
+        if not unique_ids:
+            return
+        records = await asyncio.to_thread(self.repository.get_active_attributes_by_ids, unique_ids)
+        if not records:
+            return
+        vectors = await self.embedding_client.embed_texts(
+            [attribute_text_for_embedding(record.attr_type, record.value_text) for record in records]
+        )
+        await asyncio.to_thread(self.attribute_index.upsert_elasticsearch_attributes, records)
+        await asyncio.to_thread(self.attribute_index.upsert_milvus_attributes, records, vectors)
+
+    async def _record_resolution_experience(self, decision: EntityResolutionDecision) -> None:
+        if not decision.candidates:
             return
         best = decision.candidates[0]
+        if decision.record_experience:
+            await self._record_relation_memory(
+                incoming=decision.incoming,
+                candidate=best.entity,
+                decision=decision.experience_decision or "reject",
+                relation_type=decision.experience_relation_type or "llm_guard_reject",
+                confidence=decision.experience_confidence or decision.score or best.score,
+                source=decision.experience_source or "llm_guard",
+                reason=decision.reason,
+            )
+            return
+        if decision.decision != "new":
+            return
         if best.score >= LOW_SCORE_DIRECT_REJECT_THRESHOLD:
             return
         await self._record_relation_memory(
@@ -467,3 +518,18 @@ def candidate_entity_id_from_snapshot(candidate: dict[str, Any]) -> int:
 
 def incoming_entity_key(incoming: IncomingEntity) -> str:
     return f"{normalize_name(incoming.name)}::{normalize_name(incoming.entity_type)}"
+
+
+def merge_ints(left: list[int], right: list[int]) -> list[int]:
+    result: list[int] = []
+    seen: set[int] = set()
+    for value in [*left, *right]:
+        try:
+            item = int(value)
+        except (TypeError, ValueError):
+            continue
+        if item <= 0 or item in seen:
+            continue
+        seen.add(item)
+        result.append(item)
+    return result

@@ -3,6 +3,8 @@ from typing import Literal
 
 
 ResolutionDecision = Literal["matched", "new", "ambiguous"]
+AttributeRetrievalMode = Literal["exact", "full_scan", "hybrid"]
+AttributeDecisionAction = Literal["merge", "enrich", "update", "conflict", "add", "review"]
 
 
 @dataclass(slots=True, frozen=True)
@@ -69,6 +71,65 @@ class CandidateEntity:
     vector_score: float = 0.0
     es_score: float = 0.0
 
+@dataclass(slots=True)
+class StoredEntityAttribute:
+    id: int
+    entity_id: int
+    scope: EntityScope
+    attr_type: str
+    value_text: str
+    value_fingerprint: str
+    confidence: float = 0.7
+    status: str = "active"
+
+
+@dataclass(slots=True)
+class AttributeCandidate:
+    attribute_id: int
+    entity_id: int
+    attr_type: str
+    value_text: str
+    confidence: float
+    rank: int = 0
+    source: str = ""
+    es_score: float = 0.0
+    vector_score: float = 0.0
+    fused_score: float = 0.0
+
+
+@dataclass(slots=True)
+class AttributeRetrievalResult:
+    input_index: int
+    attr_type: str
+    value_text: str
+    mode: AttributeRetrievalMode
+    group_size: int
+    exact_match: StoredEntityAttribute | None = None
+    candidates: list[AttributeCandidate] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    history_summaries: dict[int, dict] = field(default_factory=dict)
+
+
+class AttributeRetrievalError(RuntimeError):
+    pass
+@dataclass(slots=True)
+class AttributeDecision:
+    input_index: int
+    action: AttributeDecisionAction
+    incoming_attribute: EntityAttributeInput
+    target_attribute_id: int | None = None
+    target_value_text: str = ""
+    new_value_text: str = ""
+    confidence: float = 0.0
+    reason: str = ""
+
+
+@dataclass(slots=True)
+class AttributeDecisionApplyResult:
+    attribute_count: int = 0
+    evidence_count: int = 0
+    conflict_count: int = 0
+    changed_attribute_ids: list[int] = field(default_factory=list)
 
 @dataclass(slots=True)
 class EntityResolutionDecision:
@@ -78,6 +139,11 @@ class EntityResolutionDecision:
     score: float = 0.0
     reason: str = ""
     candidates: list[CandidateEntity] = field(default_factory=list)
+    record_experience: bool = False
+    experience_decision: str = ""
+    experience_relation_type: str = ""
+    experience_source: str = ""
+    experience_confidence: float = 0.0
 
 
 @dataclass(slots=True)
@@ -99,6 +165,8 @@ class EntityUpsertResult:
     created: bool
     attribute_count: int
     evidence_count: int
+    conflict_count: int = 0
+    changed_attribute_ids: list[int] = field(default_factory=list)
 
 
 @dataclass(slots=True)
