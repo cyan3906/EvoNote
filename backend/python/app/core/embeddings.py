@@ -8,9 +8,12 @@ from threading import BoundedSemaphore, Lock
 from typing import Callable
 
 from openai import OpenAI
+# import sys
 
 from app.core.config import settings
 
+# print(settings.embedding_api_key.strip())
+# print(settings.embedding_api_base_url.strip())
 Vector = list[float]
 FallbackVector = Callable[[str], Vector]
 

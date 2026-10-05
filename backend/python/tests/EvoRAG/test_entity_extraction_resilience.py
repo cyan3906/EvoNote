@@ -46,6 +46,60 @@ class ControlledExtractor(EntityExtractor):
             self.running -= 1
 
 
+class ExtractionLLM:
+    async def chat_json(self, **kwargs):
+        return {
+            "entities": [
+                {
+                    "name": "Redlock",
+                    "entity_type": "concept",
+                    "identity_description": "Redis distributed lock algorithm.",
+                    "admission_score": {
+                        "definable": 0.9,
+                        "query_entry": 0.9,
+                        "independent_scope": 0.9,
+                        "stable_relations": 0.9,
+                        "key_sentence": 0.9,
+                    },
+                    "attributes": {
+                        "definition": [{"value": "Redlock is a Redis lock algorithm.", "evidence": "Redlock 通过多个 Redis 节点投票。"}]
+                    },
+                }
+            ],
+            "warnings": [],
+        }
+
+
+class FailingJudgeLLM:
+    async def chat_json(self, **kwargs):
+        raise RuntimeError("temporary judge api failure")
+
+
+class NullParentJudgeLLM:
+    async def chat_json(self, **kwargs):
+        return {
+            "decision": "entity",
+            "entity_score": 0.91,
+            "positive_scores": {
+                "identity_boundary": 0.9,
+                "knowledge_capacity": 0.9,
+                "query_entry_value": 0.9,
+                "evolution_stability": 0.9,
+            },
+            "deductions": {
+                "section_role_penalty": 0.0,
+                "action_phrase_penalty": 0.0,
+                "parent_attribute_penalty": 0.0,
+                "context_dependency_penalty": 0.0,
+                "granularity_penalty": 0.0,
+                "evidence_weak_penalty": 0.0,
+            },
+            "parent_entity": None,
+            "attribute_type": None,
+            "reason": "MVCC is an independent concept.",
+        }
+
+
 def test_extract_many_with_failures_keeps_failed_blocks_visible_and_records_internal_failures() -> None:
     extractor = ControlledExtractor(fail_indexes={1})
 
@@ -64,6 +118,36 @@ def test_extract_many_with_failures_keeps_failed_blocks_visible_and_records_inte
     assert [failure.block_index for failure in failures] == [1]
     assert "extract failed for block 1" in failures[0].error
     assert failures[0].l1_text == "Redlock 通过多个 Redis 节点投票来提高可靠性。"
+
+
+def test_extract_one_keeps_entity_when_admission_judge_fails_after_retries() -> None:
+    extractor = EntityExtractor(
+        ExtractionLLM(),
+        config=EvoRAGSettings(_env_file=None, entity_admission_judge_enabled=True),
+        judge_llm_client=FailingJudgeLLM(),
+    )
+
+    result = asyncio.run(extractor.extract_one(block(1, "Redlock 通过多个 Redis 节点投票。")))
+
+    assert [entity.name for entity in result.entities] == ["Redlock"]
+    assert "entity admission judge failed for Redlock" in result.warnings[0]
+    assert "temporary judge api failure" in result.warnings[0]
+
+
+def test_extract_one_accepts_null_optional_text_fields_from_admission_judge() -> None:
+    extractor = EntityExtractor(
+        ExtractionLLM(),
+        config=EvoRAGSettings(_env_file=None, entity_admission_judge_enabled=True),
+        judge_llm_client=NullParentJudgeLLM(),
+    )
+
+    result = asyncio.run(extractor.extract_one(block(1, "MVCC 通过保存多个版本来减少读写阻塞。")))
+
+    assert [entity.name for entity in result.entities] == ["Redlock"]
+    assert result.entities[0].admission_judge is not None
+    assert result.entities[0].admission_judge.parent_entity == ""
+    assert result.entities[0].admission_judge.attribute_type == ""
+    assert result.warnings == []
 
 
 def test_extract_many_respects_configured_concurrency_limit() -> None:

@@ -10,6 +10,8 @@ from app.EvoRAG.entity_store.repository import MySQLEntityRepository
 from app.EvoRAG.entity_store.worker import entity_worker_runtime_status
 from app.EvoRAG.models import EvoRAGIndexSearchResult, EvoRAGPreprocessResult, EvoRAGQueryResult
 from app.EvoRAG.services import EvoRAGProcessor, EvoRAGQueryService, EvoRAGRetriever
+from app.EvoRAG.services.graph_generation import EvoRAGGraphGenerationService
+from app.EvoRAG.services.pipeline_debug import extraction_stage_payload, run_debug_pipeline
 from app.core.security import require_auth
 
 
@@ -33,6 +35,12 @@ class EvoRAGIngestRequest(BaseModel):
 class EvoRAGQueryRequest(BaseModel):
     entity: str = Field(..., min_length=1)
     top_k: int = Field(default=5, ge=1, le=20)
+    scope: EvoRAGScopePayload = Field(default_factory=EvoRAGScopePayload)
+
+
+class EvoRAGGraphGenerateRequest(BaseModel):
+    root_entity_id: int = Field(..., ge=1)
+    selected_entity_ids: list[int] = Field(default_factory=list)
     scope: EvoRAGScopePayload = Field(default_factory=EvoRAGScopePayload)
 
 
@@ -87,28 +95,27 @@ async def debug_extract_text(request: EvoRAGIngestRequest) -> dict[str, object]:
     return debug_extract_payload(preprocess)
 
 
-def debug_extract_payload(preprocess: EvoRAGPreprocessResult) -> dict[str, object]:
-    block_split_blocks: list[dict[str, object]] = []
-    entity_extraction_blocks: list[dict[str, object]] = []
-
-    for block_result in preprocess.blocks:
-        block = block_result.block.model_dump()
-        block_split_blocks.append(block)
-        entity_extraction_blocks.append(
-            {
-                "block_index": block_result.block.block_index,
-                "heading": block_result.block.heading,
-                "anchor_entity": block_result.block.anchor_entity,
-                "entities": [entity.model_dump() for entity in block_result.entities],
-                "warnings": list(block_result.warnings),
-            }
+@router.post("/debug/pipeline")
+async def debug_pipeline(request: EvoRAGIngestRequest) -> dict[str, object]:
+    scope = to_scope(request.scope)
+    try:
+        return await run_debug_pipeline(
+            request.text,
+            scope=scope,
+            source_note_id=request.note_id,
+            task_name=request.task_name or "pipeline-debug",
         )
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
 
+
+def debug_extract_payload(preprocess: EvoRAGPreprocessResult) -> dict[str, object]:
+    payload = extraction_stage_payload(preprocess)
     return {
-        "input_text": preprocess.input_text,
-        "block_split": {"blocks": block_split_blocks},
-        "entity_extraction": {"blocks": entity_extraction_blocks},
-        "timings": preprocess.timings,
+        "input_text": payload["input_text"],
+        "block_split": payload["block_split"],
+        "entity_extraction": payload["entity_extraction"],
+        "timings": payload["timings"],
     }
 
 
@@ -146,6 +153,25 @@ async def query_entity(request: EvoRAGQueryRequest) -> EvoRAGQueryResult:
 async def search_entity_indexes(request: EvoRAGQueryRequest) -> EvoRAGIndexSearchResult:
     try:
         return await EvoRAGRetriever(scope=to_scope(request.scope)).search_indexes(request.entity, top_k=request.top_k)
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+
+
+@router.post("/graph/candidates")
+async def graph_candidates(request: EvoRAGQueryRequest) -> dict[str, object]:
+    try:
+        return await EvoRAGGraphGenerationService(scope=to_scope(request.scope)).candidates(request.entity, top_k=request.top_k)
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+
+
+@router.post("/graph/generate")
+async def graph_generate(request: EvoRAGGraphGenerateRequest) -> dict[str, object]:
+    try:
+        return await EvoRAGGraphGenerationService(scope=to_scope(request.scope)).generate(
+            root_entity_id=request.root_entity_id,
+            selected_entity_ids=request.selected_entity_ids,
+        )
     except Exception as exc:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
 

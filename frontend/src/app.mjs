@@ -58,6 +58,17 @@ const reviewTotalCount = document.querySelector("#review-total-count");
 const reviewSubtitle = document.querySelector("#review-subtitle");
 const reviewTaskList = document.querySelector("#review-task-list");
 const reviewDetail = document.querySelector("#review-detail");
+const graphQuery = document.querySelector("#graph-query");
+const graphTopK = document.querySelector("#graph-top-k");
+const graphLoadCandidatesButton = document.querySelector("#graph-load-candidates");
+const graphGenerateArticleButton = document.querySelector("#graph-generate-article");
+const graphStatus = document.querySelector("#graph-status");
+const graphCandidateList = document.querySelector("#graph-candidate-list");
+const graphNodeMap = document.querySelector("#graph-node-map");
+const graphEdgeList = document.querySelector("#graph-edge-list");
+const graphOutline = document.querySelector("#graph-outline");
+const graphWarningList = document.querySelector("#graph-warning-list");
+const graphArticle = document.querySelector("#graph-article");
 
 let authToken = "";
 const apiClient = createApiClient({ getToken: () => authToken });
@@ -77,6 +88,8 @@ let mergeJobs = [];
 let reviewTasks = [];
 let activeReviewJobId = 0;
 let activeReviewTaskId = 0;
+let graphRootEntityId = 0;
+let graphCandidates = [];
 
 function showApp(isLoggedIn) {
   loginPanel.hidden = isLoggedIn;
@@ -1041,6 +1054,256 @@ function formatScore(value) {
   return score ? score.toFixed(2) : "-";
 }
 
+function graphScopePayload() {
+  return {
+    workspace_id: "local",
+    project_id: "evorag",
+    collection_id: "default",
+    domain: "general",
+  };
+}
+
+function setGraphStatus(text, isError = false) {
+  if (!graphStatus) {
+    return;
+  }
+  graphStatus.textContent = text;
+  graphStatus.classList.toggle("is-error", isError);
+}
+
+function graphEntityTitle(entity) {
+  return entity?.canonical_name || entity?.name || "未命名实体";
+}
+
+function graphEntitySummary(entity) {
+  const attrs = entity?.attributes || [];
+  const definition = attrs.find((item) => item.attr_type === "definition")?.value_text;
+  const mechanism = attrs.find((item) => item.attr_type === "mechanism")?.value_text;
+  return entity?.identity_description || entity?.summary || definition || mechanism || entity?.description_for_match || "暂无摘要";
+}
+
+function graphEntityType(entity) {
+  return entity?.entity_type || "concept";
+}
+
+function getGraphSelectedEntityIds() {
+  if (!graphCandidateList) {
+    return [];
+  }
+  return Array.from(graphCandidateList.querySelectorAll("input[data-entity-id]:checked"))
+    .map((input) => Number(input.dataset.entityId))
+    .filter((entityId) => entityId > 0);
+}
+
+function renderGraphCandidates(candidates, selectedIds = []) {
+  if (!graphCandidateList) {
+    return;
+  }
+
+  graphCandidateList.innerHTML = "";
+  graphGenerateArticleButton.disabled = !graphRootEntityId || !candidates.length;
+
+  if (!candidates.length) {
+    graphCandidateList.innerHTML = '<p class="graph-empty">没有检索到相关实体。</p>';
+    return;
+  }
+
+  const selectedSet = new Set(selectedIds.map((id) => Number(id)));
+  for (const entity of candidates) {
+    const entityId = Number(entity.id || 0);
+    const label = document.createElement("label");
+    label.className = `graph-candidate-item${entityId === graphRootEntityId ? " is-root" : ""}`;
+    label.innerHTML = `
+      <input type="checkbox" data-entity-id="${entityId}" ${selectedSet.has(entityId) ? "checked" : ""} />
+      <span>
+        <strong>${escapeText(graphEntityTitle(entity))}</strong>
+        <em>${escapeText(graphEntityType(entity))} · score ${formatScore(entity.score)}</em>
+        <small>${escapeText(graphEntitySummary(entity))}</small>
+      </span>
+    `;
+    graphCandidateList.append(label);
+  }
+}
+
+function renderGraphMap(graph) {
+  if (!graphNodeMap) {
+    return;
+  }
+
+  const entities = graph?.entities || [];
+  graphNodeMap.innerHTML = "";
+
+  if (!entities.length) {
+    graphNodeMap.innerHTML = '<p class="graph-empty">暂无图谱节点。</p>';
+    renderGraphEdges(graph);
+    return;
+  }
+
+  for (const entity of entities) {
+    const item = document.createElement("article");
+    item.className = `graph-node${Number(entity.id) === Number(graph?.root_entity_id) ? " is-root" : ""}`;
+    item.innerHTML = `
+      <span>${escapeText(graphEntityType(entity))}</span>
+      <strong>${escapeText(graphEntityTitle(entity))}</strong>
+      <p>${escapeText(graphEntitySummary(entity))}</p>
+    `;
+    graphNodeMap.append(item);
+  }
+
+  renderGraphEdges(graph);
+}
+
+function renderGraphEdges(graph) {
+  if (!graphEdgeList) {
+    return;
+  }
+
+  const entitiesById = new Map((graph?.entities || []).map((entity) => [Number(entity.id), graphEntityTitle(entity)]));
+  const edges = [
+    ...(graph?.semantic_edges || []).map((edge) => ({ ...edge, typeLabel: "语义依赖" })),
+    ...(graph?.conditional_edges || []).map((edge) => ({ ...edge, typeLabel: "条件依赖" })),
+  ];
+
+  graphEdgeList.innerHTML = "";
+  if (!edges.length) {
+    graphEdgeList.innerHTML = '<p class="graph-empty">暂无关系边。</p>';
+    return;
+  }
+
+  for (const edge of edges) {
+    const item = document.createElement("div");
+    item.className = `graph-edge-item is-${edge.graph_type || "semantic"}`;
+    item.innerHTML = `
+      <strong>${escapeText(entitiesById.get(Number(edge.source_id)) || `#${edge.source_id}`)}</strong>
+      <span>${escapeText(edge.relation || edge.typeLabel)}</span>
+      <strong>${escapeText(entitiesById.get(Number(edge.target_id)) || `#${edge.target_id}`)}</strong>
+      ${edge.evidence ? `<small>${escapeText(edge.evidence)}</small>` : ""}
+    `;
+    graphEdgeList.append(item);
+  }
+}
+
+function renderGraphOutline(outline) {
+  if (!graphOutline) {
+    return;
+  }
+
+  graphOutline.innerHTML = "";
+  if (!outline?.length) {
+    graphOutline.innerHTML = '<p class="graph-empty">生成长文后展示大纲。</p>';
+    return;
+  }
+
+  const list = document.createElement("ol");
+  list.className = "graph-outline-list";
+  for (const item of outline) {
+    const sections = item.sections || [];
+    const row = document.createElement("li");
+    row.innerHTML = `
+      <strong>${escapeText(item.title || `实体 ${item.entity_id}`)}</strong>
+      <span>${sections.length ? sections.map((section) => escapeText(section)).join(" / ") : "综合说明"}</span>
+    `;
+    list.append(row);
+  }
+  graphOutline.append(list);
+}
+
+function renderGraphWarnings(warnings) {
+  if (!graphWarningList) {
+    return;
+  }
+
+  graphWarningList.innerHTML = "";
+  if (!warnings?.length) {
+    return;
+  }
+
+  for (const warning of warnings) {
+    const item = document.createElement("p");
+    item.textContent = warning;
+    graphWarningList.append(item);
+  }
+}
+
+function renderGraphArticle(article) {
+  if (!graphArticle) {
+    return;
+  }
+
+  if (!article) {
+    graphArticle.innerHTML = '<p class="graph-empty">生成结果会显示在这里。</p>';
+    return;
+  }
+
+  graphArticle.innerHTML = markdownToHtml(article);
+}
+
+async function loadGraphCandidates() {
+  const entity = graphQuery?.value.trim();
+  if (!entity) {
+    setGraphStatus("请输入要查询的实体名。", true);
+    graphQuery?.focus();
+    return;
+  }
+
+  const topK = Math.min(20, Math.max(1, Number(graphTopK?.value || 8)));
+  graphLoadCandidatesButton.disabled = true;
+  graphGenerateArticleButton.disabled = true;
+  setGraphStatus("正在查询相关实体...");
+
+  try {
+    const result = await apiRequest("/evorag/graph/candidates", {
+      method: "POST",
+      body: JSON.stringify({ entity, top_k: topK, scope: graphScopePayload() }),
+    });
+    graphRootEntityId = Number(result.root_entity?.id || 0);
+    graphCandidates = result.candidates || [];
+    renderGraphCandidates(graphCandidates, result.default_selected_entity_ids || []);
+    renderGraphMap(result.graph);
+    renderGraphOutline([]);
+    renderGraphWarnings(result.warnings || []);
+    renderGraphArticle("");
+    setGraphStatus(graphRootEntityId ? `已加载 ${graphCandidates.length} 个相关实体。` : "没有找到可生成图谱的实体。", !graphRootEntityId);
+  } catch (error) {
+    setGraphStatus(error.message || "查询知识图谱失败", true);
+  } finally {
+    graphLoadCandidatesButton.disabled = false;
+    graphGenerateArticleButton.disabled = !graphRootEntityId || !graphCandidates.length;
+  }
+}
+
+async function generateGraphArticle() {
+  if (!graphRootEntityId) {
+    setGraphStatus("请先查询并选择根实体。", true);
+    return;
+  }
+
+  const selectedEntityIds = getGraphSelectedEntityIds();
+  graphGenerateArticleButton.disabled = true;
+  setGraphStatus("正在生成知识图和长文...");
+
+  try {
+    const result = await apiRequest("/evorag/graph/generate", {
+      method: "POST",
+      body: JSON.stringify({
+        root_entity_id: graphRootEntityId,
+        selected_entity_ids: selectedEntityIds,
+        scope: graphScopePayload(),
+      }),
+    });
+    renderGraphCandidates(result.entities || graphCandidates, selectedEntityIds);
+    renderGraphMap(result.graph);
+    renderGraphOutline(result.outline || []);
+    renderGraphWarnings(result.warnings || []);
+    renderGraphArticle(result.article || "");
+    setGraphStatus(`已生成 ${result.entities?.length || selectedEntityIds.length} 个实体的知识长文。`);
+  } catch (error) {
+    setGraphStatus(error.message || "生成知识长文失败", true);
+  } finally {
+    graphGenerateArticleButton.disabled = !graphRootEntityId;
+  }
+}
+
 function openNote(noteId) {
   window.clearTimeout(saveTimer);
   const note = notes.find((item) => item.id === noteId) || notes[0];
@@ -1834,6 +2097,8 @@ for (const button of appTargetButtons) {
       renderMergeTask();
     } else if (target === "entities") {
       openReviewForJob(0).catch(showError);
+    } else if (target === "graph") {
+      graphQuery?.focus();
     }
   });
 }
@@ -1884,6 +2149,15 @@ for (const button of formatButtons) {
 for (const button of modeButtons) {
   button.addEventListener("click", () => setViewMode(button.dataset.mode));
 }
+
+graphLoadCandidatesButton?.addEventListener("click", () => loadGraphCandidates().catch(showError));
+graphGenerateArticleButton?.addEventListener("click", () => generateGraphArticle().catch(showError));
+graphQuery?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    loadGraphCandidates().catch(showError);
+  }
+});
 
 window.addEventListener("popstate", () => {
   activeAppView = getInitialAppView();

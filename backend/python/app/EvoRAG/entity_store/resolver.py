@@ -8,6 +8,7 @@ from app.EvoRAG.entity_store.models import CandidateEntity, EntityRelationMemory
 from app.EvoRAG.entity_store.normalizer import normalize_name
 from app.EvoRAG.entity_store.relation_memory import is_allow_relation, is_reject_relation
 from app.EvoRAG.indexes import EntityHybridIndex
+from app.EvoRAG.indexes.entity_hybrid import reciprocal_rank_fusion_entities
 from app.EvoRAG.llm import EvoRAGLLMClient
 
 
@@ -110,107 +111,238 @@ class EntityResolver:
         return await asyncio.gather(*(self.resolve_one(incoming) for incoming in incoming_entities))
 
     async def resolve_one(self, incoming: IncomingEntity) -> EntityResolutionDecision:
+        trace: list[dict[str, Any]] = []
+
+        def finish(decision: EntityResolutionDecision, exit_stage: str) -> EntityResolutionDecision:
+            decision.resolution_trace = trace
+            decision.resolution_exit_stage = exit_stage
+            return decision
+
         direct_relation = self._direct_relation(incoming)
-        if direct_relation is not None and is_allow_relation(direct_relation.decision):
-            return self._relation_memory_match_decision(incoming, direct_relation, reason="relation memory direct allow")
+        if direct_relation is None:
+            trace.append({"stage": "redis_direct_relation", "status": "miss", "relation": None})
+        else:
+            direct_status = "allow" if is_allow_relation(direct_relation.decision) else "non_allow"
+            trace.append(
+                {
+                    "stage": "redis_direct_relation",
+                    "status": direct_status,
+                    "relation": relation_memory_snapshot(direct_relation),
+                    "decision": direct_relation.decision,
+                    "reason": direct_relation.reason,
+                }
+            )
+            if is_allow_relation(direct_relation.decision):
+                return finish(
+                    self._relation_memory_match_decision(incoming, direct_relation, reason="relation memory direct allow"),
+                    "redis_direct_relation",
+                )
 
         admission = await self._judge_admission_guard(incoming)
-        if admission["decision"] in ADMISSION_REJECT_DECISIONS:
-            return EntityResolutionDecision(
-                incoming=incoming,
-                decision="new",
-                score=float(admission.get("confidence") or 0.0),
-                reason=str(admission.get("reason") or f"entity admission guard rejected as {admission['decision']}"),
-                candidates=[],
+        admission_rejected = admission["decision"] in ADMISSION_REJECT_DECISIONS
+        trace.append(
+            {
+                "stage": "deepseek_admission_guard",
+                "status": "ended" if admission_rejected else "continued",
+                "judge": admission,
+                "output_decision": "new" if admission_rejected else None,
+            }
+        )
+        if admission_rejected:
+            return finish(
+                EntityResolutionDecision(
+                    incoming=incoming,
+                    decision="new",
+                    score=float(admission.get("confidence") or 0.0),
+                    reason=str(admission.get("reason") or f"entity admission guard rejected as {admission['decision']}"),
+                    candidates=[],
+                ),
+                "deepseek_admission_guard",
             )
 
         relations = self._top_relations(incoming)
+        trace.append(
+            {
+                "stage": "mysql_relation_memory_top30",
+                "status": "found" if relations else "no_relation",
+                "top_k": 30,
+                "relations": [relation_memory_snapshot(relation) for relation in relations],
+            }
+        )
         if relations:
             memory_judgment = await self._judge_relation_memory(incoming, relations)
             matched_record = find_relation_record(relations, memory_judgment.get("matched_entity_id"))
+            relation_guard_status = "fallback_hybrid"
+            if memory_judgment["decision"] == "matched" and matched_record is not None:
+                relation_guard_status = "matched"
+            elif memory_judgment["decision"] in NON_MERGE_RELATION_DECISIONS and matched_record is not None:
+                relation_guard_status = "rejected_to_new"
+            trace.append(
+                {
+                    "stage": "deepseek_relation_guard",
+                    "status": relation_guard_status,
+                    "judge": memory_judgment,
+                    "matched_relation": relation_memory_snapshot(matched_record) if matched_record else None,
+                    "experience_written": (
+                        {
+                            "decision": "reject",
+                            "relation_type": str(memory_judgment["decision"]),
+                            "source": "llm_guard",
+                            "confidence": float(memory_judgment.get("confidence") or matched_record.confidence),
+                        }
+                        if relation_guard_status == "rejected_to_new" and matched_record is not None
+                        else None
+                    ),
+                }
+            )
             if memory_judgment["decision"] in NON_MERGE_RELATION_DECISIONS and matched_record is not None:
                 score = float(memory_judgment.get("confidence") or matched_record.confidence)
                 reason = str(memory_judgment.get("reason") or matched_record.reason)
-                return EntityResolutionDecision(
-                    incoming=incoming,
-                    decision="new",
-                    score=score,
-                    reason=reason,
-                    candidates=[self._relation_candidate(matched_record, score)],
-                    record_experience=True,
-                    experience_decision="reject",
-                    experience_relation_type=str(memory_judgment["decision"]),
-                    experience_source="llm_guard",
-                    experience_confidence=score,
+                return finish(
+                    EntityResolutionDecision(
+                        incoming=incoming,
+                        decision="new",
+                        score=score,
+                        reason=reason,
+                        candidates=[self._relation_candidate(matched_record, score)],
+                        record_experience=True,
+                        experience_decision="reject",
+                        experience_relation_type=str(memory_judgment["decision"]),
+                        experience_source="llm_guard",
+                        experience_confidence=score,
+                    ),
+                    "deepseek_relation_guard",
                 )
             if memory_judgment["decision"] == "matched" and matched_record is not None:
-                return self._relation_memory_match_decision(
-                    incoming,
-                    matched_record,
-                    reason=str(memory_judgment.get("reason") or matched_record.reason),
-                    score=float(memory_judgment.get("confidence") or matched_record.confidence),
+                return finish(
+                    self._relation_memory_match_decision(
+                        incoming,
+                        matched_record,
+                        reason=str(memory_judgment.get("reason") or matched_record.reason),
+                        score=float(memory_judgment.get("confidence") or matched_record.confidence),
+                    ),
+                    "deepseek_relation_guard",
                 )
+        else:
+            trace.append({"stage": "deepseek_relation_guard", "status": "skipped", "judge": None})
 
         alias_match = self.alias_lookup(incoming) if self.alias_lookup else None
         if alias_match is not None:
-            return EntityResolutionDecision(
-                incoming=incoming,
-                decision="matched",
-                matched_entity=alias_match,
-                score=1.0,
-                reason="alias map matched",
-                candidates=[],
+            trace.append({"stage": "alias_lookup", "status": "matched", "matched_entity_id": alias_match.id})
+            return finish(
+                EntityResolutionDecision(
+                    incoming=incoming,
+                    decision="matched",
+                    matched_entity=alias_match,
+                    score=1.0,
+                    reason="alias map matched",
+                    candidates=[],
+                ),
+                "alias_lookup",
             )
+        trace.append({"stage": "alias_lookup", "status": "miss"})
 
         exact = self._exact_name_match(incoming)
         if exact is not None:
-            return EntityResolutionDecision(
-                incoming=incoming,
-                decision="matched",
-                matched_entity=exact,
-                score=1.0,
-                reason="normalized name and entity type matched",
-                candidates=[],
+            trace.append({"stage": "exact_name_match", "status": "matched", "matched_entity_id": exact.id})
+            return finish(
+                EntityResolutionDecision(
+                    incoming=incoming,
+                    decision="matched",
+                    matched_entity=exact,
+                    score=1.0,
+                    reason="normalized name and entity type matched",
+                    candidates=[],
+                ),
+                "exact_name_match",
             )
+        trace.append({"stage": "exact_name_match", "status": "miss"})
 
-        candidates = self.hybrid_index.search(incoming, top_k=self.config.entity_resolution_top_k)
+        es_hits, milvus_hits, candidates = self._hybrid_search_components(incoming)
         candidates = self._hydrate_candidates(candidates)
         rejected_ids = self.rejection_lookup(incoming) if self.rejection_lookup else set()
         if rejected_ids:
             candidates = [candidate for candidate in candidates if candidate.entity.id not in rejected_ids]
+        trace.append(
+            {
+                "stage": "hybrid_rrf_baseline",
+                "status": "used",
+                "incoming_embedding": {
+                    "generated": bool(incoming.embedding),
+                    "dimension": len(incoming.embedding),
+                },
+                "milvus": {"results": [candidate_trace_payload(candidate) for candidate in milvus_hits]},
+                "elasticsearch": {"results": [candidate_trace_payload(candidate) for candidate in es_hits]},
+                "rrf": {"results": [candidate_trace_payload(candidate) for candidate in candidates]},
+                "rejected_candidate_ids": sorted(rejected_ids),
+            }
+        )
         if not candidates:
-            return EntityResolutionDecision(incoming=incoming, decision="new", reason="no candidates", candidates=[])
+            return finish(
+                EntityResolutionDecision(incoming=incoming, decision="new", reason="no candidates", candidates=[]),
+                "hybrid_rrf_baseline",
+            )
 
-        llm_decision = await self._try_final_llm_judge(incoming, candidates)
-        if llm_decision is not None:
-            return llm_decision
+        try:
+            llm_decision = await self._judge_with_llm(incoming, candidates)
+            trace.append(
+                {
+                    "stage": "deepseek_final_judge",
+                    "status": llm_decision.decision,
+                    "judge": {
+                        "decision": llm_decision.decision,
+                        "matched_entity_id": llm_decision.matched_entity.id if llm_decision.matched_entity else None,
+                        "confidence": llm_decision.score,
+                        "reason": llm_decision.reason,
+                    },
+                    "experience_written": experience_payload(llm_decision),
+                }
+            )
+            return finish(llm_decision, "deepseek_final_judge")
+        except Exception as exc:
+            trace.append(
+                {
+                    "stage": "deepseek_final_judge",
+                    "status": "failed",
+                    "error": str(exc),
+                }
+            )
 
         best = candidates[0]
         if best.score >= self.config.entity_resolution_auto_match_threshold and descriptions_compatible(incoming, best.entity):
-            return EntityResolutionDecision(
-                incoming=incoming,
-                decision="matched",
-                matched_entity=best.entity,
-                score=best.score,
-                reason="high vector score and compatible descriptions",
-                candidates=candidates,
+            return finish(
+                EntityResolutionDecision(
+                    incoming=incoming,
+                    decision="matched",
+                    matched_entity=best.entity,
+                    score=best.score,
+                    reason="high vector score and compatible descriptions",
+                    candidates=candidates,
+                ),
+                "hybrid_rrf_baseline",
             )
 
         if best.score >= self.config.entity_resolution_manual_threshold:
-            return EntityResolutionDecision(
-                incoming=incoming,
-                decision="ambiguous",
-                score=best.score,
-                reason="candidate score below auto-match threshold; manual review required",
-                candidates=candidates,
+            return finish(
+                EntityResolutionDecision(
+                    incoming=incoming,
+                    decision="ambiguous",
+                    score=best.score,
+                    reason="candidate score below auto-match threshold; manual review required",
+                    candidates=candidates,
+                ),
+                "hybrid_rrf_baseline",
             )
 
-        return EntityResolutionDecision(
-            incoming=incoming,
-            decision="new",
-            score=best.score,
-            reason="candidate score below manual threshold; create new entity",
-            candidates=candidates,
+        return finish(
+            EntityResolutionDecision(
+                incoming=incoming,
+                decision="new",
+                score=best.score,
+                reason="candidate score below manual threshold; create new entity",
+                candidates=candidates,
+            ),
+            "hybrid_rrf_baseline",
         )
 
     def _direct_relation(self, incoming: IncomingEntity) -> EntityRelationMemoryRecord | None:
@@ -286,6 +418,20 @@ class EntityResolver:
                 )
             )
         return hydrated
+
+    def _hybrid_search_components(self, incoming: IncomingEntity) -> tuple[list[CandidateEntity], list[CandidateEntity], list[CandidateEntity]]:
+        limit = self.config.entity_resolution_top_k
+        search_components = getattr(self.hybrid_index, "search_components", None)
+        if callable(search_components):
+            es_hits, milvus_hits = search_components(incoming, top_k=limit)
+            candidates = reciprocal_rank_fusion_entities(
+                [es_hits, milvus_hits],
+                rrf_k=self.config.entity_resolution_rrf_k,
+                top_k=limit,
+            )
+            return list(es_hits), list(milvus_hits), candidates
+        candidates = self.hybrid_index.search(incoming, top_k=limit)
+        return [], [], list(candidates)
 
     async def _judge_with_llm(self, incoming: IncomingEntity, candidates: list[CandidateEntity]) -> EntityResolutionDecision:
         payload = {
@@ -461,6 +607,29 @@ def relation_memory_snapshot(relation: EntityRelationMemoryRecord) -> dict[str, 
             "summary": entity.summary,
             "description_for_match": entity.description_for_match,
         },
+    }
+
+
+def candidate_trace_payload(candidate: CandidateEntity) -> dict[str, Any]:
+    return {
+        "entity_id": candidate.entity.id,
+        "canonical_name": candidate.entity.canonical_name,
+        "score": candidate.score,
+        "rank": candidate.rank,
+        "source": candidate.source,
+        "vector_score": candidate.vector_score,
+        "es_score": candidate.es_score,
+    }
+
+
+def experience_payload(decision: EntityResolutionDecision) -> dict[str, Any] | None:
+    if not decision.record_experience:
+        return None
+    return {
+        "decision": decision.experience_decision,
+        "relation_type": decision.experience_relation_type,
+        "source": decision.experience_source,
+        "confidence": decision.experience_confidence,
     }
 
 

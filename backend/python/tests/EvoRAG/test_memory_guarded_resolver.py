@@ -24,6 +24,9 @@ def test_resolver_uses_direct_relation_memory_allow_before_hybrid() -> None:
     assert decision.candidates[0].source == "relation_memory"
     assert hybrid_index.calls == []
     assert relation_memory.list_calls == 0
+    assert decision.resolution_trace[0]["stage"] == "redis_direct_relation"
+    assert decision.resolution_trace[0]["status"] == "allow"
+    assert decision.resolution_trace[0]["relation"]["candidate_entity"]["id"] == candidate.id
 
 
 def test_resolver_uses_mysql_relation_memory_judge_to_match() -> None:
@@ -119,8 +122,10 @@ def test_resolver_uses_final_llm_judge_after_hybrid_fallback() -> None:
         hybrid_index=hybrid_index,
         relation_memory=FakeRelationMemory(),
     )
+    incoming = incoming_entity()
+    incoming.embedding = [0.1, 0.2, 0.3]
 
-    decision = asyncio.run(resolver.resolve_one(incoming_entity()))
+    decision = asyncio.run(resolver.resolve_one(incoming))
 
     assert decision.decision == "matched"
     assert decision.matched_entity == candidate
@@ -129,6 +134,20 @@ def test_resolver_uses_final_llm_judge_after_hybrid_fallback() -> None:
     assert decision.experience_decision == "allow"
     assert decision.experience_relation_type == "llm_judge_match"
     assert decision.experience_source == "llm_judge"
+    stages = [step["stage"] for step in decision.resolution_trace]
+    assert "redis_direct_relation" in stages
+    assert "deepseek_admission_guard" in stages
+    assert "mysql_relation_memory_top30" in stages
+    assert "deepseek_relation_guard" in stages
+    assert "hybrid_rrf_baseline" in stages
+    assert "deepseek_final_judge" in stages
+    hybrid_step = next(step for step in decision.resolution_trace if step["stage"] == "hybrid_rrf_baseline")
+    assert hybrid_step["incoming_embedding"]["generated"] is True
+    assert hybrid_step["milvus"]["results"][0]["entity_id"] == candidate.id
+    assert hybrid_step["elasticsearch"]["results"] == []
+    assert hybrid_step["rrf"]["results"][0]["entity_id"] == candidate.id
+    final_judge_step = next(step for step in decision.resolution_trace if step["stage"] == "deepseek_final_judge")
+    assert final_judge_step["judge"]["decision"] == "matched"
 
 
 class FakeRelationMemory:
@@ -169,6 +188,10 @@ class FakeHybridIndex:
     def search(self, incoming: IncomingEntity, top_k: int) -> list[CandidateEntity]:
         self.calls.append({"incoming": incoming, "top_k": top_k})
         return self.candidates
+
+    def search_components(self, incoming: IncomingEntity, top_k: int):
+        self.calls.append({"incoming": incoming, "top_k": top_k, "components": True})
+        return [], self.candidates
 
 
 def relation(

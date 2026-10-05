@@ -9,7 +9,7 @@
       type="image/svg+xml"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232f6f65'/%3E%3Cpath d='M20 17h25v8H29v8h14v8H29v8h17v8H20z' fill='white'/%3E%3C/svg%3E"
     />
-    <link rel="stylesheet" href="/static/styles/main.css?v=20260927-shell-frame" />
+    <link rel="stylesheet" href="/static/styles/main.css?v=20261005-graph-pipeline" />
   </head>
   <body>
     <main class="login-page">
@@ -384,10 +384,71 @@
             </div>
           </section>
 
-          <section class="placeholder-view" data-app-view="graph" hidden>
-            <p class="section-kicker">Graph</p>
-            <h1>知识图谱</h1>
-            <p>后续展示实体节点、关系边、搜索过滤和知识展开路径。</p>
+          <section class="graph-view" data-app-view="graph" hidden>
+            <header class="module-header graph-header">
+              <div>
+                <p class="section-kicker">Graph</p>
+                <h1>知识图谱</h1>
+              </div>
+              <p id="graph-status" class="graph-status">输入实体名，加载相关实体后生成知识关系图和长文。</p>
+            </header>
+
+            <div class="graph-toolbar">
+              <div class="graph-search">
+                <label for="graph-query">实体</label>
+                <input id="graph-query" type="search" placeholder="例如 MVCC" autocomplete="off" />
+              </div>
+              <div class="graph-count">
+                <label for="graph-top-k">候选数</label>
+                <input id="graph-top-k" type="number" min="1" max="20" value="8" />
+              </div>
+              <button id="graph-load-candidates" class="primary-button" type="button">查询相关实体</button>
+              <button id="graph-generate-article" class="ghost-button" type="button" disabled>生成长文</button>
+            </div>
+
+            <div class="graph-workbench">
+              <aside class="graph-panel graph-candidates-panel">
+                <div class="panel-heading">
+                  <h2>实体候选</h2>
+                  <span>勾选后生成</span>
+                </div>
+                <div id="graph-candidate-list" class="graph-candidate-list">
+                  <p class="graph-empty">暂无候选实体。</p>
+                </div>
+              </aside>
+
+              <section class="graph-panel graph-map-panel">
+                <div class="panel-heading">
+                  <h2>知识关系图</h2>
+                  <span>语义依赖 / 条件依赖</span>
+                </div>
+                <div id="graph-node-map" class="graph-node-map">
+                  <p class="graph-empty">查询实体后展示节点。</p>
+                </div>
+                <div id="graph-edge-list" class="graph-edge-list"></div>
+              </section>
+
+              <section class="graph-panel graph-detail-panel">
+                <div class="panel-heading">
+                  <h2>生成大纲</h2>
+                  <span>来自 dependency_graph</span>
+                </div>
+                <div id="graph-outline" class="graph-outline">
+                  <p class="graph-empty">生成长文后展示大纲。</p>
+                </div>
+                <div id="graph-warning-list" class="graph-warning-list"></div>
+              </section>
+            </div>
+
+            <section class="graph-panel graph-result-panel">
+              <div class="panel-heading">
+                <h2>生成结果</h2>
+                <span>结构化长文</span>
+              </div>
+              <article id="graph-article" class="graph-article">
+                <p class="graph-empty">生成结果会显示在这里。</p>
+              </article>
+            </section>
           </section>
 
           <section class="placeholder-view" data-app-view="history" hidden>
@@ -405,6 +466,6 @@
       </section>
     </main>
 
-    <script type="module" src="/static/src/app.mjs?v=20260927-shell-frame"></script>
+    <script type="module" src="/static/src/app.mjs?v=20261005-graph-pipeline"></script>
   </body>
 </html>

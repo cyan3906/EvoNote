@@ -152,7 +152,12 @@ class EntityExtractor:
                 continue
 
             if self.config.entity_admission_judge_enabled:
-                judge_score = await self.judge_entity(block, entity)
+                try:
+                    judge_score = await self.judge_entity(block, entity)
+                except Exception as exc:
+                    accepted_entities.append(entity)
+                    warnings.append(f"entity admission judge failed for {entity.name}; kept candidate after extraction score passed: {exc}")
+                    continue
                 entity.admission_judge = judge_score
                 score = judge_score.entity_score
                 if judge_score.decision == "entity" and score >= self.config.entity_admission_judge_threshold:

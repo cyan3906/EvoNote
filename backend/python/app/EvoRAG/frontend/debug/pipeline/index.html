@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>EvoRAG Pipeline 调试</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="debug-shell">
+      <header class="topbar">
+        <div>
+          <h1>EvoRAG Pipeline 调试</h1>
+          <p>实体抽取、memory_guarded_hybrid、实体入库合并全流程测试</p>
+        </div>
+        <form id="auth-form" class="auth-form">
+          <span id="auth-state">未登录</span>
+          <input id="password" type="password" autocomplete="current-password" placeholder="开发密码" />
+          <button type="submit">登录</button>
+        </form>
+      </header>
+
+      <section class="input-band">
+        <div class="scope-grid">
+          <label>
+            Workspace
+            <input id="workspace-id" value="debug" />
+          </label>
+          <label>
+            Project
+            <input id="project-id" value="pipeline-test" />
+          </label>
+          <label>
+            Collection
+            <input id="collection-id" />
+          </label>
+          <label>
+            Domain
+            <input id="domain" value="general" />
+          </label>
+        </div>
+
+        <label class="text-label" for="knowledge-text">测试文本</label>
+        <textarea id="knowledge-text" spellcheck="false" placeholder="粘贴一段要测试的长文本"></textarea>
+        <div class="action-row">
+          <button id="pipeline-btn" type="button">运行 Pipeline</button>
+          <button id="clear-btn" type="button" class="secondary-button">清空</button>
+          <span id="status-line" class="status-line"></span>
+        </div>
+      </section>
+
+      <section id="summary-strip" class="summary-strip"></section>
+
+      <section class="stage-grid">
+        <article class="stage-panel">
+          <header>
+            <h2>1. 实体抽取</h2>
+            <span id="stage1-count">0</span>
+          </header>
+          <div id="stage1-output" class="output-list"></div>
+        </article>
+
+        <article class="stage-panel">
+          <header>
+            <h2>2. memory_guarded_hybrid</h2>
+            <span id="stage2-count">0</span>
+          </header>
+          <div id="stage2-output" class="output-list"></div>
+        </article>
+
+        <article class="stage-panel">
+          <header>
+            <h2>3. 实体入库合并</h2>
+            <span id="stage3-count">0</span>
+          </header>
+          <div id="stage3-output" class="output-list"></div>
+        </article>
+      </section>
+
+      <details class="raw-panel">
+        <summary>原始 JSON</summary>
+        <pre id="raw-json"></pre>
+      </details>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

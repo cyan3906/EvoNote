@@ -44,10 +44,12 @@ MySQL tables:
 Model settings:
 
 - `EVORAG_INFERENCE_MODEL`: chat/inference model for block splitting, entity extraction, and entity resolution.
+- `EVORAG_EMBEDDING_API_BASE_URL` and `EVORAG_EMBEDDING_API_KEY`: optional embedding-only OpenAI-compatible endpoint. When empty, embeddings fall back to `EVORAG_API_BASE_URL` / `EVORAG_API_KEY`.
 - `EVORAG_ENTITY_ADMISSION_JUDGE_ENABLED`: enables the independent entity-admission judge after entity extraction. Defaults to `true`.
 - `EVORAG_ENTITY_ADMISSION_JUDGE_MODEL`: model used only for entity-admission scoring. Defaults to `deepseek-v4-flash-0731` and reuses `EVORAG_API_BASE_URL` / `EVORAG_API_KEY`.
 - `EVORAG_ENTITY_ADMISSION_JUDGE_THRESHOLD`: minimum judge score required to keep a candidate as an entity. Defaults to `0.7`.
 - `EVORAG_EMBEDDING_MODEL`: embedding model reserved for entity vector generation.
+- `EVORAG_RETRY_ATTEMPTS`, `EVORAG_RETRY_BASE_DELAY_SECONDS`, and `EVORAG_RETRY_MAX_DELAY_SECONDS`: LLM retry policy. Defaults retry transient failures after `2s`, `4s`, `8s`, and `16s`.
 
 Entity resolution:
 

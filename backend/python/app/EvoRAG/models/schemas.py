@@ -105,9 +105,9 @@ class EntityAdmissionJudgeScore(BaseModel):
     attribute_type: str = ""
     reason: str = ""
 
-    @field_validator("decision", "parent_entity", "attribute_type", "reason")
+    @field_validator("decision", "parent_entity", "attribute_type", "reason", mode="before")
     @classmethod
-    def clean_judge_text(cls, value: str) -> str:
+    def clean_judge_text(cls, value: Any) -> str:
         return " ".join(str(value or "").split())
 
 

@@ -1,5 +1,5 @@
 import asyncio
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from typing import Any
 
 from app.EvoRAG.config import EvoRAGSettings, settings
@@ -15,6 +15,12 @@ from app.EvoRAG.models import EvoRAGPreprocessResult
 
 
 LOW_SCORE_DIRECT_REJECT_THRESHOLD = 0.5
+
+
+@dataclass(slots=True)
+class MemoryGuardedHybridPreview:
+    incoming_entities: list[IncomingEntity]
+    decisions: list[EntityResolutionDecision]
 
 
 class EntityIngestor:
@@ -72,7 +78,16 @@ class EntityIngestor:
         return queue_result
 
     async def ingest(self, result: EvoRAGPreprocessResult) -> list[EntityUpsertResult]:
-        incoming_entities = dedupe_extracted_entities(result.blocks, scope=self.scope)
+        preview = await self.preview_memory_guarded_hybrid(result)
+        return await self.apply_decisions(preview.decisions)
+
+    async def preview_memory_guarded_hybrid(
+        self,
+        result: EvoRAGPreprocessResult,
+        *,
+        source_note_id: str = "",
+    ) -> MemoryGuardedHybridPreview:
+        incoming_entities = dedupe_extracted_entities(result.blocks, scope=self.scope, source_note_id=source_note_id)
         vectors = await self.embedding_client.embed_texts(
             [entity.identity_description or entity.description_for_match or entity.name for entity in incoming_entities]
         )
@@ -89,7 +104,7 @@ class EntityIngestor:
             relation_memory=EntityRelationMemory(self.repository),
         )
         decisions = await resolver.resolve_many(incoming_entities)
-        return await self.apply_decisions(decisions)
+        return MemoryGuardedHybridPreview(incoming_entities=incoming_entities, decisions=decisions)
 
     async def process_incoming_entity_id(self, incoming_entity_id: int, *, worker_id: str) -> str:
         task = await asyncio.to_thread(

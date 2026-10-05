@@ -144,6 +144,8 @@ class EntityResolutionDecision:
     experience_relation_type: str = ""
     experience_source: str = ""
     experience_confidence: float = 0.0
+    resolution_trace: list[dict] = field(default_factory=list)
+    resolution_exit_stage: str = ""
 
 
 @dataclass(slots=True)

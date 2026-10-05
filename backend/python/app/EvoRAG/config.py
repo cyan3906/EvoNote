@@ -12,15 +12,17 @@ class EvoRAGSettings(BaseSettings):
     api_base_url: str = ""
     api_key: str = ""
     inference_model: str = ""
-    embedding_model: str = ""
+    embedding_api_base_url: str = ""
+    embedding_api_key: str = ""
+    embedding_model: str = "text-embedding-3-large"
     embedding_dimensions: int = 3072
     timeout_seconds: int = 45
     temperature: float = 0
 
     max_concurrency: int = 4
-    retry_attempts: int = 3
-    retry_base_delay_seconds: float = 0.5
-    retry_max_delay_seconds: float = 6.0
+    retry_attempts: int = 5
+    retry_base_delay_seconds: float = 2.0
+    retry_max_delay_seconds: float = 16.0
     circuit_failure_threshold: int = 5
     circuit_cooldown_seconds: float = 30.0
 
@@ -36,10 +38,10 @@ class EvoRAGSettings(BaseSettings):
     default_collection_id: str = "default"
     default_domain: str = "general"
 
-    mysql_host: str = "127.0.0.1"
+    mysql_host: str = "localhost"
     mysql_port: int = 3306
-    mysql_user: str = "root"
-    mysql_password: str = ""
+    mysql_user: str = "zjj"
+    mysql_password: str = "zjj250"
     mysql_database: str = "evorag"
     mysql_charset: str = "utf8mb4"
 

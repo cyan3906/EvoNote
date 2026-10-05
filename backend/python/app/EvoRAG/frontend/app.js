@@ -3,6 +3,8 @@ const state = {
   lastAnswer: "",
   activeJobId: 0,
   jobPollTimer: 0,
+  graphRootEntityId: 0,
+  graphSelectedEntityIds: [],
 };
 
 const dom = {
@@ -12,6 +14,8 @@ const dom = {
   extractBtn: document.querySelector("#extract-btn"),
   ingestBtn: document.querySelector("#ingest-btn"),
   queryBtn: document.querySelector("#query-btn"),
+  graphCandidatesBtn: document.querySelector("#graph-candidates-btn"),
+  graphGenerateBtn: document.querySelector("#graph-generate-btn"),
   indexSearchBtn: document.querySelector("#index-search-btn"),
   jobsRefreshBtn: document.querySelector("#jobs-refresh-btn"),
   reviewRefreshBtn: document.querySelector("#review-refresh-btn"),
@@ -21,6 +25,7 @@ const dom = {
   topK: document.querySelector("#top-k"),
   ingestStatus: document.querySelector("#ingest-status"),
   queryStatus: document.querySelector("#query-status"),
+  graphCandidates: document.querySelector("#graph-candidates"),
   indexSearchStatus: document.querySelector("#index-search-status"),
   extractedEntities: document.querySelector("#extracted-entities"),
   preprocessDetails: ensurePreprocessDetails(),
@@ -182,6 +187,62 @@ dom.queryBtn.addEventListener("click", async () => {
     setStatus(dom.queryStatus, `${error.message}（耗时 ${formatDuration(startedAt)}）`, "error");
   } finally {
     setBusy(dom.queryBtn, false, "生成");
+  }
+});
+
+dom.graphCandidatesBtn.addEventListener("click", async () => {
+  const entity = dom.entityQuery.value.trim();
+  if (!entity) {
+    setStatus(dom.queryStatus, "请输入要检索的实体。", "error");
+    return;
+  }
+
+  const startedAt = performance.now();
+  try {
+    setBusy(dom.graphCandidatesBtn, true, "加载中");
+    setStatus(dom.queryStatus, "正在检索相关实体候选并构建初始图谱...", "");
+    const data = await apiFetch("/api/evorag/graph/candidates", {
+      entity,
+      top_k: Number(dom.topK.value || 5),
+      scope: readScope(),
+    });
+    renderGraphCandidates(data);
+    setStatus(
+      dom.queryStatus,
+      data.root_entity
+        ? `已加载 ${data.candidates?.length || 0} 个相关实体候选。耗时 ${formatDuration(startedAt)}。`
+        : `没有找到匹配实体。耗时 ${formatDuration(startedAt)}。`,
+      data.root_entity ? "ok" : "error",
+    );
+  } catch (error) {
+    setStatus(dom.queryStatus, `${error.message}（耗时 ${formatDuration(startedAt)}）`, "error");
+  } finally {
+    setBusy(dom.graphCandidatesBtn, false, "选择相关实体");
+  }
+});
+
+dom.graphGenerateBtn.addEventListener("click", async () => {
+  const selectedIds = selectedGraphEntityIds();
+  if (!state.graphRootEntityId || !selectedIds.length) {
+    setStatus(dom.queryStatus, "请先加载并选择相关实体。", "error");
+    return;
+  }
+
+  const startedAt = performance.now();
+  try {
+    setBusy(dom.graphGenerateBtn, true, "生成中");
+    setStatus(dom.queryStatus, "正在根据选中实体生成知识图和长文...", "");
+    const data = await apiFetch("/api/evorag/graph/generate", {
+      root_entity_id: state.graphRootEntityId,
+      selected_entity_ids: selectedIds,
+      scope: readScope(),
+    });
+    renderGraphGeneratedResult(data);
+    setStatus(dom.queryStatus, `完成：已生成 ${data.entities?.length || 0} 个实体的知识图长文。耗时 ${formatDuration(startedAt)}。`, "ok");
+  } catch (error) {
+    setStatus(dom.queryStatus, `${error.message}（耗时 ${formatDuration(startedAt)}）`, "error");
+  } finally {
+    setBusy(dom.graphGenerateBtn, false, "生成知识图长文");
   }
 });
 
@@ -639,6 +700,68 @@ function renderQueryResult(data) {
   renderEntities(data.retrieved_entities || []);
   renderEdges(data.graph);
   renderWarnings(data.warnings || []);
+}
+
+function renderGraphCandidates(data) {
+  state.graphRootEntityId = data.root_entity?.id || 0;
+  state.graphSelectedEntityIds = data.default_selected_entity_ids || [];
+  renderEntities(data.candidates || []);
+  renderEdges(data.graph);
+  renderWarnings(data.warnings || []);
+  renderGraphCandidateControls(data.candidates || [], state.graphSelectedEntityIds);
+}
+
+function renderGraphGeneratedResult(data) {
+  state.lastAnswer = data.article || "";
+  dom.answer.classList.toggle("empty", !state.lastAnswer);
+  dom.answer.replaceChildren(...markdownBlocks(state.lastAnswer || "生成结果会显示在这里。"));
+  renderEntities(data.entities || []);
+  renderEdges(data.graph);
+  renderWarnings(data.warnings || []);
+}
+
+function renderGraphCandidateControls(entities, selectedIds) {
+  dom.graphCandidates.replaceChildren();
+  if (!entities.length) {
+    dom.graphCandidates.append(emptyItem("暂无可选相关实体"));
+    return;
+  }
+  const selected = new Set((selectedIds || []).map((id) => Number(id)));
+  for (const entity of entities) {
+    const label = document.createElement("label");
+    label.className = "graph-candidate";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.value = String(entity.id);
+    checkbox.checked = selected.has(Number(entity.id));
+    if (Number(entity.id) === Number(state.graphRootEntityId)) {
+      checkbox.checked = true;
+      checkbox.disabled = true;
+    }
+
+    const body = document.createElement("span");
+    const title = document.createElement("strong");
+    title.textContent = entity.canonical_name || `Entity ${entity.id}`;
+    const meta = document.createElement("small");
+    meta.textContent = [
+      Number(entity.id) === Number(state.graphRootEntityId) ? "根实体" : "",
+      entity.entity_type || "concept",
+      `score ${formatScore(entity.score)}`,
+      entity.source || "",
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    body.append(title, meta);
+    label.append(checkbox, body);
+    dom.graphCandidates.append(label);
+  }
+}
+
+function selectedGraphEntityIds() {
+  return [...dom.graphCandidates.querySelectorAll("input[type='checkbox']:checked")]
+    .map((input) => Number(input.value))
+    .filter((value) => Number.isFinite(value) && value > 0);
 }
 
 function renderEntities(entities) {
